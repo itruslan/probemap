@@ -1,5 +1,49 @@
 {
-  "nodes": [],
+  "nodes": [
+    {
+      "id": "group-1774787310087",
+      "x": -58.82435692281882,
+      "y": 48.68940121890165,
+      "type": "group",
+      "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
+      "width": 260,
+      "height": 180,
+      "zIndex": -1
+    },
+    {
+      "id": "group-1774787298297",
+      "x": -480.6460809681752,
+      "y": -345.93787177020585,
+      "type": "group",
+      "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
+      "width": 260,
+      "height": 180,
+      "zIndex": -2
+    },
+    {
+      "id": "argocd",
+      "x": -170.53634956375396,
+      "y": -8.934292477511477,
+      "type": "service"
+    },
+    {
+      "id": "grafana",
+      "x": -86.88506936000871,
+      "y": 53.0858305110179,
+      "type": "service"
+    }
+  ],
   "groups": [],
-  "edges": []
+  "edges": [
+    {
+      "markerEnd": {
+        "type": "arrowclosed"
+      },
+      "source": "argocd",
+      "sourceHandle": "right",
+      "target": "grafana",
+      "targetHandle": "top",
+      "id": "xy-edge__argocdright-grafanatop"
+    }
+  ]
 }

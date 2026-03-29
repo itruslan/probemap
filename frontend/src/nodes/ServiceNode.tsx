@@ -1,6 +1,7 @@
-import { Handle, type NodeProps, Position } from "@xyflow/react";
+import { type NodeProps } from "@xyflow/react";
 import type { Port, ZoneStatus } from "../api";
 import { useState } from "react";
+import { AllHandles } from "./handles";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -47,22 +48,19 @@ function PortDot({ port }: { port: Port }) {
   const [hover, setHover] = useState(false);
   return (
     <div
-      style={{ position: "relative", display: "inline-flex", alignItems: "center", gap: 4 }}
+      style={{ position: "relative", display: "flex", alignItems: "center", gap: 6 }}
       onMouseEnter={() => setHover(true)}
       onMouseLeave={() => setHover(false)}
     >
-      <Handle
-        type="source"
-        position={Position.Right}
-        id={port.port}
+      <div
         style={{
-          position: "static",
-          transform: "none",
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
           background: STATUS_COLOR[port.status],
           border: "2px solid #fff",
-          cursor: "crosshair",
+          boxShadow: "0 0 0 1px #cbd5e1",
+          flexShrink: 0,
         }}
       />
       <span style={{ fontSize: 11, color: "#64748b" }}>:{port.port}</span>
@@ -87,8 +85,10 @@ export function ServiceNode({ data }: NodeProps) {
         padding: "8px 12px",
         minWidth: 140,
         boxShadow: "0 1px 4px rgba(0,0,0,.1)",
+        position: "relative",
       }}
     >
+      <AllHandles />
       <div style={{ fontWeight: 600, fontSize: 13, marginBottom: 6, color: "#0f172a" }}>
         {d.label}
       </div>

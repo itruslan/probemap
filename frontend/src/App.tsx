@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import { ReactFlowProvider } from "@xyflow/react";
 import { fetchServices, type ServicesResponse } from "./api";
 import { TopologyCanvas } from "./TopologyCanvas";
 
@@ -21,5 +22,9 @@ export default function App() {
   if (error) return <div style={{ padding: 20, color: "red" }}>Ошибка: {error}</div>;
   if (!data) return <div style={{ padding: 20 }}>Загрузка...</div>;
 
-  return <TopologyCanvas data={data} onRefresh={refresh} />;
+  return (
+    <ReactFlowProvider>
+      <TopologyCanvas data={data} onRefresh={refresh} />
+    </ReactFlowProvider>
+  );
 }

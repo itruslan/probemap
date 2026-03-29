@@ -25,14 +25,21 @@ export interface ServicesResponse {
 export interface Layout {
   nodes: LayoutNode[];
   groups: Group[];
-  edges: Edge[];
+  edges: Record<string, unknown>[];
 }
 
 export interface LayoutNode {
   id: string;
   x: number;
   y: number;
+  type?: "service" | "custom" | "group";
+  label?: string;
+  kind?: string;
+  width?: number;
+  height?: number;
+  color?: string;
   group?: string;
+  zIndex?: number;
 }
 
 export interface Group {
