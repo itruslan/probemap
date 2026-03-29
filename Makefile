@@ -1,10 +1,14 @@
 VM_URL ?= https://victoriametrics.itruslan.ru
 
-.PHONY: run test lint help
+.PHONY: run run-frontend test lint fmt help
 
 ## Start backend in dev mode
 run:
 	VM_URL=$(VM_URL) uv run uvicorn main:app --reload --app-dir backend
+
+## Start frontend in dev mode (proxies /api to localhost:8000)
+run-frontend:
+	cd frontend && npm run dev
 
 ## Run tests
 test:
@@ -22,4 +26,4 @@ fmt:
 
 ## Show this help
 help:
-	@awk '/^## /{desc=substr($$0,4); next} /^[a-zA-Z][a-zA-Z0-9_-]*:/{print sprintf("  %-10s %s", substr($$1,1,length($$1)-1), desc); desc=""}' $(MAKEFILE_LIST)
+	@awk '/^## /{desc=substr($$0,4); next} /^[a-zA-Z][a-zA-Z0-9_-]*:/{print sprintf("  %-14s %s", substr($$1,1,length($$1)-1), desc); desc=""}' $(MAKEFILE_LIST)
