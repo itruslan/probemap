@@ -1,9 +1,12 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
 import { useState } from "react";
+import { IconRenderer } from "../IconRenderer";
+import { IconPicker } from "../IconPicker";
 
 export interface GroupNodeData {
   label: string;
   color?: string;
+  icon?: string;
 }
 
 const COLORS = [
@@ -17,15 +20,22 @@ const COLORS = [
 
 export function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
-  const { setNodes, getNodes } = useReactFlow();
+  const { setNodes, getNodes, updateNodeData } = useReactFlow();
   const [editing, setEditing] = useState(false);
-  const [label, setLabel] = useState(d.label || "Группа");
+  const [label, setLabel] = useState(d.label || "Область");
   const [colorIdx, setColorIdx] = useState(() => {
     if (!d.color) return 0;
     const i = COLORS.findIndex((c) => c.bg === d.color);
     return i >= 0 ? i : 0;
   });
   const [showColors, setShowColors] = useState(false);
+  const [pickerAnchor, setPickerAnchor] = useState<{ x: number; y: number } | null>(null);
+
+
+  const openPicker = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setPickerAnchor({ x: e.clientX + 8, y: e.clientY });
+  };
 
   const color = COLORS[colorIdx];
 
@@ -86,32 +96,60 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         onMouseLeave={() => setShowColors(false)}
       >
         {/* Заголовок */}
-        {editing ? (
-          <input
-            autoFocus
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-            onBlur={() => { d.label = label; setEditing(false); }}
-            onKeyDown={(e) => { if (e.key === "Enter") { d.label = label; setEditing(false); } }}
+        <div
+          style={{
+            position: "absolute", top: 4, left: 8,
+            display: "flex", alignItems: "center", gap: 4,
+            maxWidth: "calc(100% - 160px)",
+          }}
+        >
+          {/* Иконка — кнопка для выбора */}
+          <button
+            onClick={openPicker}
+            title={d.icon ? "Сменить иконку" : "Добавить иконку"}
             style={{
-              position: "absolute", top: 6, left: 10,
-              background: "transparent", border: "none",
-              borderBottom: `1.5px solid ${color.border}`,
-              outline: "none", fontSize: 12, fontWeight: 600,
-              color: color.label, width: "calc(100% - 20px)",
-            }}
-          />
-        ) : (
-          <div
-            onDoubleClick={() => setEditing(true)}
-            style={{
-              position: "absolute", top: 6, left: 10,
-              fontSize: 12, fontWeight: 600,
-              color: color.label, cursor: "text", userSelect: "none",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
+              border: d.icon ? "none" : `1px dashed ${color.border}`,
+              background: "transparent", cursor: "pointer", padding: 0,
+              color: color.label,
             }}
           >
-            {label}
-          </div>
+            {d.icon ? <IconRenderer name={d.icon} size={13} /> : <span style={{ fontSize: 10, lineHeight: 1 }}>+</span>}
+          </button>
+
+          {/* Название */}
+          {editing ? (
+            <input
+              autoFocus
+              value={label}
+              onChange={(e) => setLabel(e.target.value)}
+              onBlur={() => { d.label = label; setEditing(false); }}
+              onKeyDown={(e) => { if (e.key === "Enter") { d.label = label; setEditing(false); } }}
+              style={{
+                background: "transparent", border: "none",
+                borderBottom: `1.5px solid ${color.border}`,
+                outline: "none", fontSize: 12, fontWeight: 600,
+                color: color.label, width: 100,
+              }}
+            />
+          ) : (
+            <span
+              onDoubleClick={() => setEditing(true)}
+              style={{ fontSize: 12, fontWeight: 600, color: color.label, cursor: "text", userSelect: "none" }}
+            >
+              {label}
+            </span>
+          )}
+        </div>
+
+        {pickerAnchor && (
+          <IconPicker
+            anchorX={pickerAnchor.x}
+            anchorY={pickerAnchor.y}
+            onSelect={(name) => { updateNodeData(id, { icon: name }); setPickerAnchor(null); }}
+            onClose={() => setPickerAnchor(null)}
+          />
         )}
 
         {/* Цветовые пресеты + кнопки слоёв */}

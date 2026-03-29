@@ -5,7 +5,6 @@ import {
   Background,
   Controls,
   ConnectionMode,
-  MarkerType,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -16,51 +15,136 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchLayout, saveLayout, type Service, type ServicesResponse } from "./api";
+import { fetchLayout, saveLayout, fetchProjectLayout, saveProjectLayout, type Service, type ServicesResponse, type ServiceAction, type ServiceConfig } from "./api";
 import { ServiceNode, type ServiceNodeData } from "./nodes/ServiceNode";
 import { CustomNode, type CustomNodeData } from "./nodes/CustomNode";
 import { GroupNode, type GroupNodeData } from "./nodes/GroupNode";
 import { DeletableEdge } from "./edges/DeletableEdge";
-import { Palette, type CustomStencil } from "./Palette";
+import { Palette } from "./Palette";
+import { ContextMenu } from "./ContextMenu";
+import { CollisionContext } from "./CollisionContext";
 
 const NODE_TYPES = { service: ServiceNode, custom: CustomNode, group: GroupNode };
 const EDGE_TYPES = { default: DeletableEdge };
 
-function serviceToNode(svc: Service, position: { x: number; y: number }): Node {
+function serviceToNode(
+  svc: Service,
+  position: { x: number; y: number },
+  icon?: string,
+  description?: string,
+  actions?: ServiceAction[],
+): Node {
   return {
     id: svc.id,
     type: "service",
     position,
-    data: { label: svc.name, ports: svc.ports } satisfies ServiceNodeData,
+    data: { label: svc.name, ports: svc.ports, icon, description, actions } satisfies ServiceNodeData,
   };
 }
 
-function customToNode(stencil: CustomStencil, position: { x: number; y: number }): Node {
+function customToNode(kind: string, label: string, icon: string, position: { x: number; y: number }): Node {
   return {
     id: `custom-${Date.now()}`,
     type: "custom",
     position,
-    data: { label: stencil.label, kind: stencil.kind } satisfies CustomNodeData,
+    data: { label, kind, icon } satisfies CustomNodeData,
   };
 }
 
 interface Props {
   data: ServicesResponse;
+  projectId: string | null;
   onRefresh: () => void;
 }
 
-type DragTarget = { kind: "service"; svc: Service } | { kind: "custom"; stencil: CustomStencil };
-
-export function TopologyCanvas({ data, onRefresh }: Props) {
-  const { screenToFlowPosition } = useReactFlow();
-  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
+  const { screenToFlowPosition, getNodes } = useReactFlow();
+  const removedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
+  const layoutLoaded = useRef(false);
+  const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
-  const dragging = useRef<DragTarget | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const dragging = useRef<{ kind: "service"; svc: Service } | null>(null);
+
+
+  const [contextMenu, setContextMenu] = useState<{ screenX: number; screenY: number } | null>(null);
+  const [collidingIds, setCollidingIds] = useState<Set<string>>(new Set());
+
+  const COLLIDABLE = ["service", "custom"];
+
+  const getBounds = (n: Node) => ({
+    x: n.position.x, y: n.position.y,
+    w: n.measured?.width ?? 140, h: n.measured?.height ?? 80,
+  });
+
+  const overlaps = (a: ReturnType<typeof getBounds>, b: ReturnType<typeof getBounds>) =>
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+  const onNodeDrag = useCallback((_: React.MouseEvent, dragged: Node) => {
+    if (!COLLIDABLE.includes(dragged.type ?? "")) return;
+    const db = getBounds(dragged);
+    const ids = new Set(
+      getNodes()
+        .filter(n => n.id !== dragged.id && COLLIDABLE.includes(n.type ?? "") && overlaps(db, getBounds(n)))
+        .map(n => n.id)
+    );
+    setCollidingIds(ids);
+  }, [getNodes]);
+
+  const onNodeDragStop = useCallback((_: React.MouseEvent, dragged: Node) => {
+    setCollidingIds(new Set());
+    if (!COLLIDABLE.includes(dragged.type ?? "")) return;
+    const others = getNodes().filter(n => n.id !== dragged.id && COLLIDABLE.includes(n.type ?? ""));
+    const db = getBounds(dragged);
+    if (!others.some(n => overlaps(db, getBounds(n)))) return;
+
+    // Find nearest non-overlapping position by spiral offsets
+    let pos = dragged.position;
+    const step = 20;
+    outer: for (let r = 1; r <= 15; r++) {
+      for (const [dx, dy] of [
+        [r, 0], [0, r], [r, r], [-r, 0], [0, -r], [r, -r], [-r, r], [-r, -r],
+      ] as [number, number][]) {
+        const candidate = { x: dragged.position.x + dx * step, y: dragged.position.y + dy * step };
+        const tb = { ...db, ...candidate };
+        if (!others.some(n => overlaps(tb, getBounds(n)))) {
+          pos = candidate;
+          break outer;
+        }
+      }
+    }
+    setNodes(ns => ns.map(n => n.id === dragged.id ? { ...n, position: pos } : n));
+  }, [getNodes, setNodes]);
+
+  const onNodesChange: typeof onNodesChangeRaw = useCallback(
+    (changes) => {
+      const allowed = changes.filter((c) => {
+        if (c.type !== "remove") return true;
+        const node = getNodes().find((n) => n.id === c.id);
+        if (!node) return true;
+        if (node.type === "service") {
+          if (!window.confirm(`Убрать ${(node.data as { label?: string }).label ?? node.id} с карты?`)) {
+            return false;
+          }
+          removedPositions.current.set(c.id, { x: node.position.x, y: node.position.y });
+        }
+        return true;
+      });
+      onNodesChangeRaw(allowed);
+    },
+    [onNodesChangeRaw, getNodes]
+  );
 
   // Load saved layout on mount
   useEffect(() => {
-    fetchLayout().then((layout) => {
+    const loadLayout = projectId ? fetchProjectLayout(projectId) : fetchLayout();
+    loadLayout.then((layout) => {
+      // Restore service configs (for all services, including those not on canvas)
+      if (layout.service_configs) {
+        serviceConfigs.current = layout.service_configs;
+      }
+      layoutLoaded.current = true;
       if (!layout.nodes.length) return;
       const placed = layout.nodes
         .map((ln) => {
@@ -70,7 +154,7 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
               type: "group",
               position: { x: ln.x, y: ln.y },
               style: { width: ln.width ?? 260, height: ln.height ?? 180, zIndex: ln.zIndex ?? -1 },
-              data: { label: ln.label ?? "Группа", color: ln.color } satisfies GroupNodeData,
+              data: { label: ln.label ?? "Область", color: ln.color, icon: ln.icon } satisfies GroupNodeData,
             } as Node;
           }
           if (ln.type === "custom") {
@@ -78,31 +162,47 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
               id: ln.id,
               type: "custom",
               position: { x: ln.x, y: ln.y },
-              data: { label: ln.label ?? "", kind: ln.kind ?? "custom" } satisfies CustomNodeData,
+              data: { label: ln.label ?? "", kind: ln.kind ?? "custom", icon: ln.icon } satisfies CustomNodeData,
             } as Node;
           }
           const svc = data.services.find((s) => s.id === ln.id);
-          return svc ? serviceToNode(svc, { x: ln.x, y: ln.y }) : null;
+          if (!svc) return null;
+          const cfg = serviceConfigs.current[svc.id] ?? {};
+          return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions);
         })
         .filter(Boolean) as Node[];
       setNodes(placed);
       if (layout.edges?.length) {
         setEdges(layout.edges.map((e) => ({
           ...(e as unknown as Edge),
-          markerEnd: { type: MarkerType.ArrowClosed },
+          markerEnd: "url(#pm-arrow)",
         })));
       }
     });
   }, []);
 
-  // Update port statuses on data refresh without moving nodes
+  // Keep serviceConfigs in sync with node data changes
+  useEffect(() => {
+    nodes.forEach((n) => {
+      if (n.type !== "service") return;
+      const d = n.data as unknown as ServiceNodeData;
+      serviceConfigs.current[n.id] = {
+        icon: d.icon,
+        description: d.description,
+        actions: d.actions,
+      };
+    });
+  }, [nodes]);
+
+  // Update port statuses on data refresh without moving nodes or changing icons
   useEffect(() => {
     setNodes((prev) =>
       prev.map((n) => {
         if (n.type !== "service") return n;
         const svc = data.services.find((s) => s.id === n.id);
         if (!svc) return n;
-        return { ...n, data: { label: svc.name, ports: svc.ports } };
+        const d = n.data as unknown as ServiceNodeData;
+        return { ...n, data: { label: svc.name, ports: svc.ports, icon: d.icon, description: d.description, actions: d.actions } };
       })
     );
   }, [data]);
@@ -123,43 +223,66 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
       const target = dragging.current;
       if (!target) return;
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      if (target.kind === "service") {
-        setNodes((ns) => [...ns, serviceToNode(target.svc, position)]);
-      } else {
-        setNodes((ns) => [...ns, customToNode(target.stencil, position)]);
-      }
+      const cfg = serviceConfigs.current[target.svc.id] ?? {};
+      setNodes((ns) => [...ns, serviceToNode(target.svc, position, cfg.icon, cfg.description, cfg.actions)]);
       dragging.current = null;
     },
     [setNodes, screenToFlowPosition]
   );
 
-  const addGroup = useCallback(() => {
-    const rect = wrapperRef.current?.getBoundingClientRect();
-    const cx = rect ? rect.left + rect.width / 2 : 400;
-    const cy = rect ? rect.top + rect.height / 2 : 300;
-    const position = screenToFlowPosition({ x: cx, y: cy });
-    setNodes((ns) => {
-      const groupCount = ns.filter((n) => n.type === "group").length;
-      const newNode: Node = {
-        id: `group-${Date.now()}`,
-        type: "group",
-        position,
-        style: { width: 260, height: 180, zIndex: -10 + groupCount },
-        data: { label: "Группа" } satisfies GroupNodeData,
-      };
-      return [newNode, ...ns];
-    });
-  }, [setNodes, screenToFlowPosition]);
-
-  const addCustomNode = useCallback(
-    (stencil: CustomStencil) => {
-      const rect = wrapperRef.current?.getBoundingClientRect();
-      const cx = rect ? rect.left + rect.width / 2 : 400;
-      const cy = rect ? rect.top + rect.height / 2 : 300;
-      const position = screenToFlowPosition({ x: cx, y: cy });
-      setNodes((ns) => [...ns, customToNode(stencil, { x: position.x + ns.length * 20, y: position.y + ns.length * 20 })]);
+  const addArea = useCallback(
+    (screenX: number, screenY: number) => {
+      const position = screenToFlowPosition({ x: screenX, y: screenY });
+      setNodes((ns) => {
+        const groupCount = ns.filter((n) => n.type === "group").length;
+        return [
+          {
+            id: `group-${Date.now()}`,
+            type: "group",
+            position,
+            style: { width: 260, height: 180, zIndex: -10 + groupCount },
+            data: { label: "Область", icon: "FaLayerGroup" } satisfies GroupNodeData,
+          } as Node,
+          ...ns,
+        ];
+      });
     },
     [setNodes, screenToFlowPosition]
+  );
+
+  const addCustom = useCallback(
+    (screenX: number, screenY: number) => {
+      const position = screenToFlowPosition({ x: screenX, y: screenY });
+      setNodes((ns) => [...ns, customToNode("custom", "Объект", "FaBox", position)]);
+    },
+    [setNodes, screenToFlowPosition]
+  );
+
+  const toggleService = useCallback(
+    (svc: Service) => {
+      const onCanvas = getNodes().some((n) => n.id === svc.id && n.type === "service");
+      if (onCanvas) {
+        const node = getNodes().find((n) => n.id === svc.id);
+        if (node) removedPositions.current.set(svc.id, { x: node.position.x, y: node.position.y });
+        setNodes((ns) => ns.filter((n) => n.id !== svc.id));
+        setEdges((es) => es.filter((e) => e.source !== svc.id && e.target !== svc.id));
+      } else {
+        const saved = removedPositions.current.get(svc.id);
+        let position: { x: number; y: number };
+        if (saved) {
+          position = saved;
+          removedPositions.current.delete(svc.id);
+        } else {
+          const rect = wrapperRef.current?.getBoundingClientRect();
+          const cx = rect ? rect.left + rect.width / 2 : 400;
+          const cy = rect ? rect.top + rect.height / 2 : 300;
+          position = screenToFlowPosition({ x: cx, y: cy });
+        }
+        const cfg = serviceConfigs.current[svc.id] ?? {};
+        setNodes((ns) => [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions)]);
+      }
+    },
+    [getNodes, setNodes, setEdges, screenToFlowPosition]
   );
 
   const [saved, setSaved] = useState(false);
@@ -175,6 +298,7 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
         ? {
             label: (n.data as unknown as GroupNodeData).label,
             color: (n.data as unknown as GroupNodeData).color,
+            icon: (n.data as unknown as GroupNodeData).icon,
             width: n.measured?.width ?? (n.style?.width as number) ?? 260,
             height: n.measured?.height ?? (n.style?.height as number) ?? 180,
             zIndex: (n.style?.zIndex as number) ?? -1,
@@ -184,35 +308,55 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
         ? {
             label: (n.data as unknown as CustomNodeData).label,
             kind: (n.data as unknown as CustomNodeData).kind,
+            icon: (n.data as unknown as CustomNodeData).icon,
+          }
+        : {}),
+      ...(n.type === "service"
+        ? {
+            icon: (n.data as unknown as ServiceNodeData).icon,
+            description: (n.data as unknown as ServiceNodeData).description,
+            actions: (n.data as unknown as ServiceNodeData).actions,
           }
         : {}),
     }));
-    saveLayout({ nodes: layoutNodes, groups: [], edges: edges.map((e) => ({ ...e })) });
+    const payload = { nodes: layoutNodes, groups: [], edges: edges.map((e) => ({ ...e })), service_configs: serviceConfigs.current };
+    if (projectId) {
+      saveProjectLayout(projectId, payload);
+    } else {
+      saveLayout(payload);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   }, [nodes, edges]);
 
   useEffect(() => {
-    if (autosave) persistLayout();
+    if (autosave && layoutLoaded.current) persistLayout();
   }, [nodes, edges, autosave]);
 
   const onCanvas = new Set(nodes.filter((n) => n.type === "service").map((n) => n.id));
 
+  const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    // Only trigger on canvas background, not on nodes
+    if ((e.target as HTMLElement).closest(".react-flow__node")) return;
+    e.preventDefault();
+    setContextMenu({ screenX: e.clientX, screenY: e.clientY });
+  }, []);
+
   return (
-    <div style={{ display: "flex", height: "100vh", width: "100vw" }}>
+    <CollisionContext.Provider value={collidingIds}>
+    <div style={{ display: "flex", height: "100%", width: "100%" }}>
       <Palette
         services={data.services}
         onCanvas={onCanvas}
         onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
-        onDragStartCustom={(stencil) => { dragging.current = { kind: "custom", stencil }; }}
-        onAddCustom={addCustomNode}
-        onAddGroup={addGroup}
+        onToggleService={toggleService}
       />
       <div
         ref={wrapperRef}
         style={{ flex: 1, position: "relative" }}
         onDrop={onDrop}
         onDragOver={(e) => e.preventDefault()}
+        onContextMenu={handleContextMenu}
       >
         <button
           onClick={onRefresh}
@@ -251,8 +395,7 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
             padding: "6px 14px", borderRadius: 6, fontSize: 13, cursor: "pointer",
             border: saved ? "1.5px solid #22c55e" : "1.5px solid #e2e8f0",
             background: saved ? "#f0fdf4" : "#fff",
-            color: saved ? "#16a34a" : "inherit",
-            transition: "all 0.2s",
+            color: saved ? "#16a34a" : "inherit", transition: "all 0.2s",
           }}
         >
           {saved ? "Сохранено" : "Сохранить"}
@@ -264,17 +407,36 @@ export function TopologyCanvas({ data, onRefresh }: Props) {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onReconnect={onReconnect}
+          onNodeDrag={onNodeDrag}
+          onNodeDragStop={onNodeDragStop}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           deleteKeyCode={["Backspace", "Delete"]}
-          defaultEdgeOptions={{ markerEnd: { type: MarkerType.ArrowClosed } }}
+          defaultEdgeOptions={{ markerEnd: "url(#pm-arrow)" }}
           fitView
         >
           <Background />
           <Controls />
         </ReactFlow>
+
+        {contextMenu && (
+          <ContextMenu
+            x={contextMenu.screenX}
+            y={contextMenu.screenY}
+            services={data.services.filter((s) => !onCanvas.has(s.id))}
+            onAddArea={() => addArea(contextMenu.screenX, contextMenu.screenY)}
+            onAddObject={() => addCustom(contextMenu.screenX, contextMenu.screenY)}
+            onAddService={(svc) => {
+              const position = screenToFlowPosition({ x: contextMenu.screenX, y: contextMenu.screenY });
+              const cfg = serviceConfigs.current[svc.id] ?? {};
+              setNodes((ns) => [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions)]);
+            }}
+            onClose={() => setContextMenu(null)}
+          />
+        )}
       </div>
     </div>
+    </CollisionContext.Provider>
   );
 }

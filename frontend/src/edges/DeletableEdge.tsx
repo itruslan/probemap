@@ -32,6 +32,11 @@ export function DeletableEdge({
 
   return (
     <>
+      <defs>
+        <marker id="pm-arrow" markerWidth="6" markerHeight="10" refX="5.5" refY="5" orient="auto">
+          <path d="M0,0 L0,10 L6,5 z" fill="#b1b1b7" />
+        </marker>
+      </defs>
       {/* Невидимая широкая линия для удобного hover */}
       <path
         d={edgePath}
@@ -41,7 +46,7 @@ export function DeletableEdge({
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       />
-      <BaseEdge path={edgePath} markerEnd={markerEnd} style={style} />
+      <BaseEdge path={edgePath} markerEnd="url(#pm-arrow)" style={style} />
       <EdgeLabelRenderer>
         {hover && (
           <div

@@ -4,7 +4,7 @@ VM_URL ?= https://victoriametrics.itruslan.ru
 
 ## Start backend in dev mode
 run:
-	VM_URL=$(VM_URL) uv run uvicorn main:app --reload --app-dir backend
+	VM_URL=$(VM_URL) .venv/bin/python -m uvicorn main:app --reload --app-dir backend
 
 ## Start frontend in dev mode (proxies /api to localhost:8000)
 run-frontend:

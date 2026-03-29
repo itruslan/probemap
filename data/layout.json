@@ -1,49 +1,46 @@
 {
   "nodes": [
     {
-      "id": "group-1774787310087",
-      "x": -58.82435692281882,
-      "y": 48.68940121890165,
-      "type": "group",
-      "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
-      "width": 260,
-      "height": 180,
-      "zIndex": -1
-    },
-    {
-      "id": "group-1774787298297",
-      "x": -480.6460809681752,
-      "y": -345.93787177020585,
-      "type": "group",
-      "label": "\u0413\u0440\u0443\u043f\u043f\u0430",
-      "width": 260,
-      "height": 180,
-      "zIndex": -2
-    },
-    {
       "id": "argocd",
-      "x": -170.53634956375396,
-      "y": -8.934292477511477,
+      "x": 981.7501375618049,
+      "y": 220.56990139214176,
+      "type": "service",
+      "description": "123",
+      "actions": [
+        {
+          "icon": "FaGlobe",
+          "label": "google",
+          "url": "https://google.com"
+        }
+      ]
+    },
+    {
+      "id": "authentik",
+      "x": 608.4558374753755,
+      "y": -51.432203808180375,
       "type": "service"
     },
     {
       "id": "grafana",
-      "x": -86.88506936000871,
-      "y": 53.0858305110179,
+      "x": 990.7952763648594,
+      "y": 49.53055300970841,
       "type": "service"
     }
   ],
   "groups": [],
-  "edges": [
-    {
-      "markerEnd": {
-        "type": "arrowclosed"
-      },
-      "source": "argocd",
-      "sourceHandle": "right",
-      "target": "grafana",
-      "targetHandle": "top",
-      "id": "xy-edge__argocdright-grafanatop"
-    }
-  ]
+  "edges": [],
+  "service_configs": {
+    "argocd": {
+      "description": "123",
+      "actions": [
+        {
+          "icon": "FaGlobe",
+          "label": "google",
+          "url": "https://google.com"
+        }
+      ]
+    },
+    "authentik": {},
+    "grafana": {}
+  }
 }
