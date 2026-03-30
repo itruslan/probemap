@@ -2,16 +2,19 @@
   "datasource": {
     "name": "VictoriaMetrics Homelab",
     "type": "victoriametrics",
-    "url": "http://vmsingle-vm.monitoring.svc:8428"
+    "url": "https://victoriametrics.itruslan.ru"
   },
   "probe_jobs": [
-    { "job": "blackbox", "enabled": true }
+    {
+      "job": "blackbox",
+      "enabled": true
+    }
   ],
   "label_map": {
     "service": "service",
     "port": "port",
     "zone": "zone",
-    "module": "module",
+    "module": "__name__",
     "url": null
   }
 }

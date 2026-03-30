@@ -6,120 +6,124 @@ interface PaletteProps {
   onCanvas: Set<string>;
   onDragStart: (service: Service) => void;
   onToggleService: (service: Service) => void;
+  selectedId: string | null;
+  onSelect: (id: string | null) => void;
+  /** Подсветка узла на карте при наведении (только если узел из мониторинга уже на карте) */
+  onHoverChange: (id: string | null) => void;
 }
 
-export function Palette({ services, onCanvas, onDragStart, onToggleService }: PaletteProps) {
+export function Palette({
+  services,
+  onCanvas,
+  onDragStart,
+  onToggleService: _onToggleService,
+  selectedId,
+  onSelect,
+  onHoverChange,
+}: PaletteProps) {
   const [search, setSearch] = useState("");
-  const [open, setOpen] = useState(true);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
 
   const filtered = services
     .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => a.name.localeCompare(b.name, "ru"));
+    .sort((a, b) => {
+      const aOn = onCanvas.has(a.id);
+      const bOn = onCanvas.has(b.id);
+      if (aOn !== bOn) return aOn ? -1 : 1;
+      return a.name.localeCompare(b.name, "ru");
+    });
 
-  const onCanvasCount = services.filter((s) => onCanvas.has(s.id)).length;
+  const handleMouseEnter = (svc: Service) => {
+    setHoveredId(svc.id);
+    if (onCanvas.has(svc.id)) onHoverChange(svc.id);
+    else onHoverChange(null);
+  };
+
+  const handleMouseLeave = () => {
+    setHoveredId(null);
+    onHoverChange(null);
+  };
+
+  // Клик фиксирует выделение на карте; повторный клик по той же строке снимает
+  const handleClick = (svc: Service) => {
+    if (!onCanvas.has(svc.id)) return;
+    if (selectedId === svc.id) {
+      onSelect(null);
+    } else {
+      onSelect(svc.id);
+    }
+  };
+
+  const handlePaletteLeave = () => {
+    setHoveredId(null);
+    onHoverChange(null);
+  };
 
   return (
-    <div
-      style={{
-        width: 200,
-        borderRight: "1px solid #e2e8f0",
-        padding: "12px 8px",
-        display: "flex",
-        flexDirection: "column",
-        gap: 6,
-        background: "#f8fafc",
-        overflowY: "auto",
-      }}
-    >
-      <div
-        onClick={() => setOpen((o) => !o)}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "4px 4px 4px 8px",
-          cursor: "pointer",
-          userSelect: "none",
-        }}
-      >
-        <span style={{ fontSize: 11, fontWeight: 700, color: "#94a3b8" }}>СЕРВИСЫ</span>
-        <span style={{ fontSize: 10, color: "#94a3b8" }}>{onCanvasCount}/{services.length}</span>
-        <span style={{ fontSize: 10, color: "#94a3b8" }}>{open ? "▲" : "▼"}</span>
+    <aside className="palette-sidebar" onMouseLeave={handlePaletteLeave}>
+      <div className="palette-sidebar__header">
+        <span className="palette-sidebar__title">Узлы</span>
+        <span className="palette-sidebar__count">{services.length}</span>
       </div>
 
-      {open && (
-        <>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Поиск..."
-            style={{
-              margin: "0 4px",
-              padding: "5px 8px",
-              borderRadius: 6,
-              border: "1.5px solid #e2e8f0",
-              fontSize: 12,
-              outline: "none",
-              width: "calc(100% - 8px)",
-            }}
-          />
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {filtered.map((svc) => {
-              const active = onCanvas.has(svc.id);
-              return (
-                <div
-                  key={svc.id}
-                  draggable={!active}
-                  onDragStart={() => onDragStart(svc)}
-                  style={{
-                    padding: "5px 8px",
-                    borderRadius: 6,
-                    background: active ? "#eff6ff" : "#fff",
-                    borderLeft: active ? "3px solid #3b82f6" : "3px solid #cbd5e1",
-                    fontSize: 12,
-                    color: "#0f172a",
-                    userSelect: "none",
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    gap: 6,
-                    transition: "background 0.15s",
-                  }}
-                >
-                  <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
-                    {svc.name}
-                  </span>
-                  <button
-                    onClick={() => onToggleService(svc)}
-                    title={active ? "Убрать с карты" : "Добавить на карту"}
-                    style={{
-                      flexShrink: 0,
-                      width: 18, height: 18,
-                      borderRadius: "50%",
-                      border: "none",
-                      background: active ? "#fee2e2" : "#dcfce7",
-                      color: active ? "#ef4444" : "#16a34a",
-                      cursor: "pointer",
-                      fontSize: 13, lineHeight: 1,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      padding: 0,
-                    }}
-                  >
-                    {active ? "×" : "+"}
-                  </button>
-                </div>
-              );
-            })}
-            {filtered.length === 0 && (
-              <div style={{ fontSize: 11, color: "#94a3b8", padding: "4px 8px" }}>Ничего не найдено</div>
-            )}
-          </div>
-        </>
-      )}
+      <input
+        className="palette-sidebar__search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder="Поиск…"
+        type="search"
+        autoComplete="off"
+        spellCheck={false}
+      />
 
-      <div style={{ marginTop: "auto", paddingTop: 8, fontSize: 10, color: "#cbd5e1", textAlign: "center", lineHeight: 1.4 }}>
-        ПКМ на холсте<br />для добавления объектов
+      <div className="palette-sidebar__list">
+        {filtered.map((svc) => {
+          const active = onCanvas.has(svc.id);
+          const selected = active && selectedId === svc.id;
+          const hovered = hoveredId === svc.id;
+
+          const rowClass = [
+            "palette-row",
+            !active && "palette-row--missing",
+            active && "palette-row--on-canvas",
+            active && hovered && "palette-row--hover",
+            active && selected && "palette-row--selected",
+          ]
+            .filter(Boolean)
+            .join(" ");
+
+          return (
+            <div
+              key={svc.id}
+              draggable
+              onDragStart={() => onDragStart(svc)}
+              onClick={() => handleClick(svc)}
+              onMouseEnter={() => handleMouseEnter(svc)}
+              onMouseLeave={handleMouseLeave}
+              className={rowClass}
+            >
+              {svc.name}
+              {!active && hovered && (
+                <span style={{
+                  position: "absolute", right: 8, top: 0, bottom: 0,
+                  display: "flex", alignItems: "center",
+                  fontSize: 10, color: "#ef4444", fontWeight: 500,
+                  pointerEvents: "none",
+                }}>
+                  отсутствует на карте
+                </span>
+              )}
+            </div>
+          );
+        })}
+        {filtered.length === 0 && (
+          <div className="palette-sidebar__empty">Ничего не найдено</div>
+        )}
       </div>
-    </div>
+
+      <p className="palette-sidebar__hint">
+        Список из мониторинга. ПКМ на карте — добавить узел или область
+      </p>
+    </aside>
   );
 }

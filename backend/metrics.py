@@ -26,10 +26,13 @@ def _label_map() -> dict[str, Any]:
 
 
 async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(f"{vm_url}/api/v1/query", params={"query": q})
-        r.raise_for_status()
-        return r.json()["data"]["result"]
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(f"{vm_url}/api/v1/query", params={"query": q})
+            r.raise_for_status()
+            return r.json()["data"]["result"]
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 
 def _module_to_type(module: str) -> str:
@@ -92,10 +95,16 @@ async def get_services(filter_label: str | None = None, filter_value: str | None
         duration_map[key] = round(float(s["value"][1]) * 1000, 1)
 
     services_map: dict[str, dict] = {}
+    seen_ports: set[tuple[str, str]] = set()
     for s in discovery:
         m = s["metric"]
         svc_name = m.get(svc_l, "unknown")
         port = m.get(port_l, "unknown")
+
+        port_key = (svc_name, port)
+        if port_key in seen_ports:
+            continue
+        seen_ports.add(port_key)
 
         if svc_name not in services_map:
             services_map[svc_name] = {"id": svc_name, "name": svc_name, "ports": []}
@@ -152,24 +161,30 @@ async def discover_jobs() -> list[dict[str, Any]]:
 
 async def discover_labels() -> list[str]:
     vm_url = _get_vm_url()
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            f"{vm_url}/api/v1/labels",
-            params={"match[]": "probe_success"},
-        )
-        r.raise_for_status()
-        return sorted(r.json().get("data", []))
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{vm_url}/api/v1/labels",
+                params={"match[]": "probe_success"},
+            )
+            r.raise_for_status()
+            return sorted(r.json().get("data", []))
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 
 async def get_filter_values(label: str) -> list[str]:
     vm_url = _get_vm_url()
-    async with httpx.AsyncClient(timeout=10) as client:
-        r = await client.get(
-            f"{vm_url}/api/v1/label/{label}/values",
-            params={"match[]": "probe_success"},
-        )
-        r.raise_for_status()
-        return sorted(r.json().get("data", []))
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            r = await client.get(
+                f"{vm_url}/api/v1/label/{label}/values",
+                params={"match[]": "probe_success"},
+            )
+            r.raise_for_status()
+            return sorted(r.json().get("data", []))
+    except httpx.HTTPError as e:
+        raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 
 async def test_datasource(url: str) -> bool:

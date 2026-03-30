@@ -192,22 +192,47 @@ export function ServiceNode({ data, id }: NodeProps) {
         boxShadow: locked ? "0 6px 24px rgba(59,130,246,.18)" : "0 4px 16px rgba(0,0,0,.1)",
         padding: "12px 14px",
         fontSize: 12,
+        position: "relative",
       }}
     >
       {/* Probes */}
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 7, fontSize: 10, letterSpacing: "0.06em" }}>PROBES</div>
+      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 7, fontSize: 10, letterSpacing: "0.06em" }}>MONITORING</div>
       {probes.size > 0 ? [...probes.entries()].map(([zone, s]) => (
-        <div key={zone} style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 5 }}>
-          <div style={{ width: 7, height: 7, borderRadius: "50%", flexShrink: 0, background: s.ok ? "#22c55e" : "#ef4444" }} />
-          <span style={{ flex: 1, color: "#0f172a", fontSize: 12 }}>{zone}</span>
-          <div style={{ display: "flex", gap: 3 }}>
+        <div
+          key={zone}
+          style={{
+            display: "grid",
+            gridTemplateColumns: "10px minmax(0, 1fr) auto 4.25rem",
+            alignItems: "center",
+            columnGap: 8,
+            marginBottom: 5,
+          }}
+        >
+          <div
+            style={{
+              width: 7,
+              height: 7,
+              borderRadius: "50%",
+              justifySelf: "center",
+              background: s.ok ? "#22c55e" : "#ef4444",
+            }}
+          />
+          <span style={{ color: "#0f172a", fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{zone}</span>
+          <div style={{ display: "flex", gap: 3, flexWrap: "wrap", justifyContent: "flex-end" }}>
             {allProbeTypes.map((type) => (
               <ProbeTypeBadge key={type} type={type} active={s.probe_types.includes(type)} />
             ))}
           </div>
-          {s.duration_ms != null && (
-            <span style={{ color: "#94a3b8", fontSize: 11, minWidth: 40, textAlign: "right" }}>{s.duration_ms}ms</span>
-          )}
+          <span
+            style={{
+              color: "#94a3b8",
+              fontSize: 11,
+              textAlign: "right",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {s.duration_ms != null ? `${s.duration_ms}ms` : "—"}
+          </span>
         </div>
       )) : <div style={{ color: "#94a3b8", marginBottom: 4 }}>Нет данных</div>}
 
@@ -215,17 +240,32 @@ export function ServiceNode({ data, id }: NodeProps) {
       <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
       <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>DESCRIPTION</div>
       {locked && editingDesc ? (
-        <input autoFocus value={descDraft}
-          onChange={(e) => setDescDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") commitDesc(descDraft); if (e.key === "Escape") setEditingDesc(false); }}
-          onBlur={() => commitDesc(descDraft)}
-          placeholder="Описание..."
-          style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }}
-        />
+        <div>
+          <textarea autoFocus value={descDraft.slice(0, 120)}
+            onChange={(e) => setDescDraft(e.target.value.slice(0, 120))}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitDesc(descDraft); } if (e.key === "Escape") setEditingDesc(false); }}
+            onBlur={() => commitDesc(descDraft)}
+            placeholder="Описание..."
+            rows={2}
+            style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
+          />
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+            <span style={{ fontSize: 10, color: "#94a3b8" }}>
+              Нажмите <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span> для сохранения
+            </span>
+            <span style={{
+              fontSize: 10,
+              color: descDraft.length >= 110 ? "#ef4444" : descDraft.length >= 100 ? "#f97316" : "#94a3b8",
+              fontWeight: descDraft.length >= 100 ? 600 : 400,
+            }}>
+              {descDraft.length}/120
+            </span>
+          </div>
+        </div>
       ) : (
         <div
           onClick={locked ? () => { setDescDraft(d.description ?? ""); setEditingDesc(true); } : undefined}
-          style={{ cursor: locked ? "text" : "default", color: d.description ? "#0f172a" : "#94a3b8", minHeight: 18, lineHeight: 1.5, whiteSpace: "normal", padding: "2px 0" }}
+          style={{ cursor: locked ? "text" : "default", color: d.description ? "#0f172a" : "#94a3b8", minHeight: 18, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", padding: "2px 0" }}
         >
           {d.description || (locked ? "Нажмите, чтобы добавить описание..." : "—")}
         </div>
@@ -277,6 +317,34 @@ export function ServiceNode({ data, id }: NodeProps) {
           >+</button>
         ))}
       </div>
+
+      {/* Delete from canvas */}
+      {locked && (
+        <button
+          title="Удалить с карты"
+          onClick={(e) => {
+            e.stopPropagation();
+            document.dispatchEvent(new CustomEvent("delete-node-request", { detail: { id, label: d.label } }));
+          }}
+          style={{
+            position: "absolute", bottom: 10, right: 10,
+            width: 26, height: 26, borderRadius: 6,
+            border: "none", background: "transparent",
+            color: "#ef4444", cursor: "pointer",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            padding: 0, transition: "background 0.15s",
+          }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            <line x1="10" y1="11" x2="10" y2="17" />
+            <line x1="14" y1="11" x2="14" y2="17" />
+          </svg>
+        </button>
+      )}
     </div>,
     document.body
   ),

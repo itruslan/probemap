@@ -2,10 +2,23 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getBezierPath,
+  Position,
   useReactFlow,
   type EdgeProps,
 } from "@xyflow/react";
 import { useState } from "react";
+
+const ARROW = 7;
+
+function arrowPoints(x: number, y: number, pos?: Position): string {
+  switch (pos) {
+    case Position.Top:    return `${x},${y} ${x - ARROW / 2},${y - ARROW} ${x + ARROW / 2},${y - ARROW}`;
+    case Position.Bottom: return `${x},${y} ${x - ARROW / 2},${y + ARROW} ${x + ARROW / 2},${y + ARROW}`;
+    case Position.Left:   return `${x},${y} ${x - ARROW},${y - ARROW / 2} ${x - ARROW},${y + ARROW / 2}`;
+    case Position.Right:  return `${x},${y} ${x + ARROW},${y - ARROW / 2} ${x + ARROW},${y + ARROW / 2}`;
+    default:              return `${x},${y} ${x},${y - ARROW} ${x + ARROW * 0.6},${y}`;
+  }
+}
 
 export function DeletableEdge({
   id,
@@ -15,7 +28,6 @@ export function DeletableEdge({
   targetX,
   targetY,
   targetPosition,
-  markerEnd,
   style,
 }: EdgeProps) {
   const [hover, setHover] = useState(false);
@@ -32,12 +44,7 @@ export function DeletableEdge({
 
   return (
     <>
-      <defs>
-        <marker id="pm-arrow" markerWidth="6" markerHeight="10" refX="5.5" refY="5" orient="auto">
-          <path d="M0,0 L0,10 L6,5 z" fill="#b1b1b7" />
-        </marker>
-      </defs>
-      {/* Невидимая широкая линия для удобного hover */}
+      {/* Invisible wide line for hover detection */}
       <path
         d={edgePath}
         fill="none"
@@ -46,13 +53,18 @@ export function DeletableEdge({
         onMouseEnter={() => setHover(true)}
         onMouseLeave={() => setHover(false)}
       />
-      <BaseEdge path={edgePath} markerEnd="url(#pm-arrow)" style={style} />
+      <BaseEdge path={edgePath} style={style} />
+      {/* Arrowhead drawn as polygon — always 90° to node */}
+      <polygon
+        points={arrowPoints(targetX, targetY, targetPosition)}
+        fill="#b1b1b7"
+      />
       <EdgeLabelRenderer>
         {hover && (
           <div
             style={{
               position: "absolute",
-              transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)`,
+              transform: `translate(-50%, -50%) translate(${labelX}px,${labelY}px)`,
               pointerEvents: "all",
             }}
             onMouseEnter={() => setHover(true)}

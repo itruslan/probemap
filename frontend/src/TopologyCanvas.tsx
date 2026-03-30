@@ -14,6 +14,7 @@ import {
   type OnReconnect,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
+import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchLayout, saveLayout, fetchProjectLayout, saveProjectLayout, type Service, type ServicesResponse, type ServiceAction, type ServiceConfig } from "./api";
 import { ServiceNode, type ServiceNodeData } from "./nodes/ServiceNode";
@@ -70,6 +71,10 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
 
   const [contextMenu, setContextMenu] = useState<{ screenX: number; screenY: number } | null>(null);
   const [collidingIds, setCollidingIds] = useState<Set<string>>(new Set());
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; label: string } | null>(null);
+  const [confirmText, setConfirmText] = useState("");
+  const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(null);
+  const [paletteHoverId, setPaletteHoverId] = useState<string | null>(null);
 
   const COLLIDABLE = ["service", "custom"];
 
@@ -123,11 +128,9 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         if (c.type !== "remove") return true;
         const node = getNodes().find((n) => n.id === c.id);
         if (!node) return true;
-        if (node.type === "service") {
-          if (!window.confirm(`Убрать ${(node.data as { label?: string }).label ?? node.id} с карты?`)) {
-            return false;
-          }
-          removedPositions.current.set(c.id, { x: node.position.x, y: node.position.y });
+        if (node.type === "service" || node.type === "custom") {
+          // Service/custom nodes are deleted via confirmation modal, not directly
+          return false;
         }
         return true;
       });
@@ -135,6 +138,56 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
     },
     [onNodesChangeRaw, getNodes]
   );
+
+  // Handle Backspace/Delete on selected node (canvas selection or palette selection)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (confirmDelete) return;
+      if (e.key !== "Backspace" && e.key !== "Delete") return;
+      const tag = (e.target as HTMLElement).tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+      // Try ReactFlow selected first, then palette selection
+      const rfSelected = getNodes().filter((n) => n.selected && (n.type === "service" || n.type === "custom"));
+      let targetId: string | null = null;
+      if (rfSelected.length === 1) {
+        targetId = rfSelected[0].id;
+      } else if (paletteSelectedId) {
+        targetId = paletteSelectedId;
+      }
+      if (!targetId) return;
+      const node = getNodes().find((n) => n.id === targetId);
+      if (!node) return;
+      const label = (node.data as { label?: string }).label ?? node.id;
+      e.preventDefault();
+      setConfirmDelete({ id: node.id, label });
+      setConfirmText("");
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [getNodes, confirmDelete, paletteSelectedId]);
+
+  // Listen for custom delete-request events from ServiceNode trash icon
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { id, label } = (e as CustomEvent).detail;
+      setConfirmDelete({ id, label });
+      setConfirmText("");
+    };
+    document.addEventListener("delete-node-request", handler);
+    return () => document.removeEventListener("delete-node-request", handler);
+  }, []);
+
+  const doConfirmDelete = useCallback(() => {
+    if (!confirmDelete) return;
+    const node = getNodes().find((n) => n.id === confirmDelete.id);
+    if (node) removedPositions.current.set(confirmDelete.id, { x: node.position.x, y: node.position.y });
+    setNodes((ns) => ns.filter((n) => n.id !== confirmDelete.id));
+    setEdges((es) => es.filter((e) => e.source !== confirmDelete.id && e.target !== confirmDelete.id));
+    setPaletteSelectedId(null);
+    setPaletteHoverId(null);
+    setConfirmDelete(null);
+    setConfirmText("");
+  }, [confirmDelete, getNodes, setNodes, setEdges]);
 
   // Load saved layout on mount
   useEffect(() => {
@@ -162,7 +215,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
               id: ln.id,
               type: "custom",
               position: { x: ln.x, y: ln.y },
-              data: { label: ln.label ?? "", kind: ln.kind ?? "custom", icon: ln.icon } satisfies CustomNodeData,
+              data: { label: ln.label ?? "", kind: ln.kind ?? "custom", icon: ln.icon, description: (ln as any).description, actions: (ln as any).actions } satisfies CustomNodeData,
             } as Node;
           }
           const svc = data.services.find((s) => s.id === ln.id);
@@ -173,13 +226,22 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         .filter(Boolean) as Node[];
       setNodes(placed);
       if (layout.edges?.length) {
-        setEdges(layout.edges.map((e) => ({
-          ...(e as unknown as Edge),
-          markerEnd: "url(#pm-arrow)",
-        })));
+        setEdges(layout.edges.map((e) => e as unknown as Edge));
       }
     });
   }, []);
+
+  // Подсветка с палитры: зафиксированное выделение (клик) и превью при наведении
+  useEffect(() => {
+    setNodes((prev) =>
+      prev.map((n) => {
+        let cls: string | undefined;
+        if (n.id === paletteSelectedId) cls = "palette-selected";
+        else if (paletteHoverId && n.id === paletteHoverId) cls = "palette-hover";
+        return { ...n, className: cls };
+      })
+    );
+  }, [paletteSelectedId, paletteHoverId, setNodes]);
 
   // Keep serviceConfigs in sync with node data changes
   useEffect(() => {
@@ -253,7 +315,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
   const addCustom = useCallback(
     (screenX: number, screenY: number) => {
       const position = screenToFlowPosition({ x: screenX, y: screenY });
-      setNodes((ns) => [...ns, customToNode("custom", "Объект", "FaBox", position)]);
+      setNodes((ns) => [...ns, customToNode("custom", "Узел", "FaBox", position)]);
     },
     [setNodes, screenToFlowPosition]
   );
@@ -309,6 +371,8 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
             label: (n.data as unknown as CustomNodeData).label,
             kind: (n.data as unknown as CustomNodeData).kind,
             icon: (n.data as unknown as CustomNodeData).icon,
+            description: (n.data as unknown as CustomNodeData).description,
+            actions: (n.data as unknown as CustomNodeData).actions,
           }
         : {}),
       ...(n.type === "service"
@@ -350,6 +414,9 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         onCanvas={onCanvas}
         onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
         onToggleService={toggleService}
+        selectedId={paletteSelectedId}
+        onSelect={setPaletteSelectedId}
+        onHoverChange={setPaletteHoverId}
       />
       <div
         ref={wrapperRef}
@@ -412,8 +479,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
-          deleteKeyCode={["Backspace", "Delete"]}
-          defaultEdgeOptions={{ markerEnd: "url(#pm-arrow)" }}
+          defaultEdgeOptions={{}}
           fitView
         >
           <Background />
@@ -437,6 +503,59 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         )}
       </div>
     </div>
+
+    {confirmDelete && createPortal(
+      <div
+        onClick={(e) => { if (e.target === e.currentTarget) { setConfirmDelete(null); setConfirmText(""); } }}
+        style={{
+          position: "fixed", inset: 0, zIndex: 4000,
+          background: "rgba(0,0,0,0.3)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}
+      >
+        <div style={{
+          background: "#fff", borderRadius: 10, width: 360,
+          boxShadow: "0 8px 32px rgba(0,0,0,.18)", padding: "20px 24px",
+        }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+            Удалить с карты
+          </div>
+          <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>
+            Введите <strong style={{ color: "#0f172a" }}>{confirmDelete.label}</strong> для подтверждения:
+          </div>
+          <input
+            autoFocus
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && confirmText === confirmDelete.label) doConfirmDelete(); if (e.key === "Escape") { setConfirmDelete(null); setConfirmText(""); } }}
+            placeholder={confirmDelete.label}
+            style={{
+              width: "100%", boxSizing: "border-box",
+              padding: "7px 10px", borderRadius: 6, fontSize: 13,
+              border: "1.5px solid #e2e8f0", outline: "none", color: "#0f172a",
+              marginBottom: 16,
+            }}
+          />
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+            <button onClick={() => { setConfirmDelete(null); setConfirmText(""); }}
+              style={{ padding: "6px 16px", borderRadius: 6, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, cursor: "pointer", color: "#64748b" }}>
+              Отмена
+            </button>
+            <button onClick={doConfirmDelete} disabled={confirmText !== confirmDelete.label}
+              style={{
+                padding: "6px 16px", borderRadius: 6, border: "none", fontSize: 13, cursor: "pointer",
+                background: confirmText === confirmDelete.label ? "#ef4444" : "#f1f5f9",
+                color: confirmText === confirmDelete.label ? "#fff" : "#94a3b8",
+                transition: "background 0.15s, color 0.15s",
+              }}>
+              Удалить
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body,
+    )}
+
     </CollisionContext.Provider>
   );
 }

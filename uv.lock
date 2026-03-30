@@ -144,7 +144,7 @@ wheels = [
 ]
 
 [[package]]
-name = "pingmap"
+name = "probemap"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

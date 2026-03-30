@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaObjectGroup, FaBox, FaDisplay } from "react-icons/fa6";
+import { FaObjectGroup, FaBox } from "react-icons/fa6";
 import type { Service } from "./api";
 
 export interface CatalogItem {
@@ -20,7 +20,7 @@ interface Props {
 }
 
 const MENU_W = 188;
-const SUB_W = 180;
+const SUB_W = 200;
 
 export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddService, onClose }: Props) {
   const mainRef = useRef<HTMLDivElement>(null);
@@ -75,13 +75,7 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
         />
         <Row
           icon={<FaBox size={13} />}
-          label="Добавить объект"
-          onClick={() => { onAddObject(); onClose(); }}
-          onMouseEnter={() => setShowSub(false)}
-        />
-        <Row
-          icon={<FaDisplay size={13} />}
-          label="Добавить сервис"
+          label="Добавить узел"
           arrow
           active={showSub}
           onMouseEnter={(e) => { setSubY(e.currentTarget.getBoundingClientRect().top); setShowSub(true); }}
@@ -93,7 +87,7 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
           ref={subRef}
           style={{
             position: "fixed",
-            top: Math.min(subY, window.innerHeight - Math.max(services.length, 1) * 32 - 8),
+            top: Math.min(subY, window.innerHeight - 300),
             left: subLeft,
             zIndex: 1001,
             background: "#fff",
@@ -108,17 +102,28 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
             overflowY: "auto",
           }}
         >
-          {services.length > 0 ? services.map((svc) => (
-            <Row
-              key={svc.id}
-              label={svc.name}
-              onClick={() => { onAddService(svc); onClose(); }}
-            />
-          )) : (
-            <div style={{ padding: "6px 14px", color: "#94a3b8", fontSize: 12 }}>
-              Все сервисы на холсте
+          {services.length > 0 && (
+            <>
+              {services.map((svc) => (
+                <Row
+                  key={svc.id}
+                  label={svc.name}
+                  onClick={() => { onAddService(svc); onClose(); }}
+                />
+              ))}
+              <div style={{ height: 1, background: "#e2e8f0", margin: "6px 10px" }} />
+            </>
+          )}
+          {services.length === 0 && (
+            <div style={{ padding: "8px 14px 6px", color: "#94a3b8", fontSize: 12, lineHeight: 1.35 }}>
+              Все узлы из мониторинга уже на карте
             </div>
           )}
+          <Row
+            label="Без метрик"
+            hint="произвольный узел"
+            onClick={() => { onAddObject(); onClose(); }}
+          />
         </div>
       )}
     </>,
@@ -127,10 +132,11 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
 }
 
 function Row({
-  icon, label, arrow, active, onMouseEnter, onClick,
+  icon, label, hint, arrow, active, onMouseEnter, onClick,
 }: {
   icon?: React.ReactNode;
   label: string;
+  hint?: string;
   arrow?: boolean;
   active?: boolean;
   onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
@@ -142,20 +148,28 @@ function Row({
       onMouseEnter={onMouseEnter}
       style={{
         display: "flex", alignItems: "center", gap: 8,
-        padding: "6px 14px",
-        cursor: "pointer", userSelect: "none",
+        padding: hint ? "7px 14px" : "6px 14px",
+        cursor: onClick ? "pointer" : "default",
+        userSelect: "none",
         background: active ? "#f1f5f9" : "",
         justifyContent: "space-between",
       }}
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = ""; }}
-      onMouseOver={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+      onMouseOver={(e) => { if (onClick || arrow) e.currentTarget.style.background = "#f1f5f9"; }}
       onMouseOut={(e) => { if (!active) e.currentTarget.style.background = ""; }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ color: "#64748b", display: "flex" }}>{icon}</span>
-        {label}
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0, flex: 1 }}>
+        {icon != null && (
+          <span style={{ color: "#64748b", display: "flex", flexShrink: 0, marginTop: hint ? 2 : 0 }}>{icon}</span>
+        )}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
+          <span style={{ color: "#0f172a", lineHeight: 1.25 }}>{label}</span>
+          {hint && (
+            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, lineHeight: 1.2 }}>{hint}</span>
+          )}
+        </div>
       </div>
-      {arrow && <span style={{ color: "#94a3b8", fontSize: 11 }}>›</span>}
+      {arrow && <span style={{ color: "#94a3b8", fontSize: 11, flexShrink: 0, alignSelf: "center" }}>›</span>}
     </div>
   );
 }

@@ -1,0 +1,83 @@
+{
+  "nodes": [
+    {
+      "id": "authentik",
+      "x": 115.71132134402936,
+      "y": -2046.2343526185234,
+      "type": "service",
+      "icon": "custom:DotNet",
+      "description": "asdfasdf"
+    },
+    {
+      "id": "argocd",
+      "x": 388.05683265853537,
+      "y": -1826.7831964308682,
+      "type": "service",
+      "icon": "custom:Redis",
+      "description": "\u0444\u044b\u0432\u0430\u0444 \u044b\u0432\u044b\u0430 \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \u0448\u0444\u044b\u0449\u0432\u0430 \u044b\u0444\u041f\n\u044b\u0432\u0430\u044b \n- \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \n",
+      "actions": [
+        {
+          "icon": "FaGlobe",
+          "label": "google",
+          "url": "https://google.com"
+        }
+      ]
+    },
+    {
+      "id": "custom-1774812878406",
+      "x": 404.94692608194424,
+      "y": -1956.0326132598746,
+      "type": "custom",
+      "label": "\u041e\u0431\u044a\u0435\u043a\u0442",
+      "kind": "custom",
+      "icon": "FaRocket",
+      "description": "\u0444\u0432\u0444\u044b\u0432\u0444\u044b\u0432\u0444\u044b\u0432"
+    },
+    {
+      "id": "grafana",
+      "x": 105.32905403404044,
+      "y": -1937.535355760035,
+      "type": "service",
+      "icon": "FaDatabase",
+      "description": "123 123 123 12 123 21 312 213 123 13 1 1 1 313 1"
+    }
+  ],
+  "groups": [],
+  "edges": [
+    {
+      "source": "authentik",
+      "sourceHandle": "right",
+      "target": "custom-1774812878406",
+      "targetHandle": "left",
+      "id": "xy-edge__authentikright-custom-1774812878406left"
+    },
+    {
+      "source": "grafana",
+      "sourceHandle": "right",
+      "target": "argocd",
+      "targetHandle": "left",
+      "id": "xy-edge__grafanaright-argocdleft"
+    }
+  ],
+  "service_configs": {
+    "argocd": {
+      "icon": "custom:Redis",
+      "description": "\u0444\u044b\u0432\u0430\u0444 \u044b\u0432\u044b\u0430 \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \u0448\u0444\u044b\u0449\u0432\u0430 \u044b\u0444\u041f\n\u044b\u0432\u0430\u044b \n- \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \n",
+      "actions": [
+        {
+          "icon": "FaGlobe",
+          "label": "google",
+          "url": "https://google.com"
+        }
+      ]
+    },
+    "authentik": {
+      "icon": "custom:DotNet",
+      "description": "asdfasdf"
+    },
+    "grafana": {
+      "icon": "FaDatabase",
+      "description": "123 123 123 12 123 21 312 213 123 13 1 1 1 313 1"
+    }
+  }
+}

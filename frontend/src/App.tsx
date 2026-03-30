@@ -136,7 +136,7 @@ export default function App() {
         <button
           onClick={() => setSettingsOpen(true)}
           title="Settings"
-          style={{ ...iconBtn, fontSize: 16 }}
+          style={{ ...iconBtn, fontSize: 28 }}
         >⚙</button>
       </div>
 

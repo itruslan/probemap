@@ -1,5 +1,22 @@
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
+class ApiError extends Error {
+  status: number;
+  constructor(status: number, message: string) {
+    super(message);
+    this.status = status;
+  }
+}
+
+async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
+  const r = await fetch(url, init);
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new ApiError(r.status, text || `HTTP ${r.status}`);
+  }
+  return r.json();
+}
+
 // ---------------------------------------------------------------------------
 // Monitoring types
 // ---------------------------------------------------------------------------
@@ -128,17 +145,15 @@ export interface Project {
 // ---------------------------------------------------------------------------
 
 export async function fetchServices(): Promise<ServicesResponse> {
-  const r = await fetch(`${BASE}/api/services`);
-  return r.json();
+  return apiFetch<ServicesResponse>(`${BASE}/api/services`);
 }
 
 export async function fetchLayout(): Promise<Layout> {
-  const r = await fetch(`${BASE}/api/layout`);
-  return r.json();
+  return apiFetch<Layout>(`${BASE}/api/layout`);
 }
 
 export async function saveLayout(layout: Layout): Promise<void> {
-  await fetch(`${BASE}/api/layout`, {
+  await apiFetch(`${BASE}/api/layout`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(layout),
@@ -150,49 +165,47 @@ export async function saveLayout(layout: Layout): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function fetchProjects(): Promise<Project[]> {
-  const r = await fetch(`${BASE}/api/projects`);
-  return r.json();
+  return apiFetch<Project[]>(`${BASE}/api/projects`);
 }
 
 export async function createProject(name: string, filter: ProjectFilter | null): Promise<Project> {
-  const r = await fetch(`${BASE}/api/projects`, {
+  return apiFetch<Project>(`${BASE}/api/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, filter }),
   });
-  return r.json();
 }
 
 export async function updateProject(id: string, data: Partial<Omit<Project, "id">>): Promise<Project> {
-  const r = await fetch(`${BASE}/api/projects/${id}`, {
+  return apiFetch<Project>(`${BASE}/api/projects/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
-  return r.json();
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  await fetch(`${BASE}/api/projects/${id}`, { method: "DELETE" });
+  const r = await fetch(`${BASE}/api/projects/${id}`, { method: "DELETE" });
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new ApiError(r.status, text || `HTTP ${r.status}`);
+  }
 }
 
 export async function fetchProjectFilterValues(id: string): Promise<string[]> {
-  const r = await fetch(`${BASE}/api/projects/${id}/filter-values`);
-  return r.json();
+  return apiFetch<string[]>(`${BASE}/api/projects/${id}/filter-values`);
 }
 
 export async function fetchProjectServices(id: string): Promise<ServicesResponse> {
-  const r = await fetch(`${BASE}/api/projects/${id}/services`);
-  return r.json();
+  return apiFetch<ServicesResponse>(`${BASE}/api/projects/${id}/services`);
 }
 
 export async function fetchProjectLayout(id: string): Promise<Layout> {
-  const r = await fetch(`${BASE}/api/projects/${id}/layout`);
-  return r.json();
+  return apiFetch<Layout>(`${BASE}/api/projects/${id}/layout`);
 }
 
 export async function saveProjectLayout(id: string, layout: Layout): Promise<void> {
-  await fetch(`${BASE}/api/projects/${id}/layout`, {
+  await apiFetch(`${BASE}/api/projects/${id}/layout`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(layout),
@@ -204,12 +217,11 @@ export async function saveProjectLayout(id: string, layout: Layout): Promise<voi
 // ---------------------------------------------------------------------------
 
 export async function fetchConfig(): Promise<AppConfig> {
-  const r = await fetch(`${BASE}/api/config`);
-  return r.json();
+  return apiFetch<AppConfig>(`${BASE}/api/config`);
 }
 
 export async function saveConfig(cfg: AppConfig): Promise<void> {
-  await fetch(`${BASE}/api/config`, {
+  await apiFetch(`${BASE}/api/config`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),
@@ -222,20 +234,17 @@ export async function testDatasource(url: string): Promise<boolean> {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ url }),
   });
+  if (!r.ok) return false;
   const data = await r.json();
   return data.ok === true;
 }
 
 export async function discoverJobs(): Promise<DiscoveredJob[]> {
-  const r = await fetch(`${BASE}/api/config/discover/jobs`);
-  if (!r.ok) return [];
-  return r.json();
+  return apiFetch<DiscoveredJob[]>(`${BASE}/api/config/discover/jobs`).catch(() => []);
 }
 
 export async function discoverLabels(): Promise<string[]> {
-  const r = await fetch(`${BASE}/api/config/discover/labels`);
-  if (!r.ok) return [];
-  return r.json();
+  return apiFetch<string[]>(`${BASE}/api/config/discover/labels`).catch(() => []);
 }
 
 // ---------------------------------------------------------------------------
@@ -248,8 +257,7 @@ export interface CustomIcon {
 }
 
 export async function fetchIcons(): Promise<CustomIcon[]> {
-  const r = await fetch(`${BASE}/api/icons`);
-  const data = await r.json();
+  const data = await apiFetch<{ icons: CustomIcon[] }>(`${BASE}/api/icons`);
   return data.icons;
 }
 
@@ -257,10 +265,13 @@ export async function uploadIcon(name: string, file: File): Promise<CustomIcon> 
   const form = new FormData();
   form.append("name", name);
   form.append("file", file);
-  const r = await fetch(`${BASE}/api/icons`, { method: "POST", body: form });
-  return r.json();
+  return apiFetch<CustomIcon>(`${BASE}/api/icons`, { method: "POST", body: form });
 }
 
 export async function deleteIcon(name: string): Promise<void> {
-  await fetch(`${BASE}/api/icons/${name}`, { method: "DELETE" });
+  const r = await fetch(`${BASE}/api/icons/${name}`, { method: "DELETE" });
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new ApiError(r.status, text || `HTTP ${r.status}`);
+  }
 }
