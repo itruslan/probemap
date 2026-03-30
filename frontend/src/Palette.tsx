@@ -12,6 +12,8 @@ interface PaletteProps {
   onSelect: (id: string | null) => void;
   /** Подсветка узла на карте при наведении (только если узел из мониторинга уже на карте) */
   onHoverChange: (id: string | null) => void;
+  /** Данные устарели — без перетаскивания и добавления */
+  readOnly?: boolean;
 }
 
 export function Palette({
@@ -19,6 +21,7 @@ export function Palette({
   onCanvas,
   onDragStart,
   onAddService,
+  readOnly = false,
   selectedId,
   onSelect,
   onHoverChange,
@@ -63,7 +66,11 @@ export function Palette({
   };
 
   return (
-    <aside className="palette-sidebar" onMouseLeave={handlePaletteLeave}>
+    <aside
+      className="palette-sidebar"
+      onMouseLeave={handlePaletteLeave}
+      style={readOnly ? { opacity: 0.72 } : undefined}
+    >
       <div className="palette-sidebar__header">
         <span className="palette-sidebar__title">{t("nodesTitle")}</span>
         <span className="palette-sidebar__count">{services.length}</span>
@@ -98,15 +105,17 @@ export function Palette({
           return (
             <div
               key={svc.id}
-              draggable
-              onDragStart={() => onDragStart(svc)}
+              draggable={!readOnly}
+              onDragStart={() => {
+                if (!readOnly) onDragStart(svc);
+              }}
               onClick={() => handleClick(svc)}
               onMouseEnter={() => handleMouseEnter(svc)}
               onMouseLeave={handleMouseLeave}
               className={rowClass}
             >
               <span className="palette-row__name">{svc.name}</span>
-              {!active && (
+              {!active && !readOnly && (
                 <button
                   type="button"
                   className="palette-row__add"

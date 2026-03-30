@@ -1,6 +1,18 @@
 {
   "nodes": [
     {
+      "id": "group-1774886906858",
+      "x": 1289.1820405559006,
+      "y": -438.6434353384792,
+      "type": "group",
+      "label": "Area",
+      "color": "rgba(252,231,243,0.6)",
+      "icon": "FaLayerGroup",
+      "width": 372,
+      "height": 342,
+      "zIndex": -10
+    },
+    {
       "id": "anylink-vpn",
       "x": 924.6003419945143,
       "y": 185.14564108791683,
@@ -218,8 +230,8 @@
     },
     {
       "id": "icmp-cloudflare",
-      "x": 1571.779631919314,
-      "y": -87.46702006090007,
+      "x": 1533.779631919314,
+      "y": -165.46702006090007,
       "type": "service",
       "label": "icmp-cloudflare",
       "matchServiceId": null
@@ -319,6 +331,14 @@
       "type": "service",
       "label": "wikipedia",
       "matchServiceId": null
+    },
+    {
+      "id": "rust-lang",
+      "x": 28.16725147022092,
+      "y": -618.406318696664,
+      "type": "service",
+      "label": "rust-lang",
+      "matchServiceId": null
     }
   ],
   "groups": [],
@@ -371,6 +391,7 @@
     "letsencrypt": {},
     "icmp-verisign": {},
     "quad9-dns-tcp": {},
-    "wikipedia": {}
+    "wikipedia": {},
+    "rust-lang": {}
   }
 }

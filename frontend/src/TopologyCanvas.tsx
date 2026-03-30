@@ -10,13 +10,15 @@ import {
   useReactFlow,
   type Node,
   type Edge,
+  type EdgeChange,
   type OnConnect,
   type OnReconnect,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchLayout, saveLayout, fetchProjectLayout, saveProjectLayout, type Service, type ServicesResponse, type ServiceAction, type ServiceConfig } from "./api";
+import { fetchProjectLayout, saveProjectLayout, type Service, type ServicesResponse, type ServiceAction, type ServiceConfig } from "./api";
+import { POLL_INTERVAL_OPTIONS_SEC } from "./pollInterval";
 import { ServiceNode, type ServiceNodeData } from "./nodes/ServiceNode";
 import { CustomNode, type CustomNodeData } from "./nodes/CustomNode";
 import { GroupNode, type GroupNodeData } from "./nodes/GroupNode";
@@ -150,18 +152,39 @@ function findFreePositionViewportLeftColumn(
 
 interface Props {
   data: ServicesResponse;
-  projectId: string | null;
+  projectId: string;
   onRefresh: () => void;
+  pollIntervalSec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
+  onPollIntervalSecChange: (sec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number]) => void;
+  /** Данные мониторинга устарели — затемнение канваса, без правок */
+  metricsStale: boolean;
 }
 
-export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
+export function TopologyCanvas({
+  data,
+  projectId,
+  onRefresh,
+  pollIntervalSec,
+  onPollIntervalSecChange,
+  metricsStale,
+}: Props) {
   const { t } = useI18n();
   const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom } = useReactFlow();
   const removedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
   const layoutLoaded = useRef(false);
   const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+  const [edges, setEdges, onEdgesChangeBase] = useEdgesState<Edge>([]);
+  const onEdgesChange = useCallback(
+    (changes: EdgeChange[]) => {
+      if (metricsStale) {
+        onEdgesChangeBase(changes.filter((c) => c.type !== "remove"));
+        return;
+      }
+      onEdgesChangeBase(changes);
+    },
+    [metricsStale, onEdgesChangeBase],
+  );
   const wrapperRef = useRef<HTMLDivElement>(null);
   const dragging = useRef<{ kind: "service"; svc: Service } | null>(null);
 
@@ -238,6 +261,12 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
 
   const onNodesChange: typeof onNodesChangeRaw = useCallback(
     (changes) => {
+      if (metricsStale) {
+        onNodesChangeRaw(
+          changes.filter((c) => c.type !== "remove" && c.type !== "add"),
+        );
+        return;
+      }
       const allowed = changes.filter((c) => {
         if (c.type !== "remove") return true;
         const node = getNodes().find((n) => n.id === c.id);
@@ -250,12 +279,13 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
       });
       onNodesChangeRaw(allowed);
     },
-    [onNodesChangeRaw, getNodes]
+    [onNodesChangeRaw, getNodes, metricsStale]
   );
 
   // Handle Backspace/Delete on selected node (canvas selection or palette selection)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (metricsStale) return;
       if (confirmDelete) return;
       if (e.key !== "Backspace" && e.key !== "Delete") return;
       const tag = (e.target as HTMLElement).tagName;
@@ -278,18 +308,19 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [getNodes, confirmDelete, paletteSelectedId]);
+  }, [getNodes, confirmDelete, paletteSelectedId, metricsStale]);
 
   // Listen for custom delete-request events from ServiceNode trash icon
   useEffect(() => {
     const handler = (e: Event) => {
+      if (metricsStale) return;
       const { id, label } = (e as CustomEvent).detail;
       setConfirmDelete({ id, label });
       setConfirmText("");
     };
     document.addEventListener("delete-node-request", handler);
     return () => document.removeEventListener("delete-node-request", handler);
-  }, []);
+  }, [metricsStale]);
 
   const doConfirmDelete = useCallback(() => {
     if (!confirmDelete) return;
@@ -303,10 +334,9 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
     setConfirmText("");
   }, [confirmDelete, getNodes, setNodes, setEdges]);
 
-  // Load saved layout on mount
+  // Load saved layout on mount (отдельный файл раскладки на проект)
   useEffect(() => {
-    const loadLayout = projectId ? fetchProjectLayout(projectId) : fetchLayout();
-    loadLayout.then((layout) => {
+    fetchProjectLayout(projectId).then((layout) => {
       // Restore service configs (for all services, including those not on canvas)
       if (layout.service_configs) {
         serviceConfigs.current = layout.service_configs;
@@ -361,7 +391,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         setEdges(layout.edges.map((e) => e as unknown as Edge));
       }
     });
-  }, []);
+  }, [projectId]);
 
   // Подсветка с палитры: зафиксированное выделение (клик) и превью при наведении
   useEffect(() => {
@@ -427,18 +457,28 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
   }, [data]);
 
   const onConnect: OnConnect = useCallback(
-    (conn) => setEdges((eds) => addEdge(conn, eds)),
-    [setEdges]
+    (conn) => {
+      if (metricsStale) return;
+      setEdges((eds) => addEdge(conn, eds));
+    },
+    [metricsStale, setEdges]
   );
 
   const onReconnect: OnReconnect = useCallback(
-    (oldEdge, newConn) => setEdges((eds) => reconnectEdge(oldEdge, newConn, eds)),
-    [setEdges]
+    (oldEdge, newConn) => {
+      if (metricsStale) return;
+      setEdges((eds) => reconnectEdge(oldEdge, newConn, eds));
+    },
+    [metricsStale, setEdges]
   );
 
   const onDrop = useCallback(
     (e: React.DragEvent) => {
       e.preventDefault();
+      if (metricsStale) {
+        dragging.current = null;
+        return;
+      }
       const target = dragging.current;
       if (!target) return;
       const position = screenToFlowPosition({ x: e.clientX, y: e.clientY });
@@ -446,7 +486,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
       setNodes((ns) => [...ns, serviceToNode(target.svc, position, cfg.icon, cfg.description, cfg.actions)]);
       dragging.current = null;
     },
-    [setNodes, screenToFlowPosition]
+    [setNodes, screenToFlowPosition, metricsStale]
   );
 
   const addArea = useCallback(
@@ -563,27 +603,33 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         : {}),
     }));
     const payload = { nodes: layoutNodes, groups: [], edges: edges.map((e) => ({ ...e })), service_configs: serviceConfigs.current };
-    if (projectId) {
-      saveProjectLayout(projectId, payload);
-    } else {
-      saveLayout(payload);
-    }
+    saveProjectLayout(projectId, payload);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
-  }, [nodes, edges]);
+  }, [nodes, edges, projectId]);
 
   useEffect(() => {
-    if (autosave && layoutLoaded.current) persistLayout();
-  }, [nodes, edges, autosave]);
+    if (autosave && layoutLoaded.current && !metricsStale) persistLayout();
+  }, [nodes, edges, autosave, metricsStale]);
 
   const onCanvas = new Set(nodes.filter((n) => n.type === "service").map((n) => n.id));
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
+    if (metricsStale) {
+      e.preventDefault();
+      return;
+    }
     // Only trigger on canvas background, not on nodes
     if ((e.target as HTMLElement).closest(".react-flow__node")) return;
     e.preventDefault();
     setContextMenu({ screenX: e.clientX, screenY: e.clientY });
-  }, []);
+  }, [metricsStale]);
+
+  useEffect(() => {
+    if (metricsStale) setContextMenu(null);
+  }, [metricsStale]);
+
+  const onBeforeDelete = useCallback(async () => !metricsStale, [metricsStale]);
 
   return (
     <CollisionContext.Provider value={collidingIds}>
@@ -594,6 +640,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           onCanvas={onCanvas}
           onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
           onAddService={addServiceFromPalette}
+          readOnly={metricsStale}
           selectedId={paletteSelectedId}
           onSelect={onPaletteSelect}
           onHoverChange={setPaletteHoverId}
@@ -605,19 +652,100 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           onDragOver={(e) => e.preventDefault()}
           onContextMenu={handleContextMenu}
         >
-        <button
-          onClick={onRefresh}
+        {metricsStale && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              zIndex: 4,
+              background: "rgba(248, 250, 252, 0.82)",
+              pointerEvents: "none",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                maxWidth: 400,
+                textAlign: "center",
+                fontSize: 14,
+                lineHeight: 1.55,
+                color: "#475569",
+                fontWeight: 500,
+              }}
+            >
+              {t("metricsStaleOverlay")}
+            </div>
+          </div>
+        )}
+        <div
           style={{
-            position: "absolute", top: 12, right: 12, zIndex: 10,
-            padding: "6px 14px", borderRadius: 6, border: "1.5px solid #e2e8f0",
-            background: "#fff", cursor: "pointer", fontSize: 13,
+            position: "absolute",
+            top: 12,
+            right: 12,
+            zIndex: 10,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {t("refresh")}
-        </button>
+          <label
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              fontSize: 12,
+              color: "#64748b",
+              userSelect: "none",
+            }}
+          >
+            <span style={{ whiteSpace: "nowrap" }}>{t("pollDataInterval")}</span>
+            <select
+              value={pollIntervalSec}
+              onChange={(e) => {
+                const v = Number(e.target.value) as (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
+                onPollIntervalSecChange(v);
+              }}
+              style={{
+                padding: "4px 8px",
+                borderRadius: 6,
+                border: "1.5px solid #e2e8f0",
+                background: "#fff",
+                fontSize: 13,
+                color: "#0f172a",
+                cursor: "pointer",
+                minWidth: 72,
+              }}
+            >
+              {POLL_INTERVAL_OPTIONS_SEC.map((sec) => (
+                <option key={sec} value={sec}>
+                  {sec}
+                  {t("pollIntervalSecondsSuffix")}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={onRefresh}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 6,
+              border: "1.5px solid #e2e8f0",
+              background: "#fff",
+              cursor: "pointer",
+              fontSize: 13,
+            }}
+          >
+            {t("refresh")}
+          </button>
+        </div>
         <label
           style={{
-            position: "absolute", top: 12, right: 220, zIndex: 10,
+            position: "absolute", top: 12, right: 320, zIndex: 10,
             display: "flex", alignItems: "center", gap: 5,
             padding: "6px 10px", borderRadius: 6, fontSize: 13,
             border: "1.5px solid #e2e8f0", background: "#fff", cursor: "pointer",
@@ -627,22 +755,27 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           <input
             type="checkbox"
             checked={autosave}
+            disabled={metricsStale}
             onChange={(e) => {
               setAutosave(e.target.checked);
               localStorage.setItem("autosave", e.target.checked ? "1" : "0");
             }}
-            style={{ cursor: "pointer" }}
+            style={{ cursor: metricsStale ? "not-allowed" : "pointer" }}
           />
           {t("autosave")}
         </label>
         <button
+          type="button"
           onClick={persistLayout}
+          disabled={metricsStale}
           style={{
-            position: "absolute", top: 12, right: 110, zIndex: 10,
-            padding: "6px 14px", borderRadius: 6, fontSize: 13, cursor: "pointer",
+            position: "absolute", top: 12, right: 210, zIndex: 10,
+            padding: "6px 14px", borderRadius: 6, fontSize: 13,
+            cursor: metricsStale ? "not-allowed" : "pointer",
             border: saved ? "1.5px solid #22c55e" : "1.5px solid #e2e8f0",
             background: saved ? "#f0fdf4" : "#fff",
             color: saved ? "#16a34a" : "inherit", transition: "all 0.2s",
+            opacity: metricsStale ? 0.55 : 1,
           }}
         >
           {saved ? t("saved") : t("save")}
@@ -660,6 +793,10 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           defaultEdgeOptions={{}}
+          nodesDraggable={!metricsStale}
+          nodesConnectable={!metricsStale}
+          edgesReconnectable={!metricsStale}
+          onBeforeDelete={onBeforeDelete}
           fitView
         >
           <Background />

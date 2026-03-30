@@ -1,0 +1,34 @@
+{
+  "nodes": [
+    {
+      "id": "authentik",
+      "x": -101,
+      "y": -309,
+      "type": "service",
+      "label": "authentik",
+      "matchServiceId": null
+    },
+    {
+      "id": "npm-registry",
+      "x": -350.41700271706327,
+      "y": -362.3692167794317,
+      "type": "service",
+      "label": "npm-registry",
+      "matchServiceId": null
+    }
+  ],
+  "groups": [],
+  "edges": [
+    {
+      "source": "npm-registry",
+      "sourceHandle": "right",
+      "target": "authentik",
+      "targetHandle": "left",
+      "id": "xy-edge__npm-registryright-authentikleft"
+    }
+  ],
+  "service_configs": {
+    "authentik": {},
+    "npm-registry": {}
+  }
+}

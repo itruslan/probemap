@@ -21,6 +21,16 @@ app.add_middleware(
 )
 
 
+def _metrics_http_exception(e: RuntimeError) -> HTTPException:
+    """424 — источник не настроен; 503 — VictoriaMetrics/Prometheus недоступен или ошибка запроса."""
+    msg = str(e)
+    if msg == "Datasource not configured":
+        return HTTPException(status_code=424, detail=msg)
+    if "VictoriaMetrics request failed" in msg:
+        return HTTPException(status_code=503, detail=msg)
+    return HTTPException(status_code=500, detail=msg)
+
+
 @app.get("/health")
 def health() -> dict[str, str]:
     """Liveness/readiness для оркестраторов (K8s и т.п.)."""
@@ -74,7 +84,7 @@ async def discover_jobs() -> list[dict[str, Any]]:
     try:
         return await metrics.discover_jobs()
     except RuntimeError as e:
-        raise HTTPException(status_code=424, detail=str(e))
+        raise _metrics_http_exception(e) from e
 
 
 @app.get("/api/config/discover/labels")
@@ -82,7 +92,7 @@ async def discover_labels() -> list[str]:
     try:
         return await metrics.discover_labels()
     except RuntimeError as e:
-        raise HTTPException(status_code=424, detail=str(e))
+        raise _metrics_http_exception(e) from e
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +144,7 @@ async def project_filter_values(project_id: str, label: str | None = Query(None)
     try:
         return await metrics.get_filter_values(lab)
     except RuntimeError as e:
-        raise HTTPException(status_code=424, detail=str(e))
+        raise _metrics_http_exception(e) from e
 
 
 @app.get("/api/config/metric-label-values")
@@ -142,7 +152,7 @@ async def metric_label_values(label: str = Query(..., min_length=1)) -> list[str
     try:
         return await metrics.get_filter_values(label)
     except RuntimeError as e:
-        raise HTTPException(status_code=424, detail=str(e))
+        raise _metrics_http_exception(e) from e
 
 
 @app.get("/api/projects/{project_id}/services")
@@ -154,7 +164,7 @@ async def project_services(project_id: str) -> dict[str, Any]:
     try:
         return await metrics.get_services(filter_pairs=pairs)
     except RuntimeError as e:
-        raise HTTPException(status_code=424, detail=str(e))
+        raise _metrics_http_exception(e) from e
 
 
 @app.get("/api/projects/{project_id}/layout")
@@ -181,7 +191,7 @@ async def get_services() -> dict[str, Any]:
     try:
         return await metrics.get_services()
     except RuntimeError as e:
-        raise HTTPException(status_code=424, detail=str(e))
+        raise _metrics_http_exception(e) from e
 
 
 @app.get("/api/layout")

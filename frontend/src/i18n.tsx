@@ -20,6 +20,10 @@ const STRINGS = {
     searchPlaceholder: "Поиск…",
     nothingFound: "Ничего не найдено",
     paletteAdd: "Добавить",
+    onboardingTitle: "Создайте проект",
+    onboardingBody:
+      "У каждого проекта свой холст и своя раскладка. Задайте фильтры по лейблам — в палитре останутся только подходящие узлы, затем переносите их на карту.",
+    onboardingCreate: "Создать проект",
     monitoringHint:
       "Список узлов из мониторинга (палитра слева).\nПКМ на карте — область, узел из мониторинга или «Без метрик».",
 
@@ -44,10 +48,22 @@ const STRINGS = {
     fail: "Сбой",
 
     refresh: "Обновить",
+    pollDataInterval: "Авто",
+    pollIntervalSecondsSuffix: " с",
     autosave: "Автосохранение",
     save: "Сохранить",
     saved: "Сохранено",
     loading: "Загрузка…",
+
+    apiErrorHttp: "Не удалось загрузить данные (HTTP {status}).",
+    apiErrorNetwork: "Нет связи с сервером. Проверьте сеть и что бэкенд запущен.",
+    apiErrorDatasourceUnavailable:
+      "Источник метрик (VictoriaMetrics / Prometheus) недоступен, не отвечает или вернул ошибку. Проверьте URL в настройках, сеть и что VM/Prometheus запущены.",
+    metricsStaleOverlay:
+      "Живые метрики недоступны. Показано последнее удачное состояние; правка карты отключена до восстановления связи.",
+    apiLoadErrorHint: "Карта временно недоступна. Используйте «Повторить» в панели уведомления выше.",
+    apiLoadRetry: "Повторить",
+    apiLoadDismiss: "Скрыть",
 
     deleteProjectConfirm: "Удалить проект «{name}»?",
     projectConfigure: "Настроить проект",
@@ -187,6 +203,10 @@ const STRINGS = {
     searchPlaceholder: "Search…",
     nothingFound: "Nothing found",
     paletteAdd: "Add",
+    onboardingTitle: "Create a project",
+    onboardingBody:
+      "Each project has its own canvas and layout. Set label filters — only matching nodes appear in the palette — then add them to the map.",
+    onboardingCreate: "Create project",
     monitoringHint:
       "Monitored nodes (left palette).\nRight‑click the map — area, monitored node, or «Without metrics».",
 
@@ -211,10 +231,22 @@ const STRINGS = {
     fail: "Fail",
 
     refresh: "Refresh",
+    pollDataInterval: "Auto",
+    pollIntervalSecondsSuffix: " s",
     autosave: "Autosave",
     save: "Save",
     saved: "Saved",
     loading: "Loading…",
+
+    apiErrorHttp: "Could not load data (HTTP {status}).",
+    apiErrorNetwork: "Cannot reach the server. Check your network and that the backend is running.",
+    apiErrorDatasourceUnavailable:
+      "The metrics datasource (VictoriaMetrics / Prometheus) is unreachable, not responding, or returned an error. Check the URL in settings, network, and that VM/Prometheus is up.",
+    metricsStaleOverlay:
+      "Live metrics are unavailable. Showing the last successful snapshot; editing is disabled until the connection is restored.",
+    apiLoadErrorHint: "The map is temporarily unavailable. Use «Retry» in the banner above.",
+    apiLoadRetry: "Retry",
+    apiLoadDismiss: "Dismiss",
 
     deleteProjectConfirm: 'Delete project "{name}"?',
     projectConfigure: "Configure project",

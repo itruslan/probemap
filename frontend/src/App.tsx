@@ -10,6 +10,7 @@ import { TopologyCanvas } from "./TopologyCanvas";
 import { Settings } from "./Settings";
 import { ProjectModal } from "./ProjectModal";
 import { I18nProvider, useI18n } from "./i18n";
+import { POLL_INTERVAL_OPTIONS_SEC, POLL_INTERVAL_STORAGE_KEY, readPollIntervalSec } from "./pollInterval";
 
 function LanguageToggleButton() {
   const { lang, setLang } = useI18n();
@@ -68,20 +69,30 @@ function AppContent() {
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [data, setData] = useState<ServicesResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** Ошибка загрузки карты (не 424); true после «Скрыть» у баннера */
+  const [loadFailed, setLoadFailed] = useState(false);
+  const [fetching, setFetching] = useState(true);
   /** Нет данных для карты (источник / метрики) — без красной «ошибки» */
   const [needsSetup, setNeedsSetup] = useState(false);
+  /** После сбоя refresh данных метрик сохраняем последний снимок; карта только для просмотра */
+  const [metricsStale, setMetricsStale] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [projectModal, setProjectModal] = useState<{ project?: Project } | null>(null);
+  const [projectsLoaded, setProjectsLoaded] = useState(false);
+  const [pollIntervalSec, setPollIntervalSec] = useState<(typeof POLL_INTERVAL_OPTIONS_SEC)[number]>(readPollIntervalSec);
 
   // Load projects on mount
   useEffect(() => {
-    fetchProjects().then((list) => {
-      setProjects(list);
-      if (list.length > 0) setActiveProject(list[0]);
-    });
+    fetchProjects()
+      .then((list) => {
+        setProjects(list);
+        if (list.length > 0) setActiveProject(list[0]);
+      })
+      .finally(() => setProjectsLoaded(true));
   }, []);
 
   const refresh = useCallback(() => {
+    setFetching(true);
     const load = activeProject
       ? fetchProjectServices(activeProject.id)
       : fetchServices();
@@ -90,27 +101,53 @@ function AppContent() {
         setData(d);
         setNeedsSetup(false);
         setError(null);
+        setLoadFailed(false);
+        setMetricsStale(false);
       })
       .catch((e) => {
-        setData(null);
         if (e instanceof ApiError) {
-          setNeedsSetup(true);
-          setError(null);
+          if (e.status === 424) {
+            setNeedsSetup(true);
+            setError(null);
+            setLoadFailed(false);
+            setMetricsStale(false);
+            setData(null);
+            return;
+          }
+          setNeedsSetup(false);
+          setLoadFailed(true);
+          setMetricsStale(true);
+          if (e.status === 503) {
+            setError(t("apiErrorDatasourceUnavailable"));
+          } else {
+            setError(t("apiErrorHttp").replace("{status}", String(e.status)));
+          }
           return;
         }
-        setNeedsSetup(true);
-        setError(null);
-      });
-  }, [activeProject]);
+        setNeedsSetup(false);
+        setLoadFailed(true);
+        setMetricsStale(true);
+        setError(t("apiErrorNetwork"));
+      })
+      .finally(() => setFetching(false));
+  }, [activeProject, t]);
 
   useEffect(() => {
     setData(null);
     setError(null);
+    setLoadFailed(false);
     setNeedsSetup(false);
+    setMetricsStale(false);
     refresh();
-    const id = setInterval(refresh, 30_000);
+    const ms = pollIntervalSec * 1000;
+    const id = setInterval(refresh, ms);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, pollIntervalSec]);
+
+  const setPollIntervalSecPersist = useCallback((sec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number]) => {
+    setPollIntervalSec(sec);
+    localStorage.setItem(POLL_INTERVAL_STORAGE_KEY, String(sec));
+  }, []);
 
   const handleCreateProject = async (name: string, filters: ProjectFilter[]) => {
     const p = await createProject(name, filters);
@@ -214,9 +251,62 @@ function AppContent() {
 
       {/* Canvas — minHeight:0 нужен цепочке flex, иначе палитра/канвас теряют высоту */}
       <div style={{ flex: 1, minHeight: 0, overflow: "hidden", position: "relative" }}>
-        {error && (
-          <div style={{ padding: 20, color: "#ef4444", fontSize: 13 }}>
-            {error}
+        {error && !needsSetup && (
+          <div
+            style={{
+              position: "absolute",
+              top: 0,
+              left: 0,
+              right: 0,
+              zIndex: 25,
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              padding: "10px 14px",
+              background: "#fffbeb",
+              borderBottom: "1px solid #fcd34d",
+              color: "#92400e",
+              fontSize: 13,
+              boxSizing: "border-box",
+            }}
+          >
+            <span style={{ flex: 1, minWidth: 0 }}>{error}</span>
+            <button
+              type="button"
+              onClick={() => {
+                setError(null);
+                refresh();
+              }}
+              style={{
+                padding: "4px 12px",
+                borderRadius: 6,
+                border: "1px solid #d97706",
+                background: "#fff",
+                color: "#92400e",
+                fontSize: 12,
+                cursor: "pointer",
+                fontWeight: 600,
+                flexShrink: 0,
+              }}
+            >
+              {t("apiLoadRetry")}
+            </button>
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              style={{
+                padding: "4px 10px",
+                borderRadius: 6,
+                border: "1px solid transparent",
+                background: "transparent",
+                color: "#92400e",
+                fontSize: 12,
+                cursor: "pointer",
+                flexShrink: 0,
+              }}
+            >
+              {t("apiLoadDismiss")}
+            </button>
           </div>
         )}
         {!error && needsSetup && (
@@ -264,17 +354,102 @@ function AppContent() {
             </div>
           </div>
         )}
-        {!error && !needsSetup && data && (
-          <ReactFlowProvider key={activeProject?.id ?? "default"}>
+        {!projectsLoaded && !needsSetup && (
+          <div
+            style={{
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#94a3b8",
+              fontSize: 13,
+            }}
+          >
+            {t("loading")}
+          </div>
+        )}
+        {projectsLoaded && !error && !needsSetup && projects.length === 0 && (
+          (!data && fetching) ? (
+            <div style={{ padding: 20, fontSize: 13, color: "#94a3b8" }}>{t("loading")}</div>
+          ) : (
+            <div
+              style={{
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 32,
+                boxSizing: "border-box",
+              }}
+            >
+              <div
+                style={{
+                  maxWidth: 440,
+                  textAlign: "center",
+                  color: "#64748b",
+                  fontSize: 14,
+                  lineHeight: 1.55,
+                }}
+              >
+                <div style={{ fontSize: 17, fontWeight: 600, color: "#334155", marginBottom: 12 }}>
+                  {t("onboardingTitle")}
+                </div>
+                <p style={{ margin: "0 0 24px" }}>{t("onboardingBody")}</p>
+                <button
+                  type="button"
+                  onClick={() => setProjectModal({})}
+                  style={{
+                    padding: "10px 24px",
+                    borderRadius: 8,
+                    border: "none",
+                    background: "#3b82f6",
+                    color: "#fff",
+                    fontSize: 14,
+                    cursor: "pointer",
+                    fontWeight: 600,
+                  }}
+                >
+                  {t("onboardingCreate")}
+                </button>
+              </div>
+            </div>
+          )
+        )}
+        {!needsSetup && activeProject && data && (!error || metricsStale) && (
+          <ReactFlowProvider key={activeProject.id}>
             <TopologyCanvas
               data={data}
-              projectId={activeProject?.id ?? null}
+              projectId={activeProject.id}
               onRefresh={refresh}
+              pollIntervalSec={pollIntervalSec}
+              onPollIntervalSecChange={setPollIntervalSecPersist}
+              metricsStale={metricsStale}
             />
           </ReactFlowProvider>
         )}
-        {!error && !needsSetup && !data && (
-          <div style={{ padding: 20, fontSize: 13, color: "#94a3b8" }}>{t("loading")}</div>
+        {!needsSetup && !data && !(projectsLoaded && projects.length === 0 && !error) && (
+          fetching ? (
+            error ? null : (
+              <div style={{ padding: 20, fontSize: 13, color: "#94a3b8" }}>{t("loading")}</div>
+            )
+          ) : loadFailed && !error ? (
+            <div
+              style={{
+                height: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 32,
+                boxSizing: "border-box",
+                color: "#64748b",
+                fontSize: 14,
+                lineHeight: 1.55,
+                textAlign: "center",
+              }}
+            >
+              {t("apiLoadErrorHint")}
+            </div>
+          ) : null
         )}
       </div>
 
