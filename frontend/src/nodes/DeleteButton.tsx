@@ -1,9 +1,11 @@
 import { useReactFlow } from "@xyflow/react";
+import { TrashIcon } from "../TrashIcon";
 
 export function DeleteButton({ nodeId }: { nodeId: string }) {
   const { deleteElements } = useReactFlow();
   return (
     <button
+      type="button"
       onClick={(e) => {
         e.stopPropagation();
         deleteElements({ nodes: [{ id: nodeId }] });
@@ -17,9 +19,6 @@ export function DeleteButton({ nodeId }: { nodeId: string }) {
         borderRadius: "50%",
         border: "none",
         background: "#ef4444",
-        color: "#fff",
-        fontSize: 11,
-        lineHeight: 1,
         cursor: "pointer",
         display: "flex",
         alignItems: "center",
@@ -28,7 +27,7 @@ export function DeleteButton({ nodeId }: { nodeId: string }) {
         boxShadow: "0 1px 3px rgba(0,0,0,.3)",
       }}
     >
-      ×
+      <TrashIcon variantOnRed size={9} />
     </button>
   );
 }

@@ -16,7 +16,6 @@ interface Props {
   services: Service[];
   onAddArea: () => void;
   onAddObject: () => void;
-  onAddNoMetricsService: () => void;
   onAddService: (svc: Service) => void;
   onClose: () => void;
 }
@@ -24,7 +23,7 @@ interface Props {
 const MENU_W = 188;
 const SUB_W = 200;
 
-export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddNoMetricsService, onAddService, onClose }: Props) {
+export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddService, onClose }: Props) {
   const { t } = useI18n();
   const mainRef = useRef<HTMLDivElement>(null);
   const subRef = useRef<HTMLDivElement>(null);
@@ -106,28 +105,19 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddNoMet
             overflowY: "auto",
           }}
         >
-          {services.length > 0 && (
-            <>
-              {services.map((svc) => (
-                <Row
-                  key={svc.id}
-                  label={svc.name}
-                  onClick={() => { onAddService(svc); onClose(); }}
-                />
-              ))}
-              <div style={{ height: 1, background: "#e2e8f0", margin: "6px 10px" }} />
-            </>
-          )}
+          {services.length > 0 &&
+            services.map((svc) => (
+              <Row
+                key={svc.id}
+                label={svc.name}
+                onClick={() => { onAddService(svc); onClose(); }}
+              />
+            ))}
           {services.length === 0 && (
             <div style={{ padding: "8px 14px 6px", color: "#94a3b8", fontSize: 12, lineHeight: 1.35 }}>
               {t("contextAllOnCanvas")}
             </div>
           )}
-          <Row
-            label={t("contextWithoutMetrics")}
-            hint={t("contextCustomHint")}
-            onClick={() => { onAddNoMetricsService(); onClose(); }}
-          />
         </div>
       )}
     </>,

@@ -9,27 +9,53 @@ import {
 import { TopologyCanvas } from "./TopologyCanvas";
 import { Settings } from "./Settings";
 import { ProjectModal } from "./ProjectModal";
+import { ProjectSelect } from "./ProjectSelect";
 import { I18nProvider, useI18n } from "./i18n";
 import { POLL_INTERVAL_OPTIONS_SEC, POLL_INTERVAL_STORAGE_KEY, readPollIntervalSec } from "./pollInterval";
 
 function LanguageToggleButton() {
   const { lang, setLang } = useI18n();
-  return (
+  const flagBtn = (code: "ru" | "en", emoji: string, label: string) => (
     <button
+      key={code}
       type="button"
-      onClick={() => setLang(lang === "ru" ? "en" : "ru")}
+      onClick={() => setLang(code)}
+      aria-label={label}
+      aria-pressed={lang === code}
+      title={label}
       style={{
-        padding: "3px 12px",
-        borderRadius: 6,
-        fontSize: 12,
-        border: "1.5px solid #e2e8f0",
-        background: "#fff",
-        color: "#475569",
+        border: "none",
+        background: "transparent",
         cursor: "pointer",
+        padding: "2px 4px",
+        lineHeight: 1,
+        fontSize: 18,
+        opacity: lang === code ? 1 : 0.38,
+        filter: lang === code ? "none" : "grayscale(0.35)",
+        transition: "opacity 0.15s ease",
       }}
     >
-      {lang === "ru" ? "EN" : "RU"}
+      {emoji}
     </button>
+  );
+  return (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "3px 8px",
+        borderRadius: 6,
+        border: "1.5px solid #e2e8f0",
+        background: "#fff",
+      }}
+    >
+      {flagBtn("ru", "🇷🇺", "Русский")}
+      <span style={{ color: "#cbd5e1", fontSize: 13, userSelect: "none", lineHeight: 1 }} aria-hidden>
+        /
+      </span>
+      {flagBtn("en", "🇬🇧", "English")}
+    </div>
   );
 }
 
@@ -40,15 +66,7 @@ function SettingsButton({ onClick }: { onClick: () => void }) {
       type="button"
       onClick={onClick}
       title={t("settings")}
-      style={{
-        padding: "3px 12px",
-        borderRadius: 6,
-        fontSize: 12,
-        border: "1.5px solid #e2e8f0",
-        background: "#fff",
-        color: "#475569",
-        cursor: "pointer",
-      }}
+      className="probemap-outline-hover-btn"
     >
       {t("settings")}
     </button>
@@ -80,6 +98,8 @@ function AppContent() {
   const [projectModal, setProjectModal] = useState<{ project?: Project } | null>(null);
   const [projectsLoaded, setProjectsLoaded] = useState(false);
   const [pollIntervalSec, setPollIntervalSec] = useState<(typeof POLL_INTERVAL_OPTIONS_SEC)[number]>(readPollIntervalSec);
+  /** Только ручной «Обновить» в тулбаре — не автоопрос и не эффект при смене проекта */
+  const [toolbarRefreshPending, setToolbarRefreshPending] = useState(false);
 
   // Load projects on mount
   useEffect(() => {
@@ -91,7 +111,8 @@ function AppContent() {
       .finally(() => setProjectsLoaded(true));
   }, []);
 
-  const refresh = useCallback(() => {
+  const refresh = useCallback((opts?: { fromToolbar?: boolean }) => {
+    if (opts?.fromToolbar) setToolbarRefreshPending(true);
     setFetching(true);
     const load = activeProject
       ? fetchProjectServices(activeProject.id)
@@ -129,7 +150,10 @@ function AppContent() {
         setMetricsStale(true);
         setError(t("apiErrorNetwork"));
       })
-      .finally(() => setFetching(false));
+      .finally(() => {
+        setFetching(false);
+        if (opts?.fromToolbar) setToolbarRefreshPending(false);
+      });
   }, [activeProject, t]);
 
   useEffect(() => {
@@ -165,8 +189,7 @@ function AppContent() {
     if (activeProject?.id === p.id) setActiveProject(p);
   };
 
-  const handleDeleteProject = async (project: Project) => {
-    if (!window.confirm(t("deleteProjectConfirm").replace("{name}", project.name))) return;
+  const performDeleteProject = useCallback(async (project: Project) => {
     await deleteProject(project.id);
     setProjects((prev) => {
       const next = prev.filter((x) => x.id !== project.id);
@@ -175,78 +198,83 @@ function AppContent() {
       }
       return next;
     });
-  };
+    setProjectModal(null);
+  }, [activeProject?.id]);
 
   return (
       <div style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw" }}>
       {/* Header */}
       <div style={{
-        height: 44, flexShrink: 0,
-        display: "flex", alignItems: "center", gap: 8,
+        minHeight: 48, flexShrink: 0,
+        display: "flex", alignItems: "stretch",
         padding: "0 14px",
         borderBottom: "1px solid #e2e8f0",
         background: "#fff",
         zIndex: 20,
       }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginRight: 6, letterSpacing: "-0.02em" }}>
-          probemap
-        </span>
-
-        {/* Project selector */}
-        {projects.length > 0 && (
-          <select
-            value={activeProject?.id ?? ""}
-            onChange={(e) => {
-              const p = projects.find((x) => x.id === e.target.value) ?? null;
-              setActiveProject(p);
-            }}
-            style={{
-              padding: "3px 8px", borderRadius: 6, fontSize: 13,
-              border: "1.5px solid #e2e8f0", background: "#f8fafc",
-              color: "#0f172a", cursor: "pointer", outline: "none",
-            }}
-          >
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        )}
-
-        {/* Edit active project */}
-        {activeProject && (
-          <button
-            onClick={() => setProjectModal({ project: activeProject })}
-            title={t("projectConfigure")}
-            style={iconBtn}
-          >✎</button>
-        )}
-
-        {/* Delete active project */}
-        {activeProject && (
-          <button
-            onClick={() => handleDeleteProject(activeProject)}
-            title={t("projectDelete")}
-            style={{ ...iconBtn, color: "#ef4444" }}
-          >✕</button>
-        )}
-
-        <div style={{ width: 1, height: 20, background: "#e2e8f0", margin: "0 4px" }} />
-
-        {/* New project */}
-        <button
-          onClick={() => setProjectModal({})}
+        {/* Слева: бренд */}
+        <div
           style={{
-            padding: "3px 12px", borderRadius: 6, fontSize: 12,
-            border: "1.5px solid #e2e8f0", background: "#fff",
-            color: "#475569", cursor: "pointer",
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-start",
+            gap: 10,
+            minWidth: 0,
           }}
-        >{t("projectAdd")}</button>
+        >
+          <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em", flexShrink: 0 }}>
+            probemap
+          </span>
+        </div>
 
-        <div style={{ flex: 1 }} />
+        {/* По центру: активный проект */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            minWidth: 0,
+            padding: "0 12px",
+          }}
+        >
+          {projects.length > 0 && (
+            <ProjectSelect
+              projects={projects}
+              activeProject={activeProject}
+              onChange={setActiveProject}
+              onConfigureProject={(p) => setProjectModal({ project: p })}
+              onCreateProject={() => setProjectModal({})}
+            />
+          )}
+        </div>
 
-        {/* Settings */}
-        <SettingsButton onClick={() => setSettingsOpen(true)} />
-        <LanguageToggleButton />
+        {/* Справа: автоопрос / обновить, настройки, язык */}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            gap: 8,
+            minWidth: 0,
+          }}
+        >
+          <div
+            id="probemap-toolbar-host"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexShrink: 0,
+              flexWrap: "nowrap",
+            }}
+          />
+          <SettingsButton onClick={() => setSettingsOpen(true)} />
+          <LanguageToggleButton />
+        </div>
       </div>
 
       {/* Canvas — minHeight:0 нужен цепочке flex, иначе палитра/канвас теряют высоту */}
@@ -402,14 +430,20 @@ function AppContent() {
                     padding: "10px 24px",
                     borderRadius: 8,
                     border: "none",
-                    background: "#3b82f6",
-                    color: "#fff",
+                    background: "#334155",
+                    color: "#f8fafc",
                     fontSize: 14,
                     cursor: "pointer",
                     fontWeight: 600,
                   }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.background = "#475569";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.background = "#334155";
+                  }}
                 >
-                  {t("onboardingCreate")}
+                  {t("projectAdd")}
                 </button>
               </div>
             </div>
@@ -420,7 +454,8 @@ function AppContent() {
             <TopologyCanvas
               data={data}
               projectId={activeProject.id}
-              onRefresh={refresh}
+              onRefresh={() => refresh({ fromToolbar: true })}
+              refreshPending={toolbarRefreshPending}
               pollIntervalSec={pollIntervalSec}
               onPollIntervalSecChange={setPollIntervalSecPersist}
               metricsStale={metricsStale}
@@ -468,14 +503,13 @@ function AppContent() {
           project={projectModal.project}
           onSave={projectModal.project ? handleUpdateProject : handleCreateProject}
           onClose={() => setProjectModal(null)}
+          onDelete={
+            projectModal.project
+              ? () => performDeleteProject(projectModal.project!)
+              : undefined
+          }
         />
       )}
       </div>
   );
 }
-
-const iconBtn: React.CSSProperties = {
-  background: "none", border: "none", fontSize: 14,
-  color: "#64748b", cursor: "pointer", padding: "2px 6px",
-  borderRadius: 4,
-};

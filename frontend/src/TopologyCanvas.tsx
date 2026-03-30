@@ -3,11 +3,12 @@ import {
   addEdge,
   reconnectEdge,
   Background,
-  Controls,
   ConnectionMode,
   useNodesState,
   useEdgesState,
   useReactFlow,
+  useStore,
+  useStoreApi,
   type Node,
   type Edge,
   type EdgeChange,
@@ -24,10 +25,12 @@ import { CustomNode, type CustomNodeData } from "./nodes/CustomNode";
 import { GroupNode, type GroupNodeData } from "./nodes/GroupNode";
 import { DeletableEdge } from "./edges/DeletableEdge";
 import { Palette } from "./Palette";
+import { MapObjectsBar } from "./MapObjectsBar";
 import { ContextMenu } from "./ContextMenu";
 import { CollisionContext } from "./CollisionContext";
 import { ServicesContext } from "./ServicesContext";
 import { useI18n } from "./i18n";
+import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 
 const NODE_TYPES = { service: ServiceNode, custom: CustomNode, group: GroupNode };
 const EDGE_TYPES = { default: DeletableEdge };
@@ -154,6 +157,8 @@ interface Props {
   data: ServicesResponse;
   projectId: string;
   onRefresh: () => void;
+  /** Ручное обновление по кнопке «Обновить» — disabled до ответа */
+  refreshPending: boolean;
   pollIntervalSec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
   onPollIntervalSecChange: (sec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number]) => void;
   /** Данные мониторинга устарели — затемнение канваса, без правок */
@@ -164,12 +169,17 @@ export function TopologyCanvas({
   data,
   projectId,
   onRefresh,
+  refreshPending,
   pollIntervalSec,
   onPollIntervalSecChange,
   metricsStale,
 }: Props) {
   const { t } = useI18n();
-  const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom } = useReactFlow();
+  const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom, fitView, zoomIn, zoomOut } = useReactFlow();
+  const store = useStoreApi();
+  const canvasInteractive = useStore(
+    (s) => s.nodesDraggable || s.nodesConnectable || s.elementsSelectable,
+  );
   const removedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
   const layoutLoaded = useRef(false);
@@ -195,6 +205,24 @@ export function TopologyCanvas({
   const [confirmText, setConfirmText] = useState("");
   const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(null);
   const [paletteHoverId, setPaletteHoverId] = useState<string | null>(null);
+  const [refreshLabelBold, setRefreshLabelBold] = useState(false);
+  const refreshBoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleToolbarRefresh = useCallback(() => {
+    if (refreshBoldTimerRef.current) clearTimeout(refreshBoldTimerRef.current);
+    setRefreshLabelBold(true);
+    refreshBoldTimerRef.current = setTimeout(() => {
+      setRefreshLabelBold(false);
+      refreshBoldTimerRef.current = null;
+    }, 1000);
+    onRefresh();
+  }, [onRefresh]);
+
+  useEffect(() => {
+    return () => {
+      if (refreshBoldTimerRef.current) clearTimeout(refreshBoldTimerRef.current);
+    };
+  }, []);
 
   const onPaletteSelect = useCallback(
     (id: string | null) => {
@@ -334,6 +362,15 @@ export function TopologyCanvas({
     setConfirmText("");
   }, [confirmDelete, getNodes, setNodes, setEdges]);
 
+  /** Один раз после загрузки раскладки — не при смене языка (иначе fitView на каждом ререндере) */
+  const scheduleFitAfterLayout = useCallback(() => {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        fitView({ padding: 0.15 });
+      });
+    });
+  }, [fitView]);
+
   // Load saved layout on mount (отдельный файл раскладки на проект)
   useEffect(() => {
     fetchProjectLayout(projectId).then((layout) => {
@@ -342,7 +379,10 @@ export function TopologyCanvas({
         serviceConfigs.current = layout.service_configs;
       }
       layoutLoaded.current = true;
-      if (!layout.nodes.length) return;
+      if (!layout.nodes.length) {
+        scheduleFitAfterLayout();
+        return;
+      }
       const placed = layout.nodes
         .map((ln) => {
           if (ln.type === "group") {
@@ -390,8 +430,9 @@ export function TopologyCanvas({
       if (layout.edges?.length) {
         setEdges(layout.edges.map((e) => e as unknown as Edge));
       }
+      scheduleFitAfterLayout();
     });
-  }, [projectId]);
+  }, [projectId, scheduleFitAfterLayout]);
 
   // Подсветка с палитры: зафиксированное выделение (клик) и превью при наведении
   useEffect(() => {
@@ -506,7 +547,7 @@ export function TopologyCanvas({
         ];
       });
     },
-    [setNodes, screenToFlowPosition]
+    [setNodes, screenToFlowPosition, t]
   );
 
   const addCustom = useCallback(
@@ -514,33 +555,37 @@ export function TopologyCanvas({
       const position = screenToFlowPosition({ x: screenX, y: screenY });
       setNodes((ns) => [...ns, customToNode("custom", t("defaultNodeLabel"), "FaBox", position)]);
     },
-    [setNodes, screenToFlowPosition]
+    [setNodes, screenToFlowPosition, t]
   );
 
-  const addNoMetricsService = useCallback(
-    (screenX: number, screenY: number) => {
-      const position = screenToFlowPosition({ x: screenX, y: screenY });
-      const id = `nometrics-${Date.now()}`;
-      serviceConfigs.current[id] = { icon: "FaBox" };
-      setNodes((ns) => [
-        ...ns,
+  /** Как из палитры: свободная позиция в видимой области холста. */
+  const addAreaFromSidebar = useCallback(() => {
+    if (metricsStale) return;
+    const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+    setNodes((ns) => {
+      const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+      const groupCount = ns.filter((n) => n.type === "group").length;
+      return [
         {
-          id,
-          type: "service",
+          id: `group-${Date.now()}`,
+          type: "group",
           position,
-          data: {
-            label: t("defaultNodeLabel"),
-            ports: [],
-            icon: "FaBox",
-            description: undefined,
-            actions: undefined,
-            matchServiceId: null,
-          } satisfies ServiceNodeData,
+          style: { width: 260, height: 180, zIndex: -10 + groupCount },
+          data: { label: t("defaultGroupLabel"), icon: "FaLayerGroup" } satisfies GroupNodeData,
         } as Node,
-      ]);
-    },
-    [setNodes, screenToFlowPosition]
-  );
+        ...ns,
+      ];
+    });
+  }, [metricsStale, setNodes, screenToFlowPosition, t]);
+
+  const addCustomFromSidebar = useCallback(() => {
+    if (metricsStale) return;
+    const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+    setNodes((ns) => {
+      const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+      return [...ns, customToNode("custom", t("defaultNodeLabel"), "FaBox", position)];
+    });
+  }, [metricsStale, setNodes, screenToFlowPosition, t]);
 
   /** Тот же путь, что пункт «сервис из мониторинга» в ПКМ (позиция — экранные координаты). */
   const addServiceAtScreen = useCallback(
@@ -563,9 +608,6 @@ export function TopologyCanvas({
     },
     [screenToFlowPosition, setNodes]
   );
-
-  const [saved, setSaved] = useState(false);
-  const [autosave, setAutosave] = useState(() => localStorage.getItem("autosave") === "1");
 
   const persistLayout = useCallback(() => {
     const layoutNodes = nodes.map((n) => ({
@@ -604,13 +646,11 @@ export function TopologyCanvas({
     }));
     const payload = { nodes: layoutNodes, groups: [], edges: edges.map((e) => ({ ...e })), service_configs: serviceConfigs.current };
     saveProjectLayout(projectId, payload);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
   }, [nodes, edges, projectId]);
 
   useEffect(() => {
-    if (autosave && layoutLoaded.current && !metricsStale) persistLayout();
-  }, [nodes, edges, autosave, metricsStale]);
+    if (layoutLoaded.current && !metricsStale) persistLayout();
+  }, [nodes, edges, metricsStale, persistLayout]);
 
   const onCanvas = new Set(nodes.filter((n) => n.type === "service").map((n) => n.id));
 
@@ -631,20 +671,45 @@ export function TopologyCanvas({
 
   const onBeforeDelete = useCallback(async () => !metricsStale, [metricsStale]);
 
+  const handleZoomIn = useCallback(() => {
+    void zoomIn({ duration: 200 });
+  }, [zoomIn]);
+
+  const handleZoomOut = useCallback(() => {
+    void zoomOut({ duration: 200 });
+  }, [zoomOut]);
+
+  const handleFitView = useCallback(() => {
+    void fitView({ duration: 320, padding: 0.15 });
+  }, [fitView]);
+
+  const handleToggleCanvasInteraction = useCallback(() => {
+    if (metricsStale) return;
+    const s = store.getState();
+    const active = s.nodesDraggable || s.nodesConnectable || s.elementsSelectable;
+    store.setState({
+      nodesDraggable: !active,
+      nodesConnectable: !active,
+      elementsSelectable: !active,
+    });
+  }, [store, metricsStale]);
+
   return (
     <CollisionContext.Provider value={collidingIds}>
     <ServicesContext.Provider value={{ services: data.services, probe_sources: data.probe_sources }}>
       <div style={{ display: "flex", height: "100%", width: "100%", minHeight: 0 }}>
-        <Palette
-          services={data.services}
-          onCanvas={onCanvas}
-          onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
-          onAddService={addServiceFromPalette}
-          readOnly={metricsStale}
-          selectedId={paletteSelectedId}
-          onSelect={onPaletteSelect}
-          onHoverChange={setPaletteHoverId}
-        />
+        <div className="palette-sidebar-column">
+          <Palette
+            services={data.services}
+            onCanvas={onCanvas}
+            onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
+            onAddService={addServiceFromPalette}
+            readOnly={metricsStale}
+            selectedId={paletteSelectedId}
+            onSelect={onPaletteSelect}
+            onHoverChange={setPaletteHoverId}
+          />
+        </div>
         <div
           ref={wrapperRef}
           style={{ flex: 1, minHeight: 0, position: "relative" }}
@@ -681,105 +746,66 @@ export function TopologyCanvas({
             </div>
           </div>
         )}
-        <div
-          style={{
-            position: "absolute",
-            top: 12,
-            right: 12,
-            zIndex: 10,
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <label
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              fontSize: 12,
-              color: "#64748b",
-              userSelect: "none",
-            }}
-          >
-            <span style={{ whiteSpace: "nowrap" }}>{t("pollDataInterval")}</span>
-            <select
-              value={pollIntervalSec}
-              onChange={(e) => {
-                const v = Number(e.target.value) as (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
-                onPollIntervalSecChange(v);
-              }}
-              style={{
-                padding: "4px 8px",
-                borderRadius: 6,
-                border: "1.5px solid #e2e8f0",
-                background: "#fff",
-                fontSize: 13,
-                color: "#0f172a",
-                cursor: "pointer",
-                minWidth: 72,
-              }}
-            >
-              {POLL_INTERVAL_OPTIONS_SEC.map((sec) => (
-                <option key={sec} value={sec}>
-                  {sec}
-                  {t("pollIntervalSecondsSuffix")}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            onClick={onRefresh}
-            style={{
-              padding: "6px 14px",
-              borderRadius: 6,
-              border: "1.5px solid #e2e8f0",
-              background: "#fff",
-              cursor: "pointer",
-              fontSize: 13,
-            }}
-          >
-            {t("refresh")}
-          </button>
-        </div>
-        <label
-          style={{
-            position: "absolute", top: 12, right: 320, zIndex: 10,
-            display: "flex", alignItems: "center", gap: 5,
-            padding: "6px 10px", borderRadius: 6, fontSize: 13,
-            border: "1.5px solid #e2e8f0", background: "#fff", cursor: "pointer",
-            userSelect: "none",
-          }}
-        >
-          <input
-            type="checkbox"
-            checked={autosave}
-            disabled={metricsStale}
-            onChange={(e) => {
-              setAutosave(e.target.checked);
-              localStorage.setItem("autosave", e.target.checked ? "1" : "0");
-            }}
-            style={{ cursor: metricsStale ? "not-allowed" : "pointer" }}
-          />
-          {t("autosave")}
-        </label>
-        <button
-          type="button"
-          onClick={persistLayout}
-          disabled={metricsStale}
-          style={{
-            position: "absolute", top: 12, right: 210, zIndex: 10,
-            padding: "6px 14px", borderRadius: 6, fontSize: 13,
-            cursor: metricsStale ? "not-allowed" : "pointer",
-            border: saved ? "1.5px solid #22c55e" : "1.5px solid #e2e8f0",
-            background: saved ? "#f0fdf4" : "#fff",
-            color: saved ? "#16a34a" : "inherit", transition: "all 0.2s",
-            opacity: metricsStale ? 0.55 : 1,
-          }}
-        >
-          {saved ? t("saved") : t("save")}
-        </button>
+        {typeof document !== "undefined" &&
+          document.getElementById("probemap-toolbar-host") &&
+          createPortal(
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap" }}>
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontSize: 12,
+                  color: "#64748b",
+                  userSelect: "none",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <span>{t("pollDataInterval")}</span>
+                <select
+                  value={pollIntervalSec}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) as (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
+                    onPollIntervalSecChange(v);
+                  }}
+                  style={{
+                    padding: "3px 8px",
+                    borderRadius: 6,
+                    border: "1.5px solid #e2e8f0",
+                    background: "#fff",
+                    fontSize: 12,
+                    color: "#0f172a",
+                    cursor: "pointer",
+                    minWidth: 68,
+                  }}
+                >
+                  {POLL_INTERVAL_OPTIONS_SEC.map((sec) => (
+                    <option key={sec} value={sec}>
+                      {sec}
+                      {t("pollIntervalSecondsSuffix")}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={handleToolbarRefresh}
+                disabled={refreshPending}
+                aria-busy={refreshPending}
+                aria-label={refreshPending ? t("refreshPendingAria") : t("refresh")}
+                className="probemap-outline-hover-btn probemap-toolbar-refresh"
+              >
+                <span
+                  style={{
+                    fontWeight: refreshLabelBold ? 700 : 400,
+                  }}
+                >
+                  {t("refresh")}
+                </span>
+              </button>
+            </div>,
+            document.getElementById("probemap-toolbar-host")!,
+          )}
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -793,15 +819,25 @@ export function TopologyCanvas({
           edgeTypes={EDGE_TYPES}
           connectionMode={ConnectionMode.Loose}
           defaultEdgeOptions={{}}
-          nodesDraggable={!metricsStale}
-          nodesConnectable={!metricsStale}
-          edgesReconnectable={!metricsStale}
+          nodesDraggable={!metricsStale && canvasInteractive}
+          nodesConnectable={!metricsStale && canvasInteractive}
+          edgesReconnectable={!metricsStale && canvasInteractive}
+          elementsSelectable={!metricsStale && canvasInteractive}
           onBeforeDelete={onBeforeDelete}
-          fitView
         >
           <Background />
-          <Controls />
         </ReactFlow>
+
+        <MapObjectsBar
+          onAddArea={addAreaFromSidebar}
+          onAddCustom={addCustomFromSidebar}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
+          onFitView={handleFitView}
+          canvasInteractive={!metricsStale && canvasInteractive}
+          onToggleCanvasInteraction={handleToggleCanvasInteraction}
+          readOnly={metricsStale}
+        />
 
         {contextMenu && (
           <ContextMenu
@@ -810,7 +846,6 @@ export function TopologyCanvas({
             services={data.services.filter((s) => !onCanvas.has(s.id))}
             onAddArea={() => addArea(contextMenu.screenX, contextMenu.screenY)}
             onAddObject={() => addCustom(contextMenu.screenX, contextMenu.screenY)}
-            onAddNoMetricsService={() => addNoMetricsService(contextMenu.screenX, contextMenu.screenY)}
             onAddService={(svc) => addServiceAtScreen(svc, contextMenu.screenX, contextMenu.screenY)}
             onClose={() => setContextMenu(null)}
           />
@@ -835,9 +870,7 @@ export function TopologyCanvas({
           <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
             {t("removeFromCanvas")}
           </div>
-          <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>
-            {t("deleteFromMapPrompt").replace("{name}", confirmDelete.label)}
-          </div>
+          <DeleteConfirmNameHint name={confirmDelete.label} />
           <input
             autoFocus
             value={confirmText}

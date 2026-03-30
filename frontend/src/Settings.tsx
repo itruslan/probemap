@@ -13,6 +13,7 @@ import {
   type MetricSelectorPreview,
 } from "./api";
 import { useI18n, type I18nKey } from "./i18n";
+import { TrashIcon } from "./TrashIcon";
 
 const OP_OPTIONS: { value: MetricFilterOp; labelKey: I18nKey }[] = [
   { value: "eq", labelKey: "opEq" },
@@ -448,13 +449,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       border: "1.5px solid #e2e8f0",
                       borderRadius: 6,
                       background: "#fff",
-                      color: "#64748b",
                       cursor: "pointer",
-                      padding: "4px 0",
-                      fontSize: 14,
+                      padding: "4px 8px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
                     }}
                   >
-                    ×
+                    <TrashIcon size={14} />
                   </button>
                 </div>
               ))}

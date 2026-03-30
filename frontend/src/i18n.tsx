@@ -10,27 +10,33 @@ const STRINGS = {
   ru: {
     probemap: "probemap",
     settings: "Настройки",
-    projectAdd: "+ Проект",
+    projectAdd: "Создать проект",
     settingsOpen: "Открыть настройки",
     mapUnavailableTitle: "Карта пока недоступна",
     mapUnavailableBody:
       "Укажите источник метрик (VictoriaMetrics), нажмите «Проверить» в настройках и сохраните.\nЗатем создайте проект при необходимости.",
 
     nodesTitle: "Узлы",
+    nodesPaletteHelpAria: "Справка по панели узлов",
     searchPlaceholder: "Поиск…",
     nothingFound: "Ничего не найдено",
     paletteAdd: "Добавить",
     onboardingTitle: "Создайте проект",
     onboardingBody:
       "У каждого проекта свой холст и своя раскладка. Задайте фильтры по лейблам — в палитре останутся только подходящие узлы, затем переносите их на карту.",
-    onboardingCreate: "Создать проект",
     monitoringHint:
-      "Список узлов из мониторинга (палитра слева).\nПКМ на карте — область, узел из мониторинга или «Без метрик».",
+      "Слева — узлы из мониторинга. Перетащите на карту или нажмите «Добавить».\nПКМ по пустому месту карты — область и фигура.\nПлавающая панель на карте — объекты и масштаб.",
+
+    mapObjectsTitle: "Объекты карты",
+    mapCanvasActions: "Действия",
+    mapZoomIn: "Увеличить",
+    mapZoomOut: "Уменьшить",
+    mapFitView: "Показать всё на экране",
+    mapLockInteraction: "Заблокировать перетаскивание, связи и выделение",
+    mapUnlockInteraction: "Снова разрешить перетаскивание, связи и выделение",
 
     contextAddArea: "Добавить область",
     contextAddNode: "Добавить узел",
-    contextWithoutMetrics: "Без метрик",
-    contextCustomHint: "произвольный узел",
     contextAllOnCanvas: "Все узлы из мониторинга уже на карте",
 
     monitoringTitle: "МОНИТОРИНГ",
@@ -48,9 +54,9 @@ const STRINGS = {
     fail: "Сбой",
 
     refresh: "Обновить",
+    refreshPendingAria: "Идёт обновление данных",
     pollDataInterval: "Авто",
     pollIntervalSecondsSuffix: " с",
-    autosave: "Автосохранение",
     save: "Сохранить",
     saved: "Сохранено",
     loading: "Загрузка…",
@@ -67,6 +73,7 @@ const STRINGS = {
 
     deleteProjectConfirm: "Удалить проект «{name}»?",
     projectConfigure: "Настроить проект",
+    projectSelect: "Выбрать проект",
     projectDelete: "Удалить проект",
 
     projectTitle: "Проект",
@@ -162,7 +169,10 @@ const STRINGS = {
     defaultNodeLabel: "Узел",
 
     deleteFromMapTitle: "Удалить с карты",
-    deleteFromMapPrompt: "Введите {name} для подтверждения:",
+    deleteConfirmLead: "Введите",
+    deleteConfirmTail: "для подтверждения:",
+    copyName: "Копировать название",
+    nameCopied: "Скопировано",
     deleteFromMapPlaceholder: "подтверждение",
 
     iconSectionBuiltin: "ИКОНКИ",
@@ -193,27 +203,33 @@ const STRINGS = {
   en: {
     probemap: "probemap",
     settings: "Settings",
-    projectAdd: "+ Project",
+    projectAdd: "Create project",
     settingsOpen: "Open settings",
     mapUnavailableTitle: "Map is unavailable yet",
     mapUnavailableBody:
       "Specify the metrics source (VictoriaMetrics), click «Check» in settings, and save.\nThen create a project if needed.",
 
     nodesTitle: "Nodes",
+    nodesPaletteHelpAria: "Nodes panel help",
     searchPlaceholder: "Search…",
     nothingFound: "Nothing found",
     paletteAdd: "Add",
     onboardingTitle: "Create a project",
     onboardingBody:
       "Each project has its own canvas and layout. Set label filters — only matching nodes appear in the palette — then add them to the map.",
-    onboardingCreate: "Create project",
     monitoringHint:
-      "Monitored nodes (left palette).\nRight‑click the map — area, monitored node, or «Without metrics».",
+      "Monitored nodes on the left. Drag onto the map or use «Add».\nRight‑click empty canvas for area and shape.\nThe floating panel on the map — objects and zoom.",
+
+    mapObjectsTitle: "Map objects",
+    mapCanvasActions: "Actions",
+    mapZoomIn: "Zoom in",
+    mapZoomOut: "Zoom out",
+    mapFitView: "Fit to screen",
+    mapLockInteraction: "Lock dragging, connections, and selection",
+    mapUnlockInteraction: "Unlock dragging, connections, and selection",
 
     contextAddArea: "Add area",
     contextAddNode: "Add node",
-    contextWithoutMetrics: "Without metrics",
-    contextCustomHint: "custom node",
     contextAllOnCanvas: "All monitored nodes are already on the canvas",
 
     monitoringTitle: "MONITORING",
@@ -231,9 +247,9 @@ const STRINGS = {
     fail: "Fail",
 
     refresh: "Refresh",
+    refreshPendingAria: "Refreshing data",
     pollDataInterval: "Auto",
     pollIntervalSecondsSuffix: " s",
-    autosave: "Autosave",
     save: "Save",
     saved: "Saved",
     loading: "Loading…",
@@ -250,6 +266,7 @@ const STRINGS = {
 
     deleteProjectConfirm: 'Delete project "{name}"?',
     projectConfigure: "Configure project",
+    projectSelect: "Select project",
     projectDelete: "Delete project",
 
     projectTitle: "Project",
@@ -343,7 +360,10 @@ const STRINGS = {
     defaultNodeLabel: "Node",
 
     deleteFromMapTitle: "Remove from map",
-    deleteFromMapPrompt: "Type {name} to confirm:",
+    deleteConfirmLead: "Type",
+    deleteConfirmTail: "to confirm:",
+    copyName: "Copy name",
+    nameCopied: "Copied",
     deleteFromMapPlaceholder: "confirmation",
 
     iconSectionBuiltin: "ICONS",

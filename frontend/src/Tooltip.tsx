@@ -1,20 +1,67 @@
 import { createPortal } from "react-dom";
 
-export function HoverTooltip({ label, targetEl }: { label: string; targetEl: HTMLElement }) {
+const TOOLTIP_Z = 2147483000;
+const VIEW_PAD = 10;
+
+/** Центр подсказки (translateX(-50%)), чтобы блок не выходил за края окна */
+function clampTooltipCenterX(centerX: number, maxTooltipWidthPx: number): number {
+  if (typeof window === "undefined") return centerX;
+  const half = maxTooltipWidthPx / 2;
+  const min = VIEW_PAD + half;
+  const max = window.innerWidth - VIEW_PAD - half;
+  if (max <= min) return window.innerWidth / 2;
+  return Math.min(Math.max(centerX, min), max);
+}
+
+type HoverTooltipProps = {
+  label: string;
+  targetEl: HTMLElement;
+  /** Несколько строк (текст с \\n из i18n) */
+  multiline?: boolean;
+  /** По умолчанию над элементом; для узкой панели снизу удобнее */
+  placement?: "above" | "below";
+  /** С pointer-events: auto — наведение на саму подсказку (см. Palette) */
+  onInteractiveEnter?: () => void;
+  onInteractiveLeave?: () => void;
+};
+
+export function HoverTooltip({
+  label,
+  targetEl,
+  multiline = false,
+  placement = "above",
+  onInteractiveEnter,
+  onInteractiveLeave,
+}: HoverTooltipProps) {
   const rect = targetEl.getBoundingClientRect();
+  const below = placement === "below";
+  const interactive = Boolean(multiline && (onInteractiveEnter || onInteractiveLeave));
+  const maxTooltipW = multiline ? 268 : 360;
+  const anchorX = clampTooltipCenterX(rect.left + rect.width / 2, maxTooltipW);
+  const base = {
+    position: "fixed" as const,
+    left: anchorX,
+    background: "#1e293b",
+    color: "#f1f5f9",
+    fontSize: 11,
+    padding: multiline ? "8px 10px" : "3px 7px",
+    borderRadius: 6,
+    pointerEvents: interactive ? ("auto" as const) : ("none" as const),
+    zIndex: TOOLTIP_Z,
+    boxShadow: "0 4px 16px rgba(0,0,0,.45)",
+    lineHeight: 1.4,
+    whiteSpace: multiline ? "pre-wrap" : "nowrap",
+    maxWidth: multiline ? 268 : undefined,
+    border: "1px solid rgba(255,255,255,0.12)",
+  };
+  const pos = below
+    ? { ...base, top: rect.bottom + 6, transform: "translateX(-50%)" }
+    : { ...base, top: rect.top - 6, transform: "translate(-50%, -100%)" };
+
   return createPortal(
-    <div style={{
-      position: "fixed",
-      left: rect.left + rect.width / 2,
-      top: rect.top - 6,
-      transform: "translate(-50%, -100%)",
-      background: "#1e293b", color: "#f1f5f9",
-      fontSize: 11, padding: "3px 7px", borderRadius: 4,
-      whiteSpace: "nowrap", pointerEvents: "none", zIndex: 9999,
-      boxShadow: "0 2px 6px rgba(0,0,0,.3)",
-    }}>
+    <div style={pos} onMouseEnter={onInteractiveEnter} onMouseLeave={onInteractiveLeave}>
       {label}
     </div>,
-    document.body
+    document.body,
   );
 }

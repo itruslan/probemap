@@ -4,6 +4,7 @@ import { resolveIcon, ALL_ICONS } from "./icons";
 import { fetchIcons, uploadIcon, deleteIcon, type CustomIcon } from "./api";
 import { HoverTooltip } from "./Tooltip";
 import { useI18n } from "./i18n";
+import { TrashIcon } from "./TrashIcon";
 
 interface Props {
   anchorX: number;
@@ -145,14 +146,26 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
               <img src={`${BASE}${icon.url}`} style={{ width: 22, height: 22, objectFit: "contain" }} />
               <button
                 className="del-btn"
+                type="button"
                 onClick={(e) => handleDelete(e, icon.name)}
                 style={{
-                  display: "none", position: "absolute", top: -5, right: -5,
-                  width: 14, height: 14, borderRadius: "50%", border: "none",
-                  background: "#ef4444", color: "#fff", fontSize: 9,
-                  cursor: "pointer", alignItems: "center", justifyContent: "center", padding: 0,
+                  display: "none",
+                  position: "absolute",
+                  top: -5,
+                  right: -5,
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "#ef4444",
+                  cursor: "pointer",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
                 }}
-              >×</button>
+              >
+                <TrashIcon variantOnRed size={8} />
+              </button>
             </div>
           ))}
         </div>

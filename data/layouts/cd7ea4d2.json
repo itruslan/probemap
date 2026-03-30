@@ -2,33 +2,312 @@
   "nodes": [
     {
       "id": "authentik",
-      "x": -101,
-      "y": -309,
+      "x": -73.35282338174972,
+      "y": -600.1300903281287,
       "type": "service",
       "label": "authentik",
       "matchServiceId": null
     },
     {
-      "id": "npm-registry",
-      "x": -350.41700271706327,
-      "y": -362.3692167794317,
+      "id": "cloudflare-speed",
+      "x": -551.2187784145767,
+      "y": -914.5038780472438,
       "type": "service",
-      "label": "npm-registry",
+      "label": "cloudflare-speed",
+      "matchServiceId": null
+    },
+    {
+      "id": "cloudflare-www",
+      "x": -332.884880196017,
+      "y": -728.1932096401288,
+      "type": "service",
+      "label": "cloudflare-www",
+      "matchServiceId": null
+    },
+    {
+      "id": "debian",
+      "x": -690.5696597512627,
+      "y": -600.6343613238885,
+      "type": "service",
+      "label": "debian",
+      "matchServiceId": null
+    },
+    {
+      "id": "iana",
+      "x": -779.3490565342872,
+      "y": -476.8341981394432,
+      "type": "service",
+      "label": "iana",
+      "matchServiceId": null
+    },
+    {
+      "id": "grafana-fh",
+      "x": -230.61508534233536,
+      "y": -418.75790227533855,
+      "type": "service",
+      "label": "grafana-fh",
+      "matchServiceId": null
+    },
+    {
+      "id": "debian",
+      "x": -690.5696597512627,
+      "y": -600.6343613238885,
+      "type": "service",
+      "label": "debian",
+      "matchServiceId": null
+    },
+    {
+      "id": "cloudflare-speed",
+      "x": -551.2187784145767,
+      "y": -914.5038780472438,
+      "type": "service",
+      "label": "cloudflare-speed",
+      "matchServiceId": null
+    },
+    {
+      "id": "cloudflare-speed",
+      "x": -551.2187784145767,
+      "y": -914.5038780472438,
+      "type": "service",
+      "label": "cloudflare-speed",
+      "matchServiceId": null
+    },
+    {
+      "id": "authentik",
+      "x": -73.35282338174972,
+      "y": -600.1300903281287,
+      "type": "service",
+      "label": "authentik",
+      "matchServiceId": null
+    },
+    {
+      "id": "eff",
+      "x": -2271.4284578832394,
+      "y": -1266.6758395844863,
+      "type": "service",
+      "label": "eff",
+      "matchServiceId": null
+    },
+    {
+      "id": "github-api",
+      "x": -2221.908607033015,
+      "y": -1092.3867317543175,
+      "type": "service",
+      "label": "github-api",
+      "matchServiceId": null
+    },
+    {
+      "id": "kubernetes-io",
+      "x": -1499.908607033015,
+      "y": -1284.3867317543175,
+      "type": "service",
+      "label": "anylink-vpn",
+      "matchServiceId": "anylink-vpn"
+    },
+    {
+      "id": "prometheus-io",
+      "x": -2341.4609591554135,
+      "y": -888.0209030929233,
+      "type": "service",
+      "label": "prometheus-io",
+      "matchServiceId": "kubernetes-io"
+    },
+    {
+      "id": "rust-lang",
+      "x": -2221.908607033015,
+      "y": -732.3867317543175,
+      "type": "service",
+      "label": "rust-lang",
+      "matchServiceId": null
+    },
+    {
+      "id": "pypi",
+      "x": -2221.908607033015,
+      "y": -642.3867317543175,
+      "type": "service",
+      "label": "pypi",
+      "matchServiceId": null
+    },
+    {
+      "id": "postgresql-org",
+      "x": -2221.908607033015,
+      "y": -552.3867317543175,
+      "type": "service",
+      "label": "argocd",
+      "matchServiceId": "argocd"
+    },
+    {
+      "id": "kernel-org",
+      "x": -2221.908607033015,
+      "y": -462.38673175431745,
+      "type": "service",
+      "label": "kernel-org",
+      "matchServiceId": null
+    },
+    {
+      "id": "grafana",
+      "x": -2221.908607033015,
+      "y": -372.38673175431745,
+      "type": "service",
+      "label": "grafana",
+      "matchServiceId": null
+    },
+    {
+      "id": "letsencrypt",
+      "x": -2221.908607033015,
+      "y": -282.38673175431745,
+      "type": "service",
+      "label": "letsencrypt",
+      "matchServiceId": null
+    },
+    {
+      "id": "wikipedia",
+      "x": -2221.908607033015,
+      "y": -192.38673175431745,
+      "type": "service",
+      "label": "wikipedia",
+      "matchServiceId": null
+    },
+    {
+      "id": "argocd",
+      "x": -1187.3395228150657,
+      "y": -963.8665793106043,
+      "type": "service",
+      "label": "argocd",
+      "matchServiceId": null
+    },
+    {
+      "id": "grafana-hshp",
+      "x": -614.4830478820368,
+      "y": -1317.3309080521155,
+      "type": "service",
+      "label": "grafana-hshp",
+      "matchServiceId": null
+    },
+    {
+      "id": "custom-1774895263794",
+      "x": -1070.4333325611678,
+      "y": -1217.4843999919588,
+      "type": "custom",
+      "label": "Node",
+      "kind": "custom",
+      "icon": "FaBox"
+    },
+    {
+      "id": "go-dev",
+      "x": -602.92322371524,
+      "y": -1098.096809665397,
+      "type": "service",
+      "label": "go-dev",
+      "matchServiceId": null
+    },
+    {
+      "id": "custom-1774895631112",
+      "x": -1812.486562203481,
+      "y": -1122.6698329425574,
+      "type": "custom",
+      "label": "Node",
+      "kind": "custom",
+      "icon": "FaBox"
+    },
+    {
+      "id": "anylink-vpn",
+      "x": -2533.815953104174,
+      "y": -1384.9432313480424,
+      "type": "service",
+      "label": "anylink-vpn",
       "matchServiceId": null
     }
   ],
   "groups": [],
   "edges": [
     {
-      "source": "npm-registry",
+      "source": "cloudflare-speed",
       "sourceHandle": "right",
       "target": "authentik",
+      "targetHandle": "top",
+      "id": "xy-edge__cloudflare-speedright-authentiktop"
+    },
+    {
+      "source": "cloudflare-speed",
+      "sourceHandle": "right",
+      "target": "cloudflare-www",
       "targetHandle": "left",
-      "id": "xy-edge__npm-registryright-authentikleft"
+      "id": "xy-edge__cloudflare-speedright-cloudflare-wwwleft"
+    },
+    {
+      "source": "iana",
+      "sourceHandle": "right",
+      "target": "grafana-fh",
+      "targetHandle": "left",
+      "id": "xy-edge__ianaright-grafana-fhleft"
+    },
+    {
+      "source": "custom-1774895631112",
+      "sourceHandle": "right",
+      "target": "argocd",
+      "targetHandle": "left",
+      "id": "xy-edge__custom-1774895631112right-argocdleft"
+    },
+    {
+      "source": "anylink-vpn",
+      "sourceHandle": "right",
+      "target": "kubernetes-io",
+      "targetHandle": "left",
+      "id": "xy-edge__anylink-vpnright-kubernetes-ioleft"
+    },
+    {
+      "source": "github-api",
+      "sourceHandle": "right",
+      "target": "prometheus-io",
+      "targetHandle": "right",
+      "id": "xy-edge__github-apiright-prometheus-ioright"
+    },
+    {
+      "source": "eff",
+      "sourceHandle": "right",
+      "target": "custom-1774895631112",
+      "targetHandle": "left",
+      "id": "xy-edge__effright-custom-1774895631112left"
+    },
+    {
+      "source": "eff",
+      "sourceHandle": "bottom",
+      "target": "github-api",
+      "targetHandle": "left",
+      "id": "xy-edge__effbottom-github-apileft"
     }
   ],
   "service_configs": {
     "authentik": {},
-    "npm-registry": {}
+    "npm-registry": {},
+    "cloudflare-speed": {},
+    "dns-cf-example": {},
+    "dns-quad9-mozilla": {},
+    "cloudflare-www": {},
+    "debian": {},
+    "grafana-fh": {},
+    "iana": {},
+    "grafana": {},
+    "go-dev": {},
+    "anylink-vpn": {},
+    "argocd": {},
+    "eff": {},
+    "github-api": {},
+    "grafana-hshp": {},
+    "kubernetes-io": {},
+    "prometheus-io": {},
+    "rust-lang": {},
+    "pypi": {},
+    "postgresql-org": {},
+    "kernel-org": {},
+    "letsencrypt": {},
+    "wikipedia": {},
+    "nometrics-1774894412872": {
+      "icon": "FaBox"
+    },
+    "nometrics-1774894819797": {
+      "icon": "FaBox"
+    }
   }
 }

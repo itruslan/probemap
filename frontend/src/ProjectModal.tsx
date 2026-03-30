@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
+import { TrashIcon } from "./TrashIcon";
 import {
   fetchProjectFilterValues,
   discoverLabels,
@@ -12,6 +15,7 @@ interface Props {
   project?: Project;
   onSave: (name: string, filters: ProjectFilter[]) => Promise<void>;
   onClose: () => void;
+  onDelete?: () => Promise<void>;
 }
 
 type Row = { label: string; value: string };
@@ -27,13 +31,16 @@ function projectToRows(p?: Project): Row[] {
   return [{ label: "", value: "" }];
 }
 
-export function ProjectModal({ project, onSave, onClose }: Props) {
+export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
   const { t } = useI18n();
   const [name, setName] = useState(project?.name ?? "");
   const [rows, setRows] = useState<Row[]>(() => projectToRows(project));
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [valueOptions, setValueOptions] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [deleting, setDeleting] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const loadValuesForLabel = useCallback(async (label: string, pid?: string) => {
@@ -54,6 +61,8 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
     setName(project?.name ?? "");
     setRows(r);
     setValueOptions({});
+    setDeleteConfirmOpen(false);
+    setDeleteConfirmText("");
     const pid = project?.id;
     r.forEach((row) => {
       if (row.label.trim()) void loadValuesForLabel(row.label.trim(), pid);
@@ -66,11 +75,32 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key !== "Escape") return;
+      if (deleteConfirmOpen) {
+        setDeleteConfirmOpen(false);
+        setDeleteConfirmText("");
+        return;
+      }
+      onClose();
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [onClose]);
+  }, [onClose, deleteConfirmOpen]);
+
+  const closeDeleteConfirm = () => {
+    setDeleteConfirmOpen(false);
+    setDeleteConfirmText("");
+  };
+
+  const doConfirmDelete = async () => {
+    if (!project || !onDelete || deleteConfirmText !== project.name) return;
+    setDeleting(true);
+    try {
+      await onDelete();
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const setRowLabel = (i: number, label: string) => {
     setRows((prev) => {
@@ -137,25 +167,49 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
             alignItems: "center",
             justifyContent: "space-between",
             marginBottom: 16,
+            gap: 8,
           }}
         >
           <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
             {project ? t("projectTitle") : t("projectTitleNew")}
           </span>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 18,
-              color: "#94a3b8",
-              cursor: "pointer",
-              padding: 0,
-            }}
-          >
-            ×
-          </button>
+          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+            {project && onDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmOpen(true);
+                  setDeleteConfirmText("");
+                }}
+                title={t("projectDelete")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 6px",
+                  borderRadius: 4,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <TrashIcon size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "none",
+                border: "none",
+                fontSize: 18,
+                color: "#94a3b8",
+                cursor: "pointer",
+                padding: 0,
+              }}
+            >
+              ×
+            </button>
+          </div>
         </div>
 
         <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b", lineHeight: 1.45 }}>
@@ -253,12 +307,13 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
                         borderRadius: 6,
                         border: "1.5px solid #e2e8f0",
                         background: "#fff",
-                        color: rows.length <= 1 ? "#cbd5e1" : "#64748b",
                         cursor: rows.length <= 1 ? "default" : "pointer",
-                        fontSize: 13,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
-                      ✕
+                      <TrashIcon size={14} muted={rows.length <= 1} />
                     </button>
                   </div>
                 );
@@ -309,15 +364,111 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
               border: "none",
               fontSize: 13,
               cursor: "pointer",
-              background: "#3b82f6",
-              color: "#fff",
+              background: "#334155",
+              color: "#f8fafc",
               opacity: !name.trim() ? 0.5 : 1,
+            }}
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) e.currentTarget.style.background = "#475569";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "#334155";
             }}
           >
             {saving ? "…" : t("save")}
           </button>
         </div>
       </div>
+
+      {deleteConfirmOpen && project && onDelete && createPortal(
+        <div
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeDeleteConfirm();
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 4100,
+            background: "rgba(0,0,0,0.3)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+        >
+          <div
+            style={{
+              background: "#fff",
+              borderRadius: 10,
+              width: 360,
+              boxShadow: "0 8px 32px rgba(0,0,0,.18)",
+              padding: "20px 24px",
+            }}
+          >
+            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+              {t("projectDelete")}
+            </div>
+            <DeleteConfirmNameHint name={project.name} />
+            <input
+              autoFocus
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && deleteConfirmText === project.name) void doConfirmDelete();
+                if (e.key === "Escape") closeDeleteConfirm();
+              }}
+              placeholder={project.name}
+              disabled={deleting}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                padding: "7px 10px",
+                borderRadius: 6,
+                fontSize: 13,
+                border: "1.5px solid #e2e8f0",
+                outline: "none",
+                color: "#0f172a",
+                marginBottom: 16,
+              }}
+            />
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+              <button
+                type="button"
+                onClick={closeDeleteConfirm}
+                disabled={deleting}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: "1.5px solid #e2e8f0",
+                  background: "#fff",
+                  fontSize: 13,
+                  cursor: deleting ? "default" : "pointer",
+                  color: "#64748b",
+                }}
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void doConfirmDelete()}
+                disabled={deleteConfirmText !== project.name || deleting}
+                style={{
+                  padding: "6px 16px",
+                  borderRadius: 6,
+                  border: "none",
+                  fontSize: 13,
+                  cursor: deleteConfirmText === project.name && !deleting ? "pointer" : "default",
+                  background: deleteConfirmText === project.name && !deleting ? "#ef4444" : "#f1f5f9",
+                  color: deleteConfirmText === project.name && !deleting ? "#fff" : "#94a3b8",
+                  transition: "background 0.15s, color 0.15s",
+                }}
+              >
+                {t("delete")}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   );
 }

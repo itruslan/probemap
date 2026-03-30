@@ -1,5 +1,5 @@
-import { useReactFlow, type NodeProps } from "@xyflow/react";
-import { useEffect, useRef, useState } from "react";
+import { useReactFlow, useNodes, type Node, type NodeProps } from "@xyflow/react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Port, ServiceAction } from "../api";
 import { portProbeChips } from "../probeDisplay";
@@ -10,20 +10,13 @@ import { useColliding } from "../CollisionContext";
 import { HoverTooltip } from "../Tooltip";
 import { useProbeSources, useServices } from "../ServicesContext";
 import { useI18n } from "../i18n";
+import { TrashIcon } from "../TrashIcon";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
   warn: "#f97316",
   down: "#ef4444",
   unknown: "#9ca3af",
-};
-
-const PROBE_COLOR: Record<string, string> = {
-  http:  "#3b82f6",
-  tcp:   "#8b5cf6",
-  icmp:  "#eab308",
-  udp:   "#f97316",
-  dns:   "#22c55e",
 };
 
 function aggStatus(ports: Port[]): string {
@@ -34,15 +27,16 @@ function aggStatus(ports: Port[]): string {
   return "unknown";
 }
 
-function ProbeTypeBadge({ type, active }: { type: string; active: boolean }) {
-  const color = PROBE_COLOR[type.toLowerCase()] ?? "#64748b";
+/** Тип пробы — тем же цветом статуса, что и бейдж порта */
+function ProbeTypeBadge({ type, statusColor }: { type: string; statusColor: string }) {
+  const c = statusColor;
   const label = type.toUpperCase();
   return (
     <span style={{
-      fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3,
-      background: active ? color + "22" : "#f1f5f9",
-      color: active ? color : "#94a3b8",
-      border: `1px solid ${active ? color + "44" : "#e2e8f0"}`,
+      fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 4,
+      background: c + "18",
+      color: c,
+      border: `1px solid ${c}44`,
       letterSpacing: "0.04em",
       fontVariantNumeric: "tabular-nums",
     }}>
@@ -70,9 +64,22 @@ export interface ServiceNodeData {
   actions?: ServiceAction[];
 }
 
+/** Id сервисов, уже представленных другим узлом (узел с id из каталога или с matchServiceId). */
+function occupiedServiceIds(nodes: Node[], excludeNodeId: string, catalogIds: Set<string>): Set<string> {
+  const used = new Set<string>();
+  for (const n of nodes) {
+    if (n.type !== "service" || n.id === excludeNodeId) continue;
+    const md = n.data as unknown as ServiceNodeData;
+    if (md.matchServiceId) used.add(md.matchServiceId);
+    else if (catalogIds.has(n.id)) used.add(n.id);
+  }
+  return used;
+}
+
 export function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
   const { updateNodeData } = useReactFlow();
+  const nodes = useNodes();
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
   const { t } = useI18n();
@@ -99,6 +106,16 @@ export function ServiceNode({ data, id }: NodeProps) {
   const colliding = useColliding(id);
   const portAgg = aggStatus(d.ports ?? []);
   const isNoMetrics = (d.ports ?? []).length === 0;
+
+  /** Для привязки: не показывать сервисы, уже занятые другим узлом; текущая привязка остаётся в списке. */
+  const bindableServices = useMemo(() => {
+    const catalogIds = new Set(services.map((s) => s.id));
+    const used = occupiedServiceIds(nodes, id, catalogIds);
+    const currentEffective = d.matchServiceId ?? (catalogIds.has(id) ? id : null);
+    return services.filter(
+      (svc) => !used.has(svc.id) || (currentEffective != null && svc.id === currentEffective),
+    );
+  }, [nodes, services, id, d.matchServiceId]);
 
   const bindToService = (serviceId: string | null) => {
     const svc = serviceId ? services.find((s) => s.id === serviceId) ?? null : null;
@@ -298,8 +315,13 @@ export function ServiceNode({ data, id }: NodeProps) {
       )}
       {probeRows.length > 0 ? probeRows.map((row) => {
         const chips = portProbeChips(row.port, row.probe_types, d.label, row.module);
-        const dotColor =
-          row.success === 1 ? "#22c55e" : row.success === 0 ? "#ef4444" : "#94a3b8";
+        const rowStatusColor =
+          row.success === 1
+            ? STATUS_COLOR.ok
+            : row.success === 0
+              ? STATUS_COLOR.down
+              : STATUS_COLOR.unknown;
+        const dotColor = rowStatusColor;
         return (
           <div
             key={`${row.port}-${row.source}-${row.job ?? ""}-${row.module ?? ""}`}
@@ -330,7 +352,7 @@ export function ServiceNode({ data, id }: NodeProps) {
                   {chips.portText}
                 </span>
               )}
-              <ProbeTypeBadge type={kindKeyForBadge(chips.kind)} active />
+              <ProbeTypeBadge type={kindKeyForBadge(chips.kind)} statusColor={rowStatusColor} />
             </div>
             <span
               style={{
@@ -389,7 +411,7 @@ export function ServiceNode({ data, id }: NodeProps) {
                 }}
               >
                 <option value="">{t("emDash")}</option>
-                {services.map((svc) => (
+                {bindableServices.map((svc) => (
                   <option key={svc.id} value={svc.id}>
                     {svc.name}
                   </option>
@@ -453,7 +475,31 @@ export function ServiceNode({ data, id }: NodeProps) {
             >
               <IconRenderer name={action.icon} size={14} />
             </a>
-            {locked && <button className="rm-act" onClick={() => removeAction(i)} style={{ display: "none", position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff", fontSize: 8, cursor: "pointer", alignItems: "center", justifyContent: "center", padding: 0 }}>×</button>}
+            {locked && (
+              <button
+                className="rm-act"
+                type="button"
+                onClick={() => removeAction(i)}
+                style={{
+                  display: "none",
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "#ef4444",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                }}
+              >
+                <TrashIcon variantOnRed size={8} />
+              </button>
+            )}
           </div>
         ))}
 
@@ -496,19 +542,17 @@ export function ServiceNode({ data, id }: NodeProps) {
             position: "absolute", bottom: 10, right: 10,
             width: 26, height: 26, borderRadius: 6,
             border: "none", background: "transparent",
-            color: "#ef4444", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 0, transition: "background 0.15s",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            transition: "background 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
+          <TrashIcon size={15} />
         </button>
       )}
     </div>,
@@ -580,7 +624,7 @@ export function ServiceNode({ data, id }: NodeProps) {
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", flex: "1 1 auto", minWidth: 0 }}>
                 {(d.ports ?? []).map((p) => {
                   const chips = portProbeChips(p.port, p.probe_types, d.label, p.module);
-                  const c = STATUS_COLOR[p.status];
+                  const c = STATUS_COLOR[p.status] ?? STATUS_COLOR.unknown;
                   const pk = `${p.port}-${p.job ?? ""}-${p.module ?? ""}`;
                   return (
                     <div key={pk} style={{ display: "flex", gap: 3, alignItems: "center", flexWrap: "wrap" }}>
@@ -595,7 +639,7 @@ export function ServiceNode({ data, id }: NodeProps) {
                           {chips.portText}
                         </span>
                       )}
-                      <ProbeTypeBadge type={kindKeyForBadge(chips.kind)} active />
+                      <ProbeTypeBadge type={kindKeyForBadge(chips.kind)} statusColor={c} />
                     </div>
                   );
                 })}

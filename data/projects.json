@@ -1,8 +1,30 @@
 [
   {
     "id": "cd7ea4d2",
-    "name": "Homelab",
-    "filters": null,
-    "filter": null
+    "name": "Production",
+    "filters": [
+      {
+        "label": "environment",
+        "value": "production"
+      }
+    ],
+    "filter": {
+      "label": "environment",
+      "value": "production"
+    }
+  },
+  {
+    "id": "5cf5533d",
+    "name": "Staging",
+    "filters": [
+      {
+        "label": "environment",
+        "value": "staging"
+      }
+    ],
+    "filter": {
+      "label": "environment",
+      "value": "staging"
+    }
   }
 ]

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { FaCircleQuestion } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";
+import { HoverTooltip } from "./Tooltip";
 
 interface PaletteProps {
   services: Service[];
@@ -29,6 +31,30 @@ export function Palette({
   const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [nodesHelpTarget, setNodesHelpTarget] = useState<HTMLElement | null>(null);
+  const nodesHelpHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearNodesHelpHideTimer = () => {
+    if (nodesHelpHideTimer.current) {
+      clearTimeout(nodesHelpHideTimer.current);
+      nodesHelpHideTimer.current = null;
+    }
+  };
+
+  const showNodesHelp = (el: HTMLElement) => {
+    clearNodesHelpHideTimer();
+    setNodesHelpTarget(el);
+  };
+
+  const scheduleHideNodesHelp = () => {
+    clearNodesHelpHideTimer();
+    nodesHelpHideTimer.current = setTimeout(() => {
+      setNodesHelpTarget(null);
+      nodesHelpHideTimer.current = null;
+    }, 220);
+  };
+
+  useEffect(() => () => clearNodesHelpHideTimer(), []);
 
   const filtered = services
     .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
@@ -72,7 +98,18 @@ export function Palette({
       style={readOnly ? { opacity: 0.72 } : undefined}
     >
       <div className="palette-sidebar__header">
-        <span className="palette-sidebar__title">{t("nodesTitle")}</span>
+        <span className="palette-sidebar__title-wrap">
+          <span className="palette-sidebar__title">{t("nodesTitle")}</span>
+          <button
+            type="button"
+            className="palette-sidebar__help"
+            aria-label={t("nodesPaletteHelpAria")}
+            onMouseEnter={(e) => showNodesHelp(e.currentTarget)}
+            onMouseLeave={scheduleHideNodesHelp}
+          >
+            <FaCircleQuestion aria-hidden className="palette-sidebar__help-icon" />
+          </button>
+        </span>
         <span className="palette-sidebar__count">{services.length}</span>
       </div>
 
@@ -135,9 +172,16 @@ export function Palette({
         )}
       </div>
 
-      <p className="palette-sidebar__hint">
-        {t("monitoringHint")}
-      </p>
+      {nodesHelpTarget && (
+        <HoverTooltip
+          targetEl={nodesHelpTarget}
+          label={t("monitoringHint")}
+          multiline
+          placement="below"
+          onInteractiveEnter={clearNodesHelpHideTimer}
+          onInteractiveLeave={scheduleHideNodesHelp}
+        />
+      )}
     </aside>
   );
 }

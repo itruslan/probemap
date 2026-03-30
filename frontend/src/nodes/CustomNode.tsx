@@ -8,6 +8,7 @@ import { IconPicker } from "../IconPicker";
 import { useColliding } from "../CollisionContext";
 import { HoverTooltip } from "../Tooltip";
 import { useI18n } from "../i18n";
+import { TrashIcon } from "../TrashIcon";
 
 export interface CustomNodeData {
   label: string;
@@ -219,7 +220,31 @@ export function CustomNode({ data, id }: NodeProps) {
             >
               <IconRenderer name={action.icon} size={14} />
             </a>
-            {locked && <button className="rm-act" onClick={() => removeAction(i)} style={{ display: "none", position: "absolute", top: -4, right: -4, width: 14, height: 14, borderRadius: "50%", border: "none", background: "#ef4444", color: "#fff", fontSize: 8, cursor: "pointer", alignItems: "center", justifyContent: "center", padding: 0 }}>×</button>}
+            {locked && (
+              <button
+                className="rm-act"
+                type="button"
+                onClick={() => removeAction(i)}
+                style={{
+                  display: "none",
+                  position: "absolute",
+                  top: -4,
+                  right: -4,
+                  width: 14,
+                  height: 14,
+                  borderRadius: "50%",
+                  border: "none",
+                  background: "#ef4444",
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  padding: 0,
+                }}
+              >
+                <TrashIcon variantOnRed size={8} />
+              </button>
+            )}
           </div>
         ))}
 
@@ -262,19 +287,17 @@ export function CustomNode({ data, id }: NodeProps) {
             position: "absolute", bottom: 10, right: 10,
             width: 26, height: 26, borderRadius: 6,
             border: "none", background: "transparent",
-            color: "#ef4444", cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-            padding: 0, transition: "background 0.15s",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 0,
+            transition: "background 0.15s",
           }}
           onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; }}
           onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-            <line x1="10" y1="11" x2="10" y2="17" />
-            <line x1="14" y1="11" x2="14" y2="17" />
-          </svg>
+          <TrashIcon size={15} />
         </button>
       )}
     </div>,

@@ -7,6 +7,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { useState } from "react";
+import { TrashIcon } from "../TrashIcon";
 
 const ARROW = 7;
 
@@ -71,6 +72,7 @@ export function DeletableEdge({
             onMouseLeave={() => setHover(false)}
           >
             <button
+              type="button"
               onClick={() => deleteElements({ edges: [{ id }] })}
               style={{
                 width: 18,
@@ -78,8 +80,6 @@ export function DeletableEdge({
                 borderRadius: "50%",
                 border: "none",
                 background: "#ef4444",
-                color: "#fff",
-                fontSize: 11,
                 cursor: "pointer",
                 display: "flex",
                 alignItems: "center",
@@ -88,7 +88,7 @@ export function DeletableEdge({
                 boxShadow: "0 1px 3px rgba(0,0,0,.3)",
               }}
             >
-              ×
+              <TrashIcon variantOnRed size={10} />
             </button>
           </div>
         )}
