@@ -109,6 +109,7 @@ html, body {
   width: 228px;
   min-width: 228px;
   flex-shrink: 0;
+  align-self: stretch;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -117,6 +118,15 @@ html, body {
   border-right: 1px solid rgba(148, 163, 184, 0.4);
   box-shadow: 4px 0 20px -10px rgba(15, 23, 42, 0.08);
   overflow: hidden;
+  /* Во вложенном flex без этого список теряет ограничение по высоте и скролл ломается */
+  min-height: 0;
+  /* height:100% убираем — растягиваемся через align-self:stretch у родителя-flex */
+}
+
+.palette-sidebar__header,
+.palette-sidebar__search,
+.palette-sidebar__hint {
+  flex-shrink: 0;
 }
 
 .palette-sidebar__header {
@@ -167,11 +177,11 @@ html, body {
 }
 
 .palette-sidebar__list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  /* block + margin вместо column+gap — меньше сюрпризов при overflow во вложенном flex */
+  display: block;
+  overflow-x: hidden;
   overflow-y: auto;
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
   padding: 5px;
   margin: 0 -2px;
@@ -194,23 +204,65 @@ html, body {
   line-height: 1.4;
   color: #94a3b8;
   text-align: center;
+  white-space: pre-line;
 }
 
 /* Строки палитры — заметная рамка у выбранного, как на карте */
 .palette-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  margin-bottom: 3px;
   padding: 5px 8px 5px 10px;
   border-radius: 7px;
   font-size: 12px;
   line-height: 1.35;
   user-select: none;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   position: relative;
   transition:
     background 0.18s ease,
     color 0.18s ease,
     box-shadow 0.2s ease;
+}
+
+.palette-row__name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-row__add {
+  flex-shrink: 0;
+  margin: 0;
+  padding: 2px 8px;
+  border-radius: 5px;
+  border: 1px solid #cbd5e1;
+  background: #f8fafc;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  line-height: 1.25;
+}
+
+.palette-row__add:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+  color: #334155;
+}
+
+.palette-row__add:focus-visible {
+  outline: 2px solid #64748b;
+  outline-offset: 1px;
+}
+
+.palette-row:last-child {
+  margin-bottom: 0;
 }
 
 .palette-row--missing {

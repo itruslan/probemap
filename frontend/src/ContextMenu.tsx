@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaObjectGroup, FaBox } from "react-icons/fa6";
 import type { Service } from "./api";
+import { useI18n } from "./i18n";
 
 export interface CatalogItem {
   kind: string;
@@ -15,6 +16,7 @@ interface Props {
   services: Service[];
   onAddArea: () => void;
   onAddObject: () => void;
+  onAddNoMetricsService: () => void;
   onAddService: (svc: Service) => void;
   onClose: () => void;
 }
@@ -22,7 +24,8 @@ interface Props {
 const MENU_W = 188;
 const SUB_W = 200;
 
-export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddService, onClose }: Props) {
+export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddNoMetricsService, onAddService, onClose }: Props) {
+  const { t } = useI18n();
   const mainRef = useRef<HTMLDivElement>(null);
   const subRef = useRef<HTMLDivElement>(null);
   const [subY, setSubY] = useState(0);
@@ -69,15 +72,16 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
       >
         <Row
           icon={<FaObjectGroup size={13} />}
-          label="Добавить область"
+          label={t("contextAddArea")}
           onClick={() => { onAddArea(); onClose(); }}
           onMouseEnter={() => setShowSub(false)}
         />
         <Row
           icon={<FaBox size={13} />}
-          label="Добавить узел"
+          label={t("contextAddNode")}
           arrow
           active={showSub}
+          onClick={() => { onAddObject(); onClose(); }}
           onMouseEnter={(e) => { setSubY(e.currentTarget.getBoundingClientRect().top); setShowSub(true); }}
         />
       </div>
@@ -116,13 +120,13 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
           )}
           {services.length === 0 && (
             <div style={{ padding: "8px 14px 6px", color: "#94a3b8", fontSize: 12, lineHeight: 1.35 }}>
-              Все узлы из мониторинга уже на карте
+              {t("contextAllOnCanvas")}
             </div>
           )}
           <Row
-            label="Без метрик"
-            hint="произвольный узел"
-            onClick={() => { onAddObject(); onClose(); }}
+            label={t("contextWithoutMetrics")}
+            hint={t("contextCustomHint")}
+            onClick={() => { onAddNoMetricsService(); onClose(); }}
           />
         </div>
       )}

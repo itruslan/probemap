@@ -5,14 +5,17 @@
       "x": 115.71132134402936,
       "y": -2046.2343526185234,
       "type": "service",
+      "label": "authentik",
       "icon": "custom:DotNet",
-      "description": "asdfasdf"
+      "description": "asdfasdf",
+      "matchServiceId": null
     },
     {
       "id": "argocd",
       "x": 388.05683265853537,
       "y": -1826.7831964308682,
       "type": "service",
+      "label": "argocd",
       "icon": "custom:Redis",
       "description": "\u0444\u044b\u0432\u0430\u0444 \u044b\u0432\u044b\u0430 \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \u0448\u0444\u044b\u0449\u0432\u0430 \u044b\u0444\u041f\n\u044b\u0432\u0430\u044b \n- \u0444\u044b\u0432\u0430 \u0444\u044b\u0432\u0430 \n",
       "actions": [
@@ -21,36 +24,64 @@
           "label": "google",
           "url": "https://google.com"
         }
-      ]
-    },
-    {
-      "id": "custom-1774812878406",
-      "x": 404.94692608194424,
-      "y": -1956.0326132598746,
-      "type": "custom",
-      "label": "\u041e\u0431\u044a\u0435\u043a\u0442",
-      "kind": "custom",
-      "icon": "FaRocket",
-      "description": "\u0444\u0432\u0444\u044b\u0432\u0444\u044b\u0432\u0444\u044b\u0432"
+      ],
+      "matchServiceId": null
     },
     {
       "id": "grafana",
       "x": 105.32905403404044,
       "y": -1937.535355760035,
       "type": "service",
+      "label": "grafana",
       "icon": "FaDatabase",
-      "description": "123 123 123 12 123 21 312 213 123 13 1 1 1 313 1"
+      "description": "123 123 123 12 123 21 312 213 123 13 1 1 1 313 1",
+      "matchServiceId": null
+    },
+    {
+      "id": "icmp-cf-secondary",
+      "x": 378.2778831506452,
+      "y": -2177.468495697087,
+      "type": "service",
+      "label": "icmp-cf-secondary",
+      "matchServiceId": null
+    },
+    {
+      "id": "eff",
+      "x": 443.53546125824977,
+      "y": -2046.9116792777902,
+      "type": "service",
+      "label": "eff",
+      "matchServiceId": null
+    },
+    {
+      "id": "cloudflare-www",
+      "x": 595.7923977919356,
+      "y": -2099.2437175946966,
+      "type": "service",
+      "label": "cloudflare-www",
+      "matchServiceId": null
+    },
+    {
+      "id": "nometrics-1774862913064",
+      "x": 563.9287615542418,
+      "y": -1962.8437769330121,
+      "type": "service",
+      "label": "anylink-vpn",
+      "icon": "FaServer",
+      "matchServiceId": "anylink-vpn"
+    },
+    {
+      "id": "nometrics-1774863751514",
+      "x": 664.0481318983432,
+      "y": -1845.582876965457,
+      "type": "service",
+      "label": "\u0423\u0437\u0435\u043b",
+      "icon": "FaScaleBalanced",
+      "matchServiceId": null
     }
   ],
   "groups": [],
   "edges": [
-    {
-      "source": "authentik",
-      "sourceHandle": "right",
-      "target": "custom-1774812878406",
-      "targetHandle": "left",
-      "id": "xy-edge__authentikright-custom-1774812878406left"
-    },
     {
       "source": "grafana",
       "sourceHandle": "right",
@@ -78,6 +109,15 @@
     "grafana": {
       "icon": "FaDatabase",
       "description": "123 123 123 12 123 21 312 213 123 13 1 1 1 313 1"
+    },
+    "icmp-cf-secondary": {},
+    "eff": {},
+    "cloudflare-www": {},
+    "nometrics-1774862913064": {
+      "icon": "FaServer"
+    },
+    "nometrics-1774863751514": {
+      "icon": "FaScaleBalanced"
     }
   }
 }

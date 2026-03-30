@@ -24,6 +24,8 @@ import { DeletableEdge } from "./edges/DeletableEdge";
 import { Palette } from "./Palette";
 import { ContextMenu } from "./ContextMenu";
 import { CollisionContext } from "./CollisionContext";
+import { ServicesContext } from "./ServicesContext";
+import { useI18n } from "./i18n";
 
 const NODE_TYPES = { service: ServiceNode, custom: CustomNode, group: GroupNode };
 const EDGE_TYPES = { default: DeletableEdge };
@@ -34,12 +36,13 @@ function serviceToNode(
   icon?: string,
   description?: string,
   actions?: ServiceAction[],
+  matchServiceId?: string | null,
 ): Node {
   return {
     id: svc.id,
     type: "service",
     position,
-    data: { label: svc.name, ports: svc.ports, icon, description, actions } satisfies ServiceNodeData,
+    data: { label: svc.name, ports: svc.ports, icon, description, actions, matchServiceId: matchServiceId ?? null } satisfies ServiceNodeData,
   };
 }
 
@@ -52,6 +55,99 @@ function customToNode(kind: string, label: string, icon: string, position: { x: 
   };
 }
 
+const PLACEABLE_TYPES = ["service", "custom"] as const;
+
+function nodeRect(n: Node) {
+  return {
+    x: n.position.x,
+    y: n.position.y,
+    w: n.measured?.width ?? 140,
+    h: n.measured?.height ?? 80,
+  };
+}
+
+function rectsOverlap(
+  a: { x: number; y: number; w: number; h: number },
+  b: { x: number; y: number; w: number; h: number },
+) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+const NEW_NODE_W = 140;
+const NEW_NODE_H = 80;
+const PLACE_GAP = 10;
+const VIEW_PAD = 16;
+
+/** Запасной вариант: спираль от точки, если сетка по вьюпорту не нашла место. */
+function findFreePositionNearPreferred(preferred: { x: number; y: number }, nodes: Node[]): { x: number; y: number } {
+  const others = nodes.filter((n) => PLACEABLE_TYPES.includes(n.type as "service" | "custom"));
+  const newRect = (pos: { x: number; y: number }) => ({ x: pos.x, y: pos.y, w: NEW_NODE_W, h: NEW_NODE_H });
+  const clashes = (pos: { x: number; y: number }) =>
+    others.some((n) => rectsOverlap(newRect(pos), nodeRect(n)));
+
+  if (!clashes(preferred)) return preferred;
+
+  const step = 28;
+  for (let r = 1; r <= 40; r++) {
+    for (const [dx, dy] of [
+      [r, 0], [0, r], [r, r], [-r, 0], [0, -r], [r, -r], [-r, r], [-r, -r],
+    ] as [number, number][]) {
+      const p = { x: preferred.x + dx * step, y: preferred.y + dy * step };
+      if (!clashes(p)) return p;
+    }
+  }
+  return { x: preferred.x + 42 * step, y: preferred.y };
+}
+
+/**
+ * Видимая область канваса: левый край сверху вниз, затем следующая колонка правее.
+ * Освободившееся сверху место снова занимается при следующем добавлении (проверка пересечений по сетке).
+ */
+function findFreePositionViewportLeftColumn(
+  nodes: Node[],
+  screenToFlowPosition: (p: { x: number; y: number }) => { x: number; y: number },
+  rect: DOMRect | null,
+): { x: number; y: number } {
+  const others = nodes.filter((n) => PLACEABLE_TYPES.includes(n.type as "service" | "custom"));
+  const newRect = (pos: { x: number; y: number }) => ({ x: pos.x, y: pos.y, w: NEW_NODE_W, h: NEW_NODE_H });
+  const clashes = (pos: { x: number; y: number }) =>
+    others.some((n) => rectsOverlap(newRect(pos), nodeRect(n)));
+
+  if (!rect) {
+    return findFreePositionNearPreferred({ x: 0, y: 0 }, nodes);
+  }
+
+  const p1 = screenToFlowPosition({ x: rect.left, y: rect.top });
+  const p2 = screenToFlowPosition({ x: rect.right, y: rect.top });
+  const p3 = screenToFlowPosition({ x: rect.left, y: rect.bottom });
+  const p4 = screenToFlowPosition({ x: rect.right, y: rect.bottom });
+  const minX = Math.min(p1.x, p2.x, p3.x, p4.x);
+  const minY = Math.min(p1.y, p2.y, p3.y, p4.y);
+  const maxY = Math.max(p1.y, p2.y, p3.y, p4.y);
+
+  const colStep = NEW_NODE_W + PLACE_GAP;
+  const rowStep = NEW_NODE_H + PLACE_GAP;
+
+  for (let col = 0; col < 120; col++) {
+    const x = minX + VIEW_PAD + col * colStep;
+    const yStart = minY + VIEW_PAD;
+    const yMax = maxY - VIEW_PAD - NEW_NODE_H;
+
+    if (yMax < yStart - 1e-6) {
+      const pos = { x, y: yStart };
+      if (!clashes(pos)) return pos;
+      continue;
+    }
+
+    for (let y = yStart; y <= yMax + 1e-6; y += rowStep) {
+      const pos = { x, y };
+      if (!clashes(pos)) return pos;
+    }
+  }
+
+  return findFreePositionNearPreferred({ x: minX + VIEW_PAD, y: minY + VIEW_PAD }, nodes);
+}
+
 interface Props {
   data: ServicesResponse;
   projectId: string | null;
@@ -59,7 +155,8 @@ interface Props {
 }
 
 export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
-  const { screenToFlowPosition, getNodes } = useReactFlow();
+  const { t } = useI18n();
+  const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom } = useReactFlow();
   const removedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
   const layoutLoaded = useRef(false);
@@ -75,6 +172,23 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
   const [confirmText, setConfirmText] = useState("");
   const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(null);
   const [paletteHoverId, setPaletteHoverId] = useState<string | null>(null);
+
+  const onPaletteSelect = useCallback(
+    (id: string | null) => {
+      setPaletteSelectedId(id);
+      if (!id) return;
+      queueMicrotask(() => {
+        const n = getNode(id);
+        if (!n) return;
+        const w = n.measured?.width ?? 140;
+        const h = n.measured?.height ?? 80;
+        const cx = n.position.x + w / 2;
+        const cy = n.position.y + h / 2;
+        void setCenter(cx, cy, { zoom: getZoom(), duration: 320 });
+      });
+    },
+    [getNode, setCenter, getZoom]
+  );
 
   const COLLIDABLE = ["service", "custom"];
 
@@ -207,7 +321,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
               type: "group",
               position: { x: ln.x, y: ln.y },
               style: { width: ln.width ?? 260, height: ln.height ?? 180, zIndex: ln.zIndex ?? -1 },
-              data: { label: ln.label ?? "Область", color: ln.color, icon: ln.icon } satisfies GroupNodeData,
+              data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color, icon: ln.icon } satisfies GroupNodeData,
             } as Node;
           }
           if (ln.type === "custom") {
@@ -218,10 +332,28 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
               data: { label: ln.label ?? "", kind: ln.kind ?? "custom", icon: ln.icon, description: (ln as any).description, actions: (ln as any).actions } satisfies CustomNodeData,
             } as Node;
           }
-          const svc = data.services.find((s) => s.id === ln.id);
-          if (!svc) return null;
-          const cfg = serviceConfigs.current[svc.id] ?? {};
-          return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions);
+          if (!ln.type || ln.type === "service") {
+            const svc = data.services.find((s) => s.id === ln.id) ?? null;
+            const cfg = serviceConfigs.current[ln.id] ?? {};
+            if (svc) {
+              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, ln.matchServiceId ?? null);
+            }
+            // Узел service без метрик: сервис мог исчезнуть во время сохранения
+            return {
+              id: ln.id,
+              type: "service",
+              position: { x: ln.x, y: ln.y },
+              data: {
+                label: ln.label ?? ln.id,
+                ports: [],
+                icon: cfg.icon,
+                description: cfg.description,
+                actions: cfg.actions,
+                matchServiceId: ln.matchServiceId ?? null,
+              } satisfies ServiceNodeData,
+            } as Node;
+          }
+          return null;
         })
         .filter(Boolean) as Node[];
       setNodes(placed);
@@ -261,10 +393,35 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
     setNodes((prev) =>
       prev.map((n) => {
         if (n.type !== "service") return n;
-        const svc = data.services.find((s) => s.id === n.id);
-        if (!svc) return n;
         const d = n.data as unknown as ServiceNodeData;
-        return { ...n, data: { label: svc.name, ports: svc.ports, icon: d.icon, description: d.description, actions: d.actions } };
+        const directSvc = data.services.find((s) => s.id === n.id) ?? null;
+        const matchIdSvc = d.matchServiceId ? (data.services.find((s) => s.id === d.matchServiceId) ?? null) : null;
+
+        let byNameSvc = null as Service | null;
+        if (!directSvc && !matchIdSvc && (d.ports ?? []).length === 0) {
+          const candidates = data.services.filter((s) => s.name === (d.label ?? ""));
+          if (candidates.length === 1) byNameSvc = candidates[0];
+        }
+
+        const svc = directSvc ?? matchIdSvc ?? byNameSvc;
+        if (!svc) {
+          // Даунгрейд: метрики пропали
+          return { ...n, data: { ...d, ports: [] } };
+        }
+
+        const nextMatch = d.matchServiceId ?? byNameSvc?.id ?? null;
+        return {
+          ...n,
+          data: {
+            ...d,
+            label: svc.name,
+            ports: svc.ports,
+            matchServiceId: nextMatch,
+            icon: d.icon,
+            description: d.description,
+            actions: d.actions,
+          },
+        };
       })
     );
   }, [data]);
@@ -303,7 +460,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
             type: "group",
             position,
             style: { width: 260, height: 180, zIndex: -10 + groupCount },
-            data: { label: "Область", icon: "FaLayerGroup" } satisfies GroupNodeData,
+            data: { label: t("defaultGroupLabel"), icon: "FaLayerGroup" } satisfies GroupNodeData,
           } as Node,
           ...ns,
         ];
@@ -315,36 +472,56 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
   const addCustom = useCallback(
     (screenX: number, screenY: number) => {
       const position = screenToFlowPosition({ x: screenX, y: screenY });
-      setNodes((ns) => [...ns, customToNode("custom", "Узел", "FaBox", position)]);
+      setNodes((ns) => [...ns, customToNode("custom", t("defaultNodeLabel"), "FaBox", position)]);
     },
     [setNodes, screenToFlowPosition]
   );
 
-  const toggleService = useCallback(
-    (svc: Service) => {
-      const onCanvas = getNodes().some((n) => n.id === svc.id && n.type === "service");
-      if (onCanvas) {
-        const node = getNodes().find((n) => n.id === svc.id);
-        if (node) removedPositions.current.set(svc.id, { x: node.position.x, y: node.position.y });
-        setNodes((ns) => ns.filter((n) => n.id !== svc.id));
-        setEdges((es) => es.filter((e) => e.source !== svc.id && e.target !== svc.id));
-      } else {
-        const saved = removedPositions.current.get(svc.id);
-        let position: { x: number; y: number };
-        if (saved) {
-          position = saved;
-          removedPositions.current.delete(svc.id);
-        } else {
-          const rect = wrapperRef.current?.getBoundingClientRect();
-          const cx = rect ? rect.left + rect.width / 2 : 400;
-          const cy = rect ? rect.top + rect.height / 2 : 300;
-          position = screenToFlowPosition({ x: cx, y: cy });
-        }
-        const cfg = serviceConfigs.current[svc.id] ?? {};
-        setNodes((ns) => [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions)]);
-      }
+  const addNoMetricsService = useCallback(
+    (screenX: number, screenY: number) => {
+      const position = screenToFlowPosition({ x: screenX, y: screenY });
+      const id = `nometrics-${Date.now()}`;
+      serviceConfigs.current[id] = { icon: "FaBox" };
+      setNodes((ns) => [
+        ...ns,
+        {
+          id,
+          type: "service",
+          position,
+          data: {
+            label: t("defaultNodeLabel"),
+            ports: [],
+            icon: "FaBox",
+            description: undefined,
+            actions: undefined,
+            matchServiceId: null,
+          } satisfies ServiceNodeData,
+        } as Node,
+      ]);
     },
-    [getNodes, setNodes, setEdges, screenToFlowPosition]
+    [setNodes, screenToFlowPosition]
+  );
+
+  /** Тот же путь, что пункт «сервис из мониторинга» в ПКМ (позиция — экранные координаты). */
+  const addServiceAtScreen = useCallback(
+    (svc: Service, screenX: number, screenY: number) => {
+      const position = screenToFlowPosition({ x: screenX, y: screenY });
+      const cfg = serviceConfigs.current[svc.id] ?? {};
+      setNodes((ns) => [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, null)]);
+    },
+    [screenToFlowPosition, setNodes]
+  );
+
+  const addServiceFromPalette = useCallback(
+    (svc: Service) => {
+      const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+      setNodes((ns) => {
+        const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+        const cfg = serviceConfigs.current[svc.id] ?? {};
+        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, null)];
+      });
+    },
+    [screenToFlowPosition, setNodes]
   );
 
   const [saved, setSaved] = useState(false);
@@ -377,9 +554,11 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
         : {}),
       ...(n.type === "service"
         ? {
+            label: (n.data as unknown as ServiceNodeData).label,
             icon: (n.data as unknown as ServiceNodeData).icon,
             description: (n.data as unknown as ServiceNodeData).description,
             actions: (n.data as unknown as ServiceNodeData).actions,
+            matchServiceId: (n.data as unknown as ServiceNodeData).matchServiceId ?? null,
           }
         : {}),
     }));
@@ -408,23 +587,24 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
 
   return (
     <CollisionContext.Provider value={collidingIds}>
-    <div style={{ display: "flex", height: "100%", width: "100%" }}>
-      <Palette
-        services={data.services}
-        onCanvas={onCanvas}
-        onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
-        onToggleService={toggleService}
-        selectedId={paletteSelectedId}
-        onSelect={setPaletteSelectedId}
-        onHoverChange={setPaletteHoverId}
-      />
-      <div
-        ref={wrapperRef}
-        style={{ flex: 1, position: "relative" }}
-        onDrop={onDrop}
-        onDragOver={(e) => e.preventDefault()}
-        onContextMenu={handleContextMenu}
-      >
+    <ServicesContext.Provider value={{ services: data.services, probe_sources: data.probe_sources }}>
+      <div style={{ display: "flex", height: "100%", width: "100%", minHeight: 0 }}>
+        <Palette
+          services={data.services}
+          onCanvas={onCanvas}
+          onDragStart={(svc) => { dragging.current = { kind: "service", svc }; }}
+          onAddService={addServiceFromPalette}
+          selectedId={paletteSelectedId}
+          onSelect={onPaletteSelect}
+          onHoverChange={setPaletteHoverId}
+        />
+        <div
+          ref={wrapperRef}
+          style={{ flex: 1, minHeight: 0, position: "relative" }}
+          onDrop={onDrop}
+          onDragOver={(e) => e.preventDefault()}
+          onContextMenu={handleContextMenu}
+        >
         <button
           onClick={onRefresh}
           style={{
@@ -433,7 +613,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
             background: "#fff", cursor: "pointer", fontSize: 13,
           }}
         >
-          Обновить
+          {t("refresh")}
         </button>
         <label
           style={{
@@ -453,7 +633,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
             }}
             style={{ cursor: "pointer" }}
           />
-          Автосохранение
+          {t("autosave")}
         </label>
         <button
           onClick={persistLayout}
@@ -465,7 +645,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
             color: saved ? "#16a34a" : "inherit", transition: "all 0.2s",
           }}
         >
-          {saved ? "Сохранено" : "Сохранить"}
+          {saved ? t("saved") : t("save")}
         </button>
         <ReactFlow
           nodes={nodes}
@@ -493,16 +673,14 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
             services={data.services.filter((s) => !onCanvas.has(s.id))}
             onAddArea={() => addArea(contextMenu.screenX, contextMenu.screenY)}
             onAddObject={() => addCustom(contextMenu.screenX, contextMenu.screenY)}
-            onAddService={(svc) => {
-              const position = screenToFlowPosition({ x: contextMenu.screenX, y: contextMenu.screenY });
-              const cfg = serviceConfigs.current[svc.id] ?? {};
-              setNodes((ns) => [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions)]);
-            }}
+            onAddNoMetricsService={() => addNoMetricsService(contextMenu.screenX, contextMenu.screenY)}
+            onAddService={(svc) => addServiceAtScreen(svc, contextMenu.screenX, contextMenu.screenY)}
             onClose={() => setContextMenu(null)}
           />
         )}
       </div>
     </div>
+    </ServicesContext.Provider>
 
     {confirmDelete && createPortal(
       <div
@@ -518,10 +696,10 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           boxShadow: "0 8px 32px rgba(0,0,0,.18)", padding: "20px 24px",
         }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
-            Удалить с карты
+            {t("removeFromCanvas")}
           </div>
           <div style={{ fontSize: 13, color: "#475569", marginBottom: 14, lineHeight: 1.5 }}>
-            Введите <strong style={{ color: "#0f172a" }}>{confirmDelete.label}</strong> для подтверждения:
+            {t("deleteFromMapPrompt").replace("{name}", confirmDelete.label)}
           </div>
           <input
             autoFocus
@@ -539,7 +717,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
             <button onClick={() => { setConfirmDelete(null); setConfirmText(""); }}
               style={{ padding: "6px 16px", borderRadius: 6, border: "1.5px solid #e2e8f0", background: "#fff", fontSize: 13, cursor: "pointer", color: "#64748b" }}>
-              Отмена
+              {t("cancel")}
             </button>
             <button onClick={doConfirmDelete} disabled={confirmText !== confirmDelete.label}
               style={{
@@ -548,7 +726,7 @@ export function TopologyCanvas({ data, projectId, onRefresh }: Props) {
                 color: confirmText === confirmDelete.label ? "#fff" : "#94a3b8",
                 transition: "background 0.15s, color 0.15s",
               }}>
-              Удалить
+              {t("delete")}
             </button>
           </div>
         </div>

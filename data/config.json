@@ -13,8 +13,10 @@
   "label_map": {
     "service": "service",
     "port": "port",
-    "zone": "zone",
-    "module": "__name__",
+    "probe_source": "zone",
+    "module": "module",
     "url": null
-  }
+  },
+  "metric_extra_selector": "",
+  "metric_filter_rules": []
 }

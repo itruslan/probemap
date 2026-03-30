@@ -2,11 +2,14 @@ import { useReactFlow, type NodeProps } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Port, ServiceAction } from "../api";
+import { portProbeChips } from "../probeDisplay";
 import { IconRenderer } from "../IconRenderer";
 import { AllHandles } from "./handles";
 import { IconPicker } from "../IconPicker";
 import { useColliding } from "../CollisionContext";
 import { HoverTooltip } from "../Tooltip";
+import { useProbeSources, useServices } from "../ServicesContext";
+import { useI18n } from "../i18n";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -32,24 +35,36 @@ function aggStatus(ports: Port[]): string {
 }
 
 function ProbeTypeBadge({ type, active }: { type: string; active: boolean }) {
-  const color = PROBE_COLOR[type] ?? "#64748b";
+  const color = PROBE_COLOR[type.toLowerCase()] ?? "#64748b";
+  const label = type.toUpperCase();
   return (
     <span style={{
       fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3,
       background: active ? color + "22" : "#f1f5f9",
       color: active ? color : "#94a3b8",
       border: `1px solid ${active ? color + "44" : "#e2e8f0"}`,
-      textTransform: "uppercase",
       letterSpacing: "0.04em",
+      fontVariantNumeric: "tabular-nums",
     }}>
-      {type}
+      {label}
     </span>
   );
+}
+
+function portSortKey(port: string): number {
+  const n = parseInt(port, 10);
+  return Number.isFinite(n) ? n : 999_999;
+}
+
+function kindKeyForBadge(kind: string): string {
+  return kind.toLowerCase();
 }
 
 export interface ServiceNodeData {
   label: string;
   ports: Port[];
+  /** Если это сервис-узел без метрик или “связанный” пользовательский узел — хранит id сервиса */
+  matchServiceId?: string | null;
   icon?: string;
   description?: string;
   actions?: ServiceAction[];
@@ -58,6 +73,9 @@ export interface ServiceNodeData {
 export function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
   const { updateNodeData } = useReactFlow();
+  const services = useServices();
+  const probeSourcesGlobal = useProbeSources();
+  const { t } = useI18n();
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -73,29 +91,93 @@ export function ServiceNode({ data, id }: NodeProps) {
   const [addingAction, setAddingAction] = useState(false);
   const [newActionIcon, setNewActionIcon] = useState("FaGlobe");
   const [actionTooltip, setActionTooltip] = useState<{ label: string; el: HTMLElement } | null>(null);
+  const [sourceTooltip, setSourceTooltip] = useState<{ label: string; el: HTMLElement } | null>(null);
+  const [blackboxDotTooltip, setBlackboxDotTooltip] = useState<{ label: string; el: HTMLElement } | null>(null);
   const [newActionLabel, setNewActionLabel] = useState("");
   const [newActionUrl, setNewActionUrl] = useState("");
 
   const colliding = useColliding(id);
-  const status = aggStatus(d.ports ?? []);
+  const portAgg = aggStatus(d.ports ?? []);
+  const isNoMetrics = (d.ports ?? []).length === 0;
 
-  // all probe types across all ports (for badge row)
-  const allProbeTypes = [...new Set((d.ports ?? []).flatMap((p) => p.probe_types ?? []))].sort();
+  const bindToService = (serviceId: string | null) => {
+    const svc = serviceId ? services.find((s) => s.id === serviceId) ?? null : null;
+    updateNodeData(id, {
+      matchServiceId: serviceId,
+      label: svc?.name ?? d.label,
+      ports: svc?.ports ?? [],
+    });
+  };
 
-  // aggregate zones across all ports
-  const probes = new Map<string, { ok: boolean; duration_ms?: number; probe_types: string[] }>();
-  for (const port of d.ports ?? []) {
-    for (const [zone, s] of Object.entries(port.zones ?? {})) {
-      const ok = s.success === 1;
-      const existing = probes.get(zone);
-      const types = [...new Set([...(existing?.probe_types ?? []), ...(s.probe_types ?? [])])];
-      if (!existing || (existing.ok && !ok)) {
-        probes.set(zone, { ok, duration_ms: s.duration_ms ?? undefined, probe_types: types });
-      } else {
-        probes.set(zone, { ...existing, probe_types: types });
-      }
+  // Строка на пару порт×зона×job×module; тип пробы для зоны без серии — из агрегата порта (не «TCP» по умолчанию)
+  const probeRows = (d.ports ?? []).flatMap((p) =>
+    Object.entries(p.sources ?? {}).map(([source, s]) => {
+      const zt = s.probe_types ?? [];
+      const mergedTypes = zt.length > 0 ? zt : (p.probe_types ?? []);
+      return {
+        port: p.port,
+        job: p.job ?? null,
+        module: p.module ?? null,
+        source,
+        success: s.success,
+        duration_ms: s.duration_ms ?? undefined,
+        probe_types: mergedTypes,
+      };
+    }),
+  );
+  probeRows.sort((a, b) => {
+    const dj = (a.job ?? "").localeCompare(b.job ?? "", "ru");
+    if (dj !== 0) return dj;
+    const dm = (a.module ?? "").localeCompare(b.module ?? "", "ru");
+    if (dm !== 0) return dm;
+    const dp = portSortKey(a.port) - portSortKey(b.port);
+    if (dp !== 0) return dp;
+    return a.source.localeCompare(b.source, "ru");
+  });
+
+  // По источнику (instance): есть ли явный fail (0) и/или ok (1). Нет серии у части blackbox — не «провал».
+  const sourceAgg = (() => {
+    const m = new Map<string, { hasOk: boolean; hasFail: boolean }>();
+    for (const row of probeRows) {
+      const cur = m.get(row.source) ?? { hasOk: false, hasFail: false };
+      if (row.success === 1) cur.hasOk = true;
+      if (row.success === 0) cur.hasFail = true;
+      m.set(row.source, cur);
     }
-  }
+    return m;
+  })();
+
+  const hasAnyFail = probeRows.some((r) => r.success === 0);
+  const hasAnyOk = probeRows.some((r) => r.success === 1);
+  const totalPresent = sourceAgg.size;
+  const okPresent = Array.from(sourceAgg.values()).filter((st) => st.hasOk && !st.hasFail).length;
+
+  /** Нет метрик с части экспортёров не ухудшает цвет: красный только при явном 0; зелёный — все имеющиеся пробы ок. */
+  const probeRollupStatus: "ok" | "warn" | "down" | "unknown" =
+    hasAnyFail && hasAnyOk ? "warn"
+      : hasAnyFail ? "down"
+        : hasAnyOk ? "ok"
+          : "unknown";
+
+  const status = probeRollupStatus !== "unknown" ? probeRollupStatus : portAgg;
+
+  const expectedBb = (probeSourcesGlobal ?? []).filter(Boolean).length;
+  const presentBb = sourceAgg.size;
+
+  /** Список blackbox (instance), в том же порядке что и в API; иначе — из фактических источников по узлу */
+  const blackboxOrder = (() => {
+    const fromCfg = (probeSourcesGlobal ?? []).filter(Boolean);
+    if (fromCfg.length > 0) return fromCfg;
+    return Array.from(sourceAgg.keys()).sort((a, b) => a.localeCompare(b, "ru"));
+  })();
+
+  const nodeTint = status === "ok"
+    ? { border: "#22c55e66", bg: "#22c55e0f" }
+    : status === "warn"
+      ? { border: "#f9731666", bg: "#f973160f" }
+      : status === "down"
+        ? { border: "#ef444466", bg: "#ef44440f" }
+        : { border: "#cbd5e1", bg: "#fff" };
 
   const show = () => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
@@ -177,7 +259,8 @@ export function ServiceNode({ data, id }: NodeProps) {
     };
   })() : {};
 
-  const panel = visible && liveRect ? [createPortal(
+  const panel = visible && liveRect ? [
+    createPortal(
     <div
       ref={locked ? panelRef : undefined}
       onMouseEnter={() => { if (hideTimer.current) clearTimeout(hideTimer.current); }}
@@ -196,62 +279,145 @@ export function ServiceNode({ data, id }: NodeProps) {
       }}
     >
       {/* Probes */}
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 7, fontSize: 10, letterSpacing: "0.06em" }}>MONITORING</div>
-      {probes.size > 0 ? [...probes.entries()].map(([zone, s]) => (
-        <div
-          key={zone}
-          style={{
-            display: "grid",
-            gridTemplateColumns: "10px minmax(0, 1fr) auto 4.25rem",
-            alignItems: "center",
-            columnGap: 8,
-            marginBottom: 5,
-          }}
-        >
-          <div
-            style={{
-              width: 7,
-              height: 7,
-              borderRadius: "50%",
-              justifySelf: "center",
-              background: s.ok ? "#22c55e" : "#ef4444",
-            }}
-          />
-          <span style={{ color: "#0f172a", fontSize: 12, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{zone}</span>
-          <div style={{ display: "flex", gap: 3, flexWrap: "wrap", justifyContent: "flex-end" }}>
-            {allProbeTypes.map((type) => (
-              <ProbeTypeBadge key={type} type={type} active={s.probe_types.includes(type)} />
-            ))}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 7 }}>
+        <div style={{ fontWeight: 700, color: "#94a3b8", fontSize: 10, letterSpacing: "0.06em" }}>{t("monitoringTitle")}</div>
+        {totalPresent > 0 && (
+          <div style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: status === "ok" ? "#16a34a" : status === "down" ? "#ef4444" : status === "warn" ? "#f97316" : "#94a3b8",
+          }}>
+            {t("monitoringSummary").replace("{ok}", String(okPresent)).replace("{total}", String(totalPresent))}
           </div>
-          <span
+        )}
+      </div>
+      {expectedBb > 0 && (
+        <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8, marginTop: -4 }}>
+          {t("monitoringSourcesCoverage").replace("{present}", String(presentBb)).replace("{expected}", String(expectedBb))}
+        </div>
+      )}
+      {probeRows.length > 0 ? probeRows.map((row) => {
+        const chips = portProbeChips(row.port, row.probe_types, d.label, row.module);
+        const dotColor =
+          row.success === 1 ? "#22c55e" : row.success === 0 ? "#ef4444" : "#94a3b8";
+        return (
+          <div
+            key={`${row.port}-${row.source}-${row.job ?? ""}-${row.module ?? ""}`}
             style={{
-              color: "#94a3b8",
-              fontSize: 11,
-              textAlign: "right",
-              fontVariantNumeric: "tabular-nums",
+              display: "grid",
+              gridTemplateColumns: "10px minmax(0, 1fr) minmax(0, 1fr) 4.25rem",
+              alignItems: "center",
+              columnGap: 8,
+              marginBottom: 6,
             }}
           >
-            {s.duration_ms != null ? `${s.duration_ms}ms` : "—"}
-          </span>
+            <div
+              title={row.success == null ? t("noData") : row.success === 1 ? t("ok") : t("fail")}
+              style={{
+                width: 7,
+                height: 7,
+                borderRadius: "50%",
+                justifySelf: "center",
+                background: dotColor,
+              }}
+            />
+            <div style={{ display: "flex", gap: 4, alignItems: "center", flexWrap: "wrap", minWidth: 0 }}>
+              {chips.portText && (
+                <span style={{
+                  fontSize: 10, fontFamily: "ui-monospace, monospace", fontWeight: 600,
+                  color: "#475569", letterSpacing: "-0.02em",
+                }}>
+                  {chips.portText}
+                </span>
+              )}
+              <ProbeTypeBadge type={kindKeyForBadge(chips.kind)} active />
+            </div>
+            <span
+              style={{
+                color: "#0f172a",
+                fontSize: 12,
+                minWidth: 0,
+                overflow: "hidden",
+                whiteSpace: "nowrap",
+                display: "block",
+                // Плавное затухание конца строки вместо «…»
+                WebkitMaskImage: "linear-gradient(to right, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
+                maskImage: "linear-gradient(to right, rgba(0,0,0,1) 60%, rgba(0,0,0,0) 100%)",
+              }}
+              onMouseEnter={(e) => {
+                const label = [row.source, row.module].filter(Boolean).join(" · ");
+                if (!label) return;
+                setSourceTooltip({ label, el: e.currentTarget });
+              }}
+              onMouseLeave={() => setSourceTooltip(null)}
+              title={undefined}
+            >
+              {row.source}
+            </span>
+            <span
+              style={{
+                color: "#94a3b8",
+                fontSize: 11,
+                textAlign: "right",
+                fontVariantNumeric: "tabular-nums",
+              }}
+            >
+              {row.duration_ms != null ? `${row.duration_ms}ms` : "—"}
+            </span>
+          </div>
+        );
+      }) : (
+        <div style={{ color: "#94a3b8", marginBottom: 4 }}>
+          {t("noData")}
+          {locked && isNoMetrics && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontWeight: 700, color: "#94a3b8", fontSize: 10, letterSpacing: "0.06em" }}>{t("bindTitle")}</div>
+              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.4 }}>{t("noMetricsText")}</div>
+              <select
+                value={d.matchServiceId ?? ""}
+                onChange={(e) => bindToService(e.target.value ? e.target.value : null)}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  padding: "6px 8px",
+                  borderRadius: 7,
+                  border: "1.5px solid #e2e8f0",
+                  background: "#fff",
+                  color: "#0f172a",
+                  fontSize: 12,
+                  outline: "none",
+                }}
+              >
+                <option value="">{t("emDash")}</option>
+                {services.map((svc) => (
+                  <option key={svc.id} value={svc.id}>
+                    {svc.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
-      )) : <div style={{ color: "#94a3b8", marginBottom: 4 }}>Нет данных</div>}
+      )}
 
       {/* Description */}
       <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>DESCRIPTION</div>
+      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>{t("descriptionTitle")}</div>
       {locked && editingDesc ? (
         <div>
           <textarea autoFocus value={descDraft.slice(0, 120)}
             onChange={(e) => setDescDraft(e.target.value.slice(0, 120))}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitDesc(descDraft); } if (e.key === "Escape") setEditingDesc(false); }}
             onBlur={() => commitDesc(descDraft)}
-            placeholder="Описание..."
+            placeholder={t("descriptionPlaceholder")}
             rows={2}
             style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
             <span style={{ fontSize: 10, color: "#94a3b8" }}>
-              Нажмите <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span> для сохранения
+              {t("descriptionSaveHintBefore")}
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span>
+              {t("descriptionSaveHintAfter")}
             </span>
             <span style={{
               fontSize: 10,
@@ -267,13 +433,13 @@ export function ServiceNode({ data, id }: NodeProps) {
           onClick={locked ? () => { setDescDraft(d.description ?? ""); setEditingDesc(true); } : undefined}
           style={{ cursor: locked ? "text" : "default", color: d.description ? "#0f172a" : "#94a3b8", minHeight: 18, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", padding: "2px 0" }}
         >
-          {d.description || (locked ? "Нажмите, чтобы добавить описание..." : "—")}
+          {d.description || (locked ? t("descriptionClickToAdd") : t("emDash"))}
         </div>
       )}
 
       {/* Actions */}
       <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 8, fontSize: 10, letterSpacing: "0.06em" }}>ACTIONS</div>
+      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 8, fontSize: 10, letterSpacing: "0.06em" }}>{t("actionsTitle")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "flex-start" }}>
         {(d.actions ?? []).map((action, i) => (
           <div key={i} style={{ position: "relative" }}
@@ -282,7 +448,7 @@ export function ServiceNode({ data, id }: NodeProps) {
           >
             <a href={action.url} target="_blank" rel="noopener noreferrer"
               style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 7, background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#475569", textDecoration: "none" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: `Перейти к ${action.label}`, el: e.currentTarget }); }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: t("actionOpenTo").replace("{label}", action.label), el: e.currentTarget }); }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; setActionTooltip(null); }}
             >
               <IconRenderer name={action.icon} size={14} />
@@ -298,14 +464,14 @@ export function ServiceNode({ data, id }: NodeProps) {
                 style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 7, background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#475569", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <IconRenderer name={newActionIcon} size={14} />
               </button>
-              <input placeholder="Название" value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
+              <input placeholder={t("actionNamePlaceholder")} value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
                 style={{ flex: 1, border: "1.5px solid #e2e8f0", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }} />
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input autoFocus placeholder="https://..." value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
+              <input autoFocus placeholder={t("actionUrlPlaceholder")} value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addAction(); if (e.key === "Escape") setAddingAction(false); }}
                 style={{ flex: 1, border: "1.5px solid #e2e8f0", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }} />
-              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", fontSize: 12, cursor: "pointer" }}>ОК</button>
+              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", fontSize: 12, cursor: "pointer" }}>{t("uiOk")}</button>
               <button onClick={() => setAddingAction(false)} style={{ padding: "4px 8px", borderRadius: 5, border: "1.5px solid #e2e8f0", background: "none", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>✕</button>
             </div>
           </div>
@@ -321,7 +487,7 @@ export function ServiceNode({ data, id }: NodeProps) {
       {/* Delete from canvas */}
       {locked && (
         <button
-          title="Удалить с карты"
+          title={t("removeFromCanvas")}
           onClick={(e) => {
             e.stopPropagation();
             document.dispatchEvent(new CustomEvent("delete-node-request", { detail: { id, label: d.label } }));
@@ -347,8 +513,9 @@ export function ServiceNode({ data, id }: NodeProps) {
       )}
     </div>,
     document.body
-  ),
-  actionTooltip && <HoverTooltip key="atip" label={actionTooltip.label} targetEl={actionTooltip.el} />,
+    ),
+    actionTooltip && <HoverTooltip key="atip" label={actionTooltip.label} targetEl={actionTooltip.el} />,
+    sourceTooltip && <HoverTooltip key="stip" label={sourceTooltip.label} targetEl={sourceTooltip.el} />,
 ] : null;
 
   return (
@@ -356,7 +523,9 @@ export function ServiceNode({ data, id }: NodeProps) {
       <div
         onClick={handleNodeClick}
         style={{
-          background: "#fff", border: "1.5px solid #cbd5e1", borderRadius: 8,
+          background: nodeTint.bg,
+          border: `1.5px solid ${nodeTint.border}`,
+          borderRadius: 8,
           padding: "8px 12px", minWidth: 140, boxShadow: "0 1px 4px rgba(0,0,0,.1)",
           position: "relative", cursor: "pointer",
           outline: colliding ? "2px solid #f97316" : locked ? "2px solid #93c5fd" : undefined,
@@ -366,32 +535,106 @@ export function ServiceNode({ data, id }: NodeProps) {
         {colliding && <div style={{ position: "absolute", inset: 0, borderRadius: 8, background: "rgba(249,115,22,0.15)", pointerEvents: "none", zIndex: 10 }} />}
         <AllHandles />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: (d.ports ?? []).length ? 5 : 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: ((d.ports ?? []).length > 0 || blackboxOrder.length > 0) ? 5 : 0 }}>
           <div style={{ position: "relative", flexShrink: 0 }}>
             <button
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); setPickerAnchor({ x: e.clientX + 8, y: e.clientY }); }}
-              title="Сменить иконку"
+              title={t("changeIconTitle")}
               style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#64748b", display: "flex", borderRadius: 4 }}
             >
               <IconRenderer name={d.icon ?? "FaDisplay"} size={14} />
             </button>
             <div style={{ position: "absolute", bottom: -1, right: -1, width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[status], border: "1.5px solid #fff", pointerEvents: "none" }} />
           </div>
-          <span style={{ fontWeight: 600, fontSize: 13, color: "#0f172a", flex: 1, userSelect: "none" }}>{d.label}</span>
+          <span
+            style={{
+              fontWeight: 600,
+              fontSize: 13,
+              color: "#0f172a",
+              flex: 1,
+              minWidth: 0,
+              userSelect: "none",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={d.label}
+          >
+            {d.label}
+          </span>
         </div>
 
-        {(d.ports ?? []).length > 0 && (
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
-            {(d.ports ?? []).map((p) => (
-              <span key={p.port} style={{
-                fontSize: 10, padding: "1px 5px", borderRadius: 4,
-                background: STATUS_COLOR[p.status] + "18",
-                color: STATUS_COLOR[p.status],
-                border: `1px solid ${STATUS_COLOR[p.status]}33`,
-                fontFamily: "monospace",
-              }}>:{p.port}</span>
-            ))}
+        {((d.ports ?? []).length > 0 || blackboxOrder.length > 0) && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "space-between",
+              gap: 8,
+              minWidth: 0,
+            }}
+          >
+            {(d.ports ?? []).length > 0 ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center", flex: "1 1 auto", minWidth: 0 }}>
+                {(d.ports ?? []).map((p) => {
+                  const chips = portProbeChips(p.port, p.probe_types, d.label, p.module);
+                  const c = STATUS_COLOR[p.status];
+                  const pk = `${p.port}-${p.job ?? ""}-${p.module ?? ""}`;
+                  return (
+                    <div key={pk} style={{ display: "flex", gap: 3, alignItems: "center", flexWrap: "wrap" }}>
+                      {chips.portText && (
+                        <span style={{
+                          fontSize: 10, fontFamily: "ui-monospace, monospace", fontWeight: 600,
+                          padding: "1px 4px", borderRadius: 4,
+                          background: c + "18",
+                          color: c,
+                          border: `1px solid ${c}44`,
+                        }}>
+                          {chips.portText}
+                        </span>
+                      )}
+                      <ProbeTypeBadge type={kindKeyForBadge(chips.kind)} active />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ flex: "1 1 auto", minWidth: 0 }} />
+            )}
+            {blackboxOrder.length > 0 && (
+              <div
+                style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center", flexShrink: 0, marginLeft: "auto" }}
+                onMouseDown={(e) => e.stopPropagation()}
+              >
+                {blackboxOrder.map((src) => {
+                  const st = sourceAgg.get(src);
+                  const dotBg =
+                    !st ? "#9ca3af"
+                      : st.hasFail ? "#ef4444"
+                        : st.hasOk ? "#22c55e"
+                          : "#9ca3af";
+                  return (
+                    <div
+                      key={src}
+                      onMouseEnter={(e) => setBlackboxDotTooltip({ label: src, el: e.currentTarget })}
+                      onMouseLeave={() => setBlackboxDotTooltip(null)}
+                      style={{
+                        width: 7,
+                        height: 7,
+                        borderRadius: "50%",
+                        background: dotBg,
+                        border: "1.5px solid #fff",
+                        boxShadow: "0 0 0 1px rgba(15,23,42,0.14)",
+                        flexShrink: 0,
+                        cursor: "default",
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>
@@ -407,6 +650,9 @@ export function ServiceNode({ data, id }: NodeProps) {
         <IconPicker anchorX={actionPickerAnchor.x} anchorY={actionPickerAnchor.y}
           onSelect={(name) => { setNewActionIcon(name); setActionPickerAnchor(null); }}
           onClose={() => setActionPickerAnchor(null)} />
+      )}
+      {blackboxDotTooltip && (
+        <HoverTooltip label={blackboxDotTooltip.label} targetEl={blackboxDotTooltip.el} />
       )}
     </div>
   );

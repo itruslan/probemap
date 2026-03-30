@@ -7,6 +7,7 @@ import { AllHandles } from "./handles";
 import { IconPicker } from "../IconPicker";
 import { useColliding } from "../CollisionContext";
 import { HoverTooltip } from "../Tooltip";
+import { useI18n } from "../i18n";
 
 export interface CustomNodeData {
   label: string;
@@ -19,6 +20,7 @@ export interface CustomNodeData {
 export function CustomNode({ data, id }: NodeProps) {
   const d = data as unknown as CustomNodeData;
   const { updateNodeData } = useReactFlow();
+  const { t } = useI18n();
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -145,27 +147,43 @@ export function CustomNode({ data, id }: NodeProps) {
         position: "relative",
       }}
     >
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 7, fontSize: 10, letterSpacing: "0.06em" }}>MONITORING</div>
-      <div style={{ color: "#94a3b8", fontSize: 12, marginBottom: 4, lineHeight: 1.4 }}>
-        Нет метрик — узел только на схеме, статус не подтягивается.
+      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 7, fontSize: 10, letterSpacing: "0.06em" }}>{t("monitoringTitle")}</div>
+      <div
+        style={{
+          border: "1.5px dashed #cbd5e1",
+          borderRadius: 8,
+          padding: "10px 10px",
+          background: "rgba(248, 250, 252, 0.9)",
+          color: "#94a3b8",
+          fontSize: 11,
+          lineHeight: 1.45,
+        }}
+      >
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 6 }}>
+          <span style={{ fontSize: 10, fontFamily: "ui-monospace, monospace", padding: "1px 5px", borderRadius: 4, border: "1px dashed #cbd5e1", color: "#94a3b8" }}>{t("emDash")}</span>
+          <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3, border: "1px dashed #cbd5e1", color: "#94a3b8" }}>{t("emDash")}</span>
+        </div>
+        {t("noMetricsText")}
       </div>
 
       {/* Description */}
       <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>DESCRIPTION</div>
+      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>{t("descriptionTitle")}</div>
       {locked && editingDesc ? (
         <div>
           <textarea autoFocus value={descDraft.slice(0, 120)}
             onChange={(e) => setDescDraft(e.target.value.slice(0, 120))}
             onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); commitDesc(descDraft); } if (e.key === "Escape") setEditingDesc(false); }}
             onBlur={() => commitDesc(descDraft)}
-            placeholder="Описание..."
+            placeholder={t("descriptionPlaceholder")}
             rows={2}
             style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
             <span style={{ fontSize: 10, color: "#94a3b8" }}>
-              Нажмите <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span> для сохранения
+              {t("descriptionSaveHintBefore")}
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span>
+              {t("descriptionSaveHintAfter")}
             </span>
             <span style={{
               fontSize: 10,
@@ -181,13 +199,13 @@ export function CustomNode({ data, id }: NodeProps) {
           onClick={locked ? () => { setDescDraft(d.description ?? ""); setEditingDesc(true); } : undefined}
           style={{ cursor: locked ? "text" : "default", color: d.description ? "#0f172a" : "#94a3b8", minHeight: 18, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", padding: "2px 0" }}
         >
-          {d.description || (locked ? "Нажмите, чтобы добавить описание..." : "—")}
+          {d.description || (locked ? t("descriptionClickToAdd") : t("emDash"))}
         </div>
       )}
 
       {/* Actions */}
       <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 8, fontSize: 10, letterSpacing: "0.06em" }}>ACTIONS</div>
+      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 8, fontSize: 10, letterSpacing: "0.06em" }}>{t("actionsTitle")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "flex-start" }}>
         {(d.actions ?? []).map((action, i) => (
           <div key={i} style={{ position: "relative" }}
@@ -196,7 +214,7 @@ export function CustomNode({ data, id }: NodeProps) {
           >
             <a href={action.url} target="_blank" rel="noopener noreferrer"
               style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 7, background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#475569", textDecoration: "none" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: `Перейти к ${action.label}`, el: e.currentTarget }); }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: t("actionOpenTo").replace("{label}", action.label), el: e.currentTarget }); }}
               onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; setActionTooltip(null); }}
             >
               <IconRenderer name={action.icon} size={14} />
@@ -212,14 +230,14 @@ export function CustomNode({ data, id }: NodeProps) {
                 style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 7, background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#475569", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <IconRenderer name={newActionIcon} size={14} />
               </button>
-              <input placeholder="Название" value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
+              <input placeholder={t("actionNamePlaceholder")} value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
                 style={{ flex: 1, border: "1.5px solid #e2e8f0", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }} />
             </div>
             <div style={{ display: "flex", gap: 6 }}>
-              <input autoFocus placeholder="https://..." value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
+              <input autoFocus placeholder={t("actionUrlPlaceholder")} value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addAction(); if (e.key === "Escape") setAddingAction(false); }}
                 style={{ flex: 1, border: "1.5px solid #e2e8f0", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }} />
-              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", fontSize: 12, cursor: "pointer" }}>ОК</button>
+              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", fontSize: 12, cursor: "pointer" }}>{t("uiOk")}</button>
               <button onClick={() => setAddingAction(false)} style={{ padding: "4px 8px", borderRadius: 5, border: "1.5px solid #e2e8f0", background: "none", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>✕</button>
             </div>
           </div>
@@ -235,7 +253,7 @@ export function CustomNode({ data, id }: NodeProps) {
       {/* Delete from canvas */}
       {locked && (
         <button
-          title="Удалить с карты"
+          title={t("removeFromCanvas")}
           onClick={(e) => {
             e.stopPropagation();
             document.dispatchEvent(new CustomEvent("delete-node-request", { detail: { id, label: d.label } }));
@@ -271,11 +289,11 @@ export function CustomNode({ data, id }: NodeProps) {
         onClick={handleNodeClick}
         style={{
           background: "#fff",
-          border: "1.5px dashed #94a3b8",
+          border: "1.5px dashed #cbd5e1",
           borderRadius: 8,
           padding: "8px 12px",
-          minWidth: 120,
-          boxShadow: "0 1px 4px rgba(0,0,0,.06)",
+          minWidth: 140,
+          boxShadow: "0 1px 4px rgba(0,0,0,.08)",
           position: "relative",
           cursor: "pointer",
           outline: colliding ? "2px solid #f97316" : locked ? "2px solid #93c5fd" : undefined,
@@ -285,11 +303,11 @@ export function CustomNode({ data, id }: NodeProps) {
         {colliding && <div style={{ position: "absolute", inset: 0, borderRadius: 8, background: "rgba(249,115,22,0.15)", pointerEvents: "none", zIndex: 10 }} />}
         <AllHandles />
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 6 }}>
           <button
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); setPickerAnchor({ x: e.clientX + 8, y: e.clientY }); }}
-            title="Сменить иконку"
+            title={t("changeIconTitle")}
             style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#64748b", display: "flex", borderRadius: 4, flexShrink: 0 }}
           >
             <IconRenderer name={d.icon ?? "FaBox"} size={14} />
@@ -315,9 +333,20 @@ export function CustomNode({ data, id }: NodeProps) {
           ) : (
             <span
               onDoubleClick={() => { setLabel(d.label); setEditing(true); }}
-              style={{ fontSize: 13, fontWeight: 600, color: "#0f172a", cursor: "text", userSelect: "none" }}
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#0f172a",
+                cursor: "text",
+                userSelect: "none",
+                display: "block",
+                minWidth: 0,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+              }}
             >
-              {d.label || <span style={{ color: "#94a3b8", fontWeight: 400 }}>Узел</span>}
+              {d.label || <span style={{ color: "#94a3b8", fontWeight: 400 }}>{t("defaultNodeLabel")}</span>}
             </span>
           )}
             <span
@@ -334,7 +363,7 @@ export function CustomNode({ data, id }: NodeProps) {
                 border: "1px solid #e2e8f0",
               }}
             >
-              Нет метрик
+              {t("noMetricsBadge")}
             </span>
           </div>
         </div>

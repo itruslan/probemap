@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { resolveIcon, ALL_ICONS } from "./icons";
 import { fetchIcons, uploadIcon, deleteIcon, type CustomIcon } from "./api";
 import { HoverTooltip } from "./Tooltip";
+import { useI18n } from "./i18n";
 
 interface Props {
   anchorX: number;
@@ -15,6 +16,7 @@ const BASE = import.meta.env.VITE_API_URL ?? "";
 
 
 export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
+  const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const [customIcons, setCustomIcons] = useState<CustomIcon[]>([]);
@@ -86,7 +88,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
     >
       {/* Built-in icons */}
       <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", padding: "6px 12px 4px", letterSpacing: "0.05em" }}>
-        ИКОНКИ
+        {t("iconSectionBuiltin")}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "2px 8px" }}>
         {ALL_ICONS.map((item) => {
@@ -113,7 +115,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
       {/* Custom icons section */}
       <div style={{ height: 1, background: "#f1f5f9", margin: "6px 0 2px" }} />
       <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", padding: "4px 12px 4px", letterSpacing: "0.05em" }}>
-        МОИ ИКОНКИ
+        {t("iconSectionCustom")}
       </div>
 
       {customIcons.length > 0 && (
@@ -167,7 +169,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
                   value={pendingName}
                   onChange={(e) => { setPendingName(e.target.value); setNameError(false); }}
                   onKeyDown={(e) => { if (e.key === "Enter") handleUpload(); if (e.key === "Escape") { setPendingFile(null); setPendingName(""); setNameError(false); } }}
-                  placeholder="Название *"
+                  placeholder={t("iconNamePlaceholder")}
                   style={{
                     width: "100%", boxSizing: "border-box",
                     padding: "4px 6px", borderRadius: 5, fontSize: 12, outline: "none",
@@ -181,10 +183,10 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
                   padding: "4px 8px", borderRadius: 5, border: "none",
                   background: "#3b82f6", color: "#fff", fontSize: 11, cursor: "pointer", flexShrink: 0,
                 }}
-              >ОК</button>
+              >{t("uiOk")}</button>
             </div>
             {nameError && (
-              <div style={{ fontSize: 10, color: "#ef4444", paddingLeft: 2 }}>Введите название</div>
+              <div style={{ fontSize: 10, color: "#ef4444", paddingLeft: 2 }}>{t("iconNameRequiredError")}</div>
             )}
           </div>
         ) : (
@@ -198,7 +200,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; }}
             onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#64748b"; }}
           >
-            + Загрузить иконку
+            {t("iconUpload")}
           </button>
         )}
         <input ref={fileRef} type="file" accept=".svg,.png,.webp" style={{ display: "none" }} onChange={handleFileChange} />

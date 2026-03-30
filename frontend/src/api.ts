@@ -1,6 +1,6 @@
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
-class ApiError extends Error {
+export class ApiError extends Error {
   status: number;
   constructor(status: number, message: string) {
     super(message);
@@ -21,17 +21,26 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 // Monitoring types
 // ---------------------------------------------------------------------------
 
-export interface ZoneStatus {
+/** Статус пробы по источнику (инстанс blackbox и т.п., лейбл из probe_source в настройках) */
+export interface ProbeSourceStatus {
   success: 0 | 1 | null;
   duration_ms: number | null;
   probe_types: string[];
 }
 
+/** @deprecated используйте ProbeSourceStatus */
+export type ZoneStatus = ProbeSourceStatus;
+
 export interface Port {
   port: string;
+  /** Имя scrape job (разные blackbox / job в Prometheus) */
+  job?: string | null;
+  /** Лейбл module у blackbox (http_2xx, tcp_connect, …) */
+  module?: string | null;
   status: "ok" | "warn" | "down" | "unknown";
   probe_types: string[];
-  zones: Record<string, ZoneStatus>;
+  /** Ключ — значение лейбла источника пробы (по умолчанию instance) */
+  sources: Record<string, ProbeSourceStatus>;
 }
 
 export interface Service {
@@ -42,7 +51,8 @@ export interface Service {
 
 export interface ServicesResponse {
   services: Service[];
-  zones: string[];
+  /** Уникальные значения лейбла источника пробы по всем сериям */
+  probe_sources: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -68,6 +78,8 @@ export interface LayoutNode {
   type?: "service" | "custom" | "group";
   label?: string;
   kind?: string;
+  /** Для service-узлов: привязка к сервису из мониторинга по id */
+  matchServiceId?: string | null;
   icon?: string;
   width?: number;
   height?: number;
@@ -109,20 +121,39 @@ export interface ProbeJob {
 export interface LabelMap {
   service: string;
   port: string;
-  zone: string;
+  /** Имя лейбла в метриках для различения инстансов blackbox (часто instance) */
+  probe_source: string;
   module: string;
   url: string | null;
+}
+
+/** Оператор сравнения лейбла в PromQL */
+export type MetricFilterOp = "eq" | "re" | "ne" | "nre";
+
+export interface MetricFilterRule {
+  label: string;
+  value: string;
+  op: MetricFilterOp;
 }
 
 export interface AppConfig {
   datasource: Datasource | null;
   probe_jobs: ProbeJob[];
   label_map: LabelMap;
+  /** Доп. фрагмент внутри селектора probe_success, через запятую (продвинутый режим) */
+  metric_extra_selector?: string;
+  /** Правила лейбл + значение (конструктор) */
+  metric_filter_rules?: MetricFilterRule[];
+}
+
+export interface MetricSelectorPreview {
+  selector: string;
+  example: string;
 }
 
 export interface DiscoveredJob {
   job: string;
-  zones: string[];
+  probe_sources: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +169,8 @@ export interface Project {
   id: string;
   name: string;
   filter: ProjectFilter | null;
+  /** Несколько условий label=value для метрик проекта */
+  filters?: ProjectFilter[] | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -145,7 +178,16 @@ export interface Project {
 // ---------------------------------------------------------------------------
 
 export async function fetchServices(): Promise<ServicesResponse> {
-  return apiFetch<ServicesResponse>(`${BASE}/api/services`);
+  const raw = await apiFetch<ServicesResponse & { zones?: string[] }>(`${BASE}/api/services`);
+  const probe_sources = raw.probe_sources ?? raw.zones ?? [];
+  const services = raw.services.map((svc) => ({
+    ...svc,
+    ports: svc.ports.map((p) => {
+      const legacy = p as Port & { zones?: Record<string, ProbeSourceStatus> };
+      return { ...p, sources: p.sources ?? legacy.zones ?? {} };
+    }),
+  }));
+  return { services, probe_sources };
 }
 
 export async function fetchLayout(): Promise<Layout> {
@@ -168,11 +210,14 @@ export async function fetchProjects(): Promise<Project[]> {
   return apiFetch<Project[]>(`${BASE}/api/projects`);
 }
 
-export async function createProject(name: string, filter: ProjectFilter | null): Promise<Project> {
+export async function createProject(name: string, filters: ProjectFilter[]): Promise<Project> {
   return apiFetch<Project>(`${BASE}/api/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, filter }),
+    body: JSON.stringify({
+      name,
+      filters: filters.length > 0 ? filters : undefined,
+    }),
   });
 }
 
@@ -192,8 +237,16 @@ export async function deleteProject(id: string): Promise<void> {
   }
 }
 
-export async function fetchProjectFilterValues(id: string): Promise<string[]> {
-  return apiFetch<string[]>(`${BASE}/api/projects/${id}/filter-values`);
+export async function fetchProjectFilterValues(id: string, label?: string): Promise<string[]> {
+  const q = label ? `?label=${encodeURIComponent(label)}` : "";
+  return apiFetch<string[]>(`${BASE}/api/projects/${id}/filter-values${q}`);
+}
+
+/** Значения лейбла из VictoriaMetrics (без id проекта — для нового проекта) */
+export async function fetchMetricLabelValues(label: string): Promise<string[]> {
+  return apiFetch<string[]>(
+    `${BASE}/api/config/metric-label-values?label=${encodeURIComponent(label)}`,
+  );
 }
 
 export async function fetchProjectServices(id: string): Promise<ServicesResponse> {
@@ -225,6 +278,20 @@ export async function saveConfig(cfg: AppConfig): Promise<void> {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(cfg),
+  });
+}
+
+/** Превью селектора probe_success (как на сервере). Пары фильтра проекта — как в /api/projects/{id}/services. */
+export async function previewMetricSelector(body: {
+  probe_jobs: ProbeJob[];
+  metric_filter_rules?: MetricFilterRule[];
+  metric_extra_selector?: string;
+  project_filter_pairs?: { label: string; value: string }[];
+}): Promise<MetricSelectorPreview> {
+  return apiFetch<MetricSelectorPreview>(`${BASE}/api/config/preview-selector`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }
 

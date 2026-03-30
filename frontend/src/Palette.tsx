@@ -1,11 +1,13 @@
 import { useState } from "react";
 import type { Service } from "./api";
+import { useI18n } from "./i18n";
 
 interface PaletteProps {
   services: Service[];
   onCanvas: Set<string>;
   onDragStart: (service: Service) => void;
-  onToggleService: (service: Service) => void;
+  /** Добавить сервис на карту (тот же путь, что выбор сервиса в ПКМ) */
+  onAddService: (service: Service) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Подсветка узла на карте при наведении (только если узел из мониторинга уже на карте) */
@@ -16,11 +18,12 @@ export function Palette({
   services,
   onCanvas,
   onDragStart,
-  onToggleService: _onToggleService,
+  onAddService,
   selectedId,
   onSelect,
   onHoverChange,
 }: PaletteProps) {
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
@@ -62,7 +65,7 @@ export function Palette({
   return (
     <aside className="palette-sidebar" onMouseLeave={handlePaletteLeave}>
       <div className="palette-sidebar__header">
-        <span className="palette-sidebar__title">Узлы</span>
+        <span className="palette-sidebar__title">{t("nodesTitle")}</span>
         <span className="palette-sidebar__count">{services.length}</span>
       </div>
 
@@ -70,7 +73,7 @@ export function Palette({
         className="palette-sidebar__search"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        placeholder="Поиск…"
+        placeholder={t("searchPlaceholder")}
         type="search"
         autoComplete="off"
         spellCheck={false}
@@ -102,27 +105,29 @@ export function Palette({
               onMouseLeave={handleMouseLeave}
               className={rowClass}
             >
-              {svc.name}
-              {!active && hovered && (
-                <span style={{
-                  position: "absolute", right: 8, top: 0, bottom: 0,
-                  display: "flex", alignItems: "center",
-                  fontSize: 10, color: "#ef4444", fontWeight: 500,
-                  pointerEvents: "none",
-                }}>
-                  отсутствует на карте
-                </span>
+              <span className="palette-row__name">{svc.name}</span>
+              {!active && (
+                <button
+                  type="button"
+                  className="palette-row__add"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onAddService(svc);
+                  }}
+                >
+                  {t("paletteAdd")}
+                </button>
               )}
             </div>
           );
         })}
         {filtered.length === 0 && (
-          <div className="palette-sidebar__empty">Ничего не найдено</div>
+          <div className="palette-sidebar__empty">{t("nothingFound")}</div>
         )}
       </div>
 
       <p className="palette-sidebar__hint">
-        Список из мониторинга. ПКМ на карте — добавить узел или область
+        {t("monitoringHint")}
       </p>
     </aside>
   );

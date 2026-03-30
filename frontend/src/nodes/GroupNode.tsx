@@ -2,6 +2,7 @@ import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
 import { useState } from "react";
 import { IconRenderer } from "../IconRenderer";
 import { IconPicker } from "../IconPicker";
+import { useI18n } from "../i18n";
 
 export interface GroupNodeData {
   label: string;
@@ -21,8 +22,9 @@ const COLORS = [
 export function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
   const { setNodes, getNodes, updateNodeData } = useReactFlow();
+  const { t } = useI18n();
   const [editing, setEditing] = useState(false);
-  const [label, setLabel] = useState(d.label || "Область");
+  const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
   const [colorIdx, setColorIdx] = useState(() => {
     if (!d.color) return 0;
     const i = COLORS.findIndex((c) => c.bg === d.color);
@@ -106,7 +108,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           {/* Иконка — кнопка для выбора */}
           <button
             onClick={openPicker}
-            title={d.icon ? "Сменить иконку" : "Добавить иконку"}
+            title={d.icon ? t("iconChange") : t("iconAdd")}
             style={{
               display: "flex", alignItems: "center", justifyContent: "center",
               width: 18, height: 18, borderRadius: 4, flexShrink: 0,
@@ -176,7 +178,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             <div style={{ width: 1, height: 14, background: color.border, margin: "0 2px" }} />
             <button
               onClick={() => shiftZ(-1)}
-              title="На слой назад"
+              title={t("layerBack")}
               style={{
                 height: 18, borderRadius: 4, border: `1px solid ${color.border}`,
                 background: "rgba(255,255,255,0.8)", cursor: "pointer",
@@ -188,7 +190,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             </button>
             <button
               onClick={() => shiftZ(1)}
-              title="На слой вперёд"
+              title={t("layerForward")}
               style={{
                 height: 18, borderRadius: 4, border: `1px solid ${color.border}`,
                 background: "rgba(255,255,255,0.8)", cursor: "pointer",

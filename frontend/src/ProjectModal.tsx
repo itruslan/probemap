@@ -1,45 +1,105 @@
-import { useEffect, useRef, useState } from "react";
-import { fetchProjectFilterValues, discoverLabels, type Project, type ProjectFilter } from "./api";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  fetchProjectFilterValues,
+  discoverLabels,
+  fetchMetricLabelValues,
+  type Project,
+  type ProjectFilter,
+} from "./api";
+import { useI18n } from "./i18n";
 
 interface Props {
   project?: Project;
-  onSave: (name: string, filter: ProjectFilter | null) => Promise<void>;
+  onSave: (name: string, filters: ProjectFilter[]) => Promise<void>;
   onClose: () => void;
 }
 
+type Row = { label: string; value: string };
+
+function projectToRows(p?: Project): Row[] {
+  if (!p) return [{ label: "", value: "" }];
+  if (p.filters?.length) {
+    return p.filters.map((f) => ({ label: f.label, value: f.value }));
+  }
+  if (p.filter?.label) {
+    return [{ label: p.filter.label, value: p.filter.value }];
+  }
+  return [{ label: "", value: "" }];
+}
+
 export function ProjectModal({ project, onSave, onClose }: Props) {
+  const { t } = useI18n();
   const [name, setName] = useState(project?.name ?? "");
-  const [filterLabel, setFilterLabel] = useState(project?.filter?.label ?? "");
-  const [filterValue, setFilterValue] = useState(project?.filter?.value ?? "");
+  const [rows, setRows] = useState<Row[]>(() => projectToRows(project));
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
-  const [availableValues, setAvailableValues] = useState<string[]>([]);
+  const [valueOptions, setValueOptions] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
   const overlayRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    discoverLabels().then(setAvailableLabels).catch(() => {});
+  const loadValuesForLabel = useCallback(async (label: string, pid?: string) => {
+    const k = label.trim();
+    if (!k) return;
+    try {
+      const v = pid
+        ? await fetchProjectFilterValues(pid, k)
+        : await fetchMetricLabelValues(k);
+      setValueOptions((prev) => (prev[k] !== undefined ? prev : { ...prev, [k]: v }));
+    } catch {
+      setValueOptions((prev) => (prev[k] !== undefined ? prev : { ...prev, [k]: [] }));
+    }
   }, []);
 
   useEffect(() => {
-    if (!filterLabel) { setAvailableValues([]); return; }
-    if (project?.id) {
-      fetchProjectFilterValues(project.id).then(setAvailableValues).catch(() => {});
-    }
-  }, [filterLabel, project?.id]);
+    const r = projectToRows(project);
+    setName(project?.name ?? "");
+    setRows(r);
+    setValueOptions({});
+    const pid = project?.id;
+    r.forEach((row) => {
+      if (row.label.trim()) void loadValuesForLabel(row.label.trim(), pid);
+    });
+  }, [project?.id, loadValuesForLabel]);
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    discoverLabels().then(setAvailableLabels).catch(() => setAvailableLabels([]));
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const setRowLabel = (i: number, label: string) => {
+    setRows((prev) => {
+      const next = [...prev];
+      next[i] = { ...next[i], label, value: "" };
+      return next;
+    });
+    if (label.trim()) void loadValuesForLabel(label.trim(), project?.id);
+  };
+
+  const setRowValue = (i: number, value: string) => {
+    setRows((prev) => {
+      const next = [...prev];
+      next[i] = { ...next[i], value };
+      return next;
+    });
+  };
+
+  const addRow = () => setRows((prev) => [...prev, { label: "", value: "" }]);
+  const removeRow = (i: number) =>
+    setRows((prev) => (prev.length <= 1 ? prev : prev.filter((_, j) => j !== i)));
+
   const handleSave = async () => {
     if (!name.trim()) return;
+    const filters: ProjectFilter[] = rows
+      .filter((r) => r.label.trim() && r.value.trim())
+      .map((r) => ({ label: r.label.trim(), value: r.value.trim() }));
     setSaving(true);
-    const filter: ProjectFilter | null = filterLabel && filterValue
-      ? { label: filterLabel, value: filterValue }
-      : null;
-    await onSave(name.trim(), filter);
+    await onSave(name.trim(), filters);
     setSaving(false);
     onClose();
   };
@@ -47,92 +107,214 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
   return (
     <div
       ref={overlayRef}
-      onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
+      }}
       style={{
-        position: "fixed", inset: 0, zIndex: 4000,
+        position: "fixed",
+        inset: 0,
+        zIndex: 4000,
         background: "rgba(0,0,0,0.3)",
-        display: "flex", alignItems: "center", justifyContent: "center",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
       }}
     >
-      <div style={{
-        background: "#fff", borderRadius: 12, width: 400,
-        boxShadow: "0 16px 48px rgba(0,0,0,.18)", padding: "24px 28px",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+      <div
+        style={{
+          background: "#fff",
+          borderRadius: 12,
+          width: 440,
+          maxHeight: "88vh",
+          overflowY: "auto",
+          boxShadow: "0 16px 48px rgba(0,0,0,.18)",
+          padding: "24px 28px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 16,
+          }}
+        >
           <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
-            {project ? "Редактировать проект" : "Новый проект"}
+            {project ? t("projectTitle") : t("projectTitleNew")}
           </span>
-          <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 18, color: "#94a3b8", cursor: "pointer", padding: 0 }}>×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 18,
+              color: "#94a3b8",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
+
+        <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b", lineHeight: 1.45 }}>
+          {t("projectIntro")}
+        </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
-            <Label>Название</Label>
+            <Label>{t("projectNameLabel")}</Label>
             <input
               autoFocus
               value={name}
               onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleSave(); }}
-              placeholder="Мой проект"
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void handleSave();
+              }}
+              placeholder={t("projectNamePlaceholder")}
               style={inputStyle}
             />
           </div>
 
           <div>
-            <Label>Фильтр — лейбл</Label>
-            {availableLabels.length > 0 ? (
-              <select
-                value={filterLabel}
-                onChange={(e) => { setFilterLabel(e.target.value); setFilterValue(""); }}
-                style={{ ...inputStyle, cursor: "pointer" }}
-              >
-                <option value="">— без фильтра —</option>
-                {availableLabels.map((l) => <option key={l} value={l}>{l}</option>)}
-              </select>
-            ) : (
-              <input
-                value={filterLabel}
-                onChange={(e) => { setFilterLabel(e.target.value); setFilterValue(""); }}
-                placeholder="environment"
-                style={inputStyle}
-              />
-            )}
-          </div>
-
-          {filterLabel && (
-            <div>
-              <Label>Значение</Label>
-              {availableValues.length > 0 ? (
-                <select
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                >
-                  <option value="">— выберите —</option>
-                  {availableValues.map((v) => <option key={v} value={v}>{v}</option>)}
-                </select>
-              ) : (
-                <input
-                  value={filterValue}
-                  onChange={(e) => setFilterValue(e.target.value)}
-                  placeholder="prod"
-                  style={inputStyle}
-                />
-              )}
+            <Label>{t("projectFilterSection")}</Label>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: "#94a3b8" }}>
+              {t("projectFilterHint")}
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {rows.map((row, i) => {
+                const lk = row.label.trim();
+                const opts = lk ? valueOptions[lk] : undefined;
+                const useSelect = Boolean(lk && Array.isArray(opts) && opts.length > 0);
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr auto",
+                      gap: 8,
+                      alignItems: "end",
+                    }}
+                  >
+                    {availableLabels.length > 0 ? (
+                      <select
+                        value={row.label}
+                        onChange={(e) => setRowLabel(i, e.target.value)}
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                      >
+                        <option value="">{t("projectOptionLabel")}</option>
+                        {availableLabels.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={row.label}
+                        onChange={(e) => setRowLabel(i, e.target.value)}
+                        placeholder={t("placeholderEnvironment")}
+                        style={inputStyle}
+                      />
+                    )}
+                    {useSelect ? (
+                      <select
+                        value={row.value}
+                        onChange={(e) => setRowValue(i, e.target.value)}
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                      >
+                        <option value="">{t("projectOptionValue")}</option>
+                        {(opts ?? []).map((v) => (
+                          <option key={v} value={v}>
+                            {v}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={row.value}
+                        onChange={(e) => setRowValue(i, e.target.value)}
+                        placeholder={row.label.trim() ? t("projectPlaceholderProd") : t("projectPlaceholderFirstLabel")}
+                        disabled={!row.label.trim()}
+                        style={{
+                          ...inputStyle,
+                          opacity: row.label.trim() ? 1 : 0.55,
+                        }}
+                      />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeRow(i)}
+                      disabled={rows.length <= 1}
+                      title={t("projectRemoveCondition")}
+                      style={{
+                        padding: "6px 10px",
+                        borderRadius: 6,
+                        border: "1.5px solid #e2e8f0",
+                        background: "#fff",
+                        color: rows.length <= 1 ? "#cbd5e1" : "#64748b",
+                        cursor: rows.length <= 1 ? "default" : "pointer",
+                        fontSize: 13,
+                      }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          )}
+            <button
+              type="button"
+              onClick={addRow}
+              style={{
+                marginTop: 8,
+                padding: "5px 12px",
+                borderRadius: 6,
+                border: "1.5px dashed #cbd5e1",
+                background: "none",
+                color: "#64748b",
+                fontSize: 12,
+                cursor: "pointer",
+              }}
+            >
+              {t("projectAddCondition")}
+            </button>
+          </div>
         </div>
 
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
-          <button onClick={onClose} style={{ padding: "7px 18px", borderRadius: 7, border: "1.5px solid #e2e8f0", background: "none", fontSize: 13, cursor: "pointer", color: "#64748b" }}>
-            Отмена
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              padding: "7px 18px",
+              borderRadius: 7,
+              border: "1.5px solid #e2e8f0",
+              background: "none",
+              fontSize: 13,
+              cursor: "pointer",
+              color: "#64748b",
+            }}
+          >
+            {t("cancel")}
           </button>
           <button
-            onClick={handleSave}
+            type="button"
+            onClick={() => void handleSave()}
             disabled={!name.trim() || saving}
-            style={{ padding: "7px 18px", borderRadius: 7, border: "none", fontSize: 13, cursor: "pointer", background: "#3b82f6", color: "#fff", opacity: !name.trim() ? 0.5 : 1 }}
+            style={{
+              padding: "7px 18px",
+              borderRadius: 7,
+              border: "none",
+              fontSize: 13,
+              cursor: "pointer",
+              background: "#3b82f6",
+              color: "#fff",
+              opacity: !name.trim() ? 0.5 : 1,
+            }}
           >
-            {saving ? "..." : "Сохранить"}
+            {saving ? "…" : t("save")}
           </button>
         </div>
       </div>
@@ -141,11 +323,18 @@ export function ProjectModal({ project, onSave, onClose }: Props) {
 }
 
 function Label({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 5 }}>{children}</div>;
+  return (
+    <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 5 }}>{children}</div>
+  );
 }
 
 const inputStyle: React.CSSProperties = {
-  width: "100%", boxSizing: "border-box",
-  padding: "6px 10px", borderRadius: 6, fontSize: 13,
-  border: "1.5px solid #e2e8f0", outline: "none", color: "#0f172a",
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "6px 10px",
+  borderRadius: 6,
+  fontSize: 13,
+  border: "1.5px solid #e2e8f0",
+  outline: "none",
+  color: "#0f172a",
 };

@@ -1,6 +1,6 @@
 from typing import Any
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
@@ -21,6 +21,12 @@ app.add_middleware(
 )
 
 
+@app.get("/health")
+def health() -> dict[str, str]:
+    """Liveness/readiness для оркестраторов (K8s и т.п.)."""
+    return {"status": "ok"}
+
+
 # ---------------------------------------------------------------------------
 # Global config
 # ---------------------------------------------------------------------------
@@ -34,6 +40,24 @@ def get_config() -> dict[str, Any]:
 def put_config(body: dict[str, Any]) -> dict[str, str]:
     cfg_mod.write_config(body)
     return {"status": "ok"}
+
+
+@app.post("/api/config/preview-selector")
+def preview_metric_selector(body: dict[str, Any]) -> dict[str, str]:
+    jobs: list[str] = []
+    for j in body.get("probe_jobs") or []:
+        if isinstance(j, dict) and j.get("job") and j.get("enabled"):
+            jobs.append(str(j["job"]))
+    pairs: list[tuple[str, str]] = []
+    for x in body.get("project_filter_pairs") or []:
+        if isinstance(x, dict):
+            lb = (x.get("label") or "").strip()
+            val = x.get("value")
+            if lb and val is not None and str(val).strip() != "":
+                pairs.append((lb, str(val).strip()))
+    frag = metrics.build_probe_success_selector(jobs, pairs, body)
+    example = f"probe_success{frag}" if frag else "probe_success"
+    return {"selector": frag, "example": example}
 
 
 @app.post("/api/config/test")
@@ -76,7 +100,9 @@ def post_project(body: dict[str, Any]) -> dict[str, Any]:
     if not name:
         raise HTTPException(status_code=400, detail="name required")
     f = body.get("filter") or {}
-    return cfg_mod.create_project(name, f.get("label"), f.get("value"))
+    raw_filters = body.get("filters")
+    flist = raw_filters if isinstance(raw_filters, list) else None
+    return cfg_mod.create_project(name, f.get("label"), f.get("value"), flist)
 
 
 @app.put("/api/projects/{project_id}")
@@ -95,14 +121,24 @@ def delete_project(project_id: str) -> dict[str, str]:
 
 
 @app.get("/api/projects/{project_id}/filter-values")
-async def project_filter_values(project_id: str) -> list[str]:
+async def project_filter_values(project_id: str, label: str | None = Query(None)) -> list[str]:
     project = cfg_mod.get_project(project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    f = project.get("filter") or {}
-    label = f.get("label")
-    if not label:
+    lab = (label or "").strip()
+    if not lab:
+        pairs = cfg_mod.project_metric_filter_pairs(project)
+        lab = pairs[0][0] if pairs else ""
+    if not lab:
         return []
+    try:
+        return await metrics.get_filter_values(lab)
+    except RuntimeError as e:
+        raise HTTPException(status_code=424, detail=str(e))
+
+
+@app.get("/api/config/metric-label-values")
+async def metric_label_values(label: str = Query(..., min_length=1)) -> list[str]:
     try:
         return await metrics.get_filter_values(label)
     except RuntimeError as e:
@@ -114,12 +150,9 @@ async def project_services(project_id: str) -> dict[str, Any]:
     project = cfg_mod.get_project(project_id)
     if project is None:
         raise HTTPException(status_code=404, detail="Project not found")
-    f = project.get("filter") or {}
+    pairs = cfg_mod.project_metric_filter_pairs(project)
     try:
-        return await metrics.get_services(
-            filter_label=f.get("label"),
-            filter_value=f.get("value"),
-        )
+        return await metrics.get_services(filter_pairs=pairs)
     except RuntimeError as e:
         raise HTTPException(status_code=424, detail=str(e))
 
