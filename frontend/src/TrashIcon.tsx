@@ -13,7 +13,7 @@ type Props = {
 
 /** Единый значок корзины (react-icons/fa6) по всему приложению */
 export function TrashIcon({ size = 16, variantOnRed, muted }: Props) {
-  const color = muted ? "#cbd5e1" : variantOnRed ? "#ffffff" : TRASH_COLOR;
+  const color = muted ? "var(--probemap-border-strong)" : variantOnRed ? "var(--probemap-on-accent)" : TRASH_COLOR;
   return (
     <FaTrash
       aria-hidden

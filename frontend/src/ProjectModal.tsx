@@ -144,7 +144,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
         position: "fixed",
         inset: 0,
         zIndex: 4000,
-        background: "rgba(0,0,0,0.3)",
+        background: "var(--probemap-overlay-scrim)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -152,7 +152,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--probemap-modal-bg)",
           borderRadius: 12,
           width: 440,
           maxHeight: "88vh",
@@ -170,49 +170,26 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
             gap: 8,
           }}
         >
-          <span style={{ fontSize: 15, fontWeight: 700, color: "#0f172a" }}>
+          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--probemap-text)" }}>
             {project ? t("projectTitle") : t("projectTitleNew")}
           </span>
-          <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            {project && onDelete && (
-              <button
-                type="button"
-                onClick={() => {
-                  setDeleteConfirmOpen(true);
-                  setDeleteConfirmText("");
-                }}
-                title={t("projectDelete")}
-                style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  display: "flex",
-                  alignItems: "center",
-                }}
-              >
-                <TrashIcon size={16} />
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onClose}
-              style={{
-                background: "none",
-                border: "none",
-                fontSize: 18,
-                color: "#94a3b8",
-                cursor: "pointer",
-                padding: 0,
-              }}
-            >
-              ×
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{
+              background: "none",
+              border: "none",
+              fontSize: 18,
+              color: "var(--probemap-text-faint)",
+              cursor: "pointer",
+              padding: 0,
+            }}
+          >
+            ×
+          </button>
         </div>
 
-        <p style={{ margin: "0 0 16px", fontSize: 12, color: "#64748b", lineHeight: 1.45 }}>
+        <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--probemap-text-muted)", lineHeight: 1.45 }}>
           {t("projectIntro")}
         </p>
 
@@ -233,7 +210,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
 
           <div>
             <Label>{t("projectFilterSection")}</Label>
-            <p style={{ margin: "0 0 8px", fontSize: 11, color: "#94a3b8" }}>
+            <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--probemap-text-faint)" }}>
               {t("projectFilterHint")}
             </p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -305,8 +282,8 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                       style={{
                         padding: "6px 10px",
                         borderRadius: 6,
-                        border: "1.5px solid #e2e8f0",
-                        background: "#fff",
+                        border: "1.5px solid var(--probemap-border)",
+                        background: "var(--probemap-modal-bg)",
                         cursor: rows.length <= 1 ? "default" : "pointer",
                         display: "flex",
                         alignItems: "center",
@@ -326,9 +303,9 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                 marginTop: 8,
                 padding: "5px 12px",
                 borderRadius: 6,
-                border: "1.5px dashed #cbd5e1",
+                border: "1.5px dashed var(--probemap-border-strong)",
                 background: "none",
-                color: "#64748b",
+                color: "var(--probemap-text-muted)",
                 fontSize: 12,
                 cursor: "pointer",
               }}
@@ -338,45 +315,77 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
           </div>
         </div>
 
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "7px 18px",
-              borderRadius: 7,
-              border: "1.5px solid #e2e8f0",
-              background: "none",
-              fontSize: 13,
-              cursor: "pointer",
-              color: "#64748b",
-            }}
-          >
-            {t("cancel")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={!name.trim() || saving}
-            style={{
-              padding: "7px 18px",
-              borderRadius: 7,
-              border: "none",
-              fontSize: 13,
-              cursor: "pointer",
-              background: "#334155",
-              color: "#f8fafc",
-              opacity: !name.trim() ? 0.5 : 1,
-            }}
-            onMouseEnter={(e) => {
-              if (!e.currentTarget.disabled) e.currentTarget.style.background = "#475569";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = "#334155";
-            }}
-          >
-            {saving ? "…" : t("save")}
-          </button>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            marginTop: 22,
+            gap: 10,
+          }}
+        >
+          <div style={{ flex: 1, display: "flex", justifyContent: "flex-start" }}>
+            {project && onDelete && (
+              <button
+                type="button"
+                onClick={() => {
+                  setDeleteConfirmOpen(true);
+                  setDeleteConfirmText("");
+                }}
+                title={t("projectDelete")}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "6px 8px",
+                  borderRadius: 6,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                <TrashIcon size={16} />
+              </button>
+            )}
+          </div>
+          <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                padding: "7px 18px",
+                borderRadius: 7,
+                border: "1.5px solid var(--probemap-border)",
+                background: "none",
+                fontSize: 13,
+                cursor: "pointer",
+                color: "var(--probemap-text-muted)",
+              }}
+            >
+              {t("cancel")}
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleSave()}
+              disabled={!name.trim() || saving}
+              style={{
+                padding: "7px 18px",
+                borderRadius: 7,
+                border: "none",
+                fontSize: 13,
+                cursor: "pointer",
+                background: "var(--probemap-btn-slate)",
+                color: "var(--probemap-btn-slate-text)",
+                opacity: !name.trim() ? 0.5 : 1,
+              }}
+              onMouseEnter={(e) => {
+                if (!e.currentTarget.disabled) e.currentTarget.style.background = "var(--probemap-btn-slate-hover)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = "var(--probemap-btn-slate)";
+              }}
+            >
+              {saving ? "…" : t("save")}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -389,7 +398,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
             position: "fixed",
             inset: 0,
             zIndex: 4100,
-            background: "rgba(0,0,0,0.3)",
+            background: "var(--probemap-overlay-scrim)",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -397,14 +406,17 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
         >
           <div
             style={{
-              background: "#fff",
+              background: "var(--probemap-modal-bg)",
               borderRadius: 10,
               width: 360,
+              maxWidth: "min(360px, calc(100vw - 48px))",
+              boxSizing: "border-box",
+              overflow: "hidden",
               boxShadow: "0 8px 32px rgba(0,0,0,.18)",
               padding: "20px 24px",
             }}
           >
-            <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--probemap-text)", marginBottom: 12 }}>
               {t("projectDelete")}
             </div>
             <DeleteConfirmNameHint name={project.name} />
@@ -424,9 +436,9 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                 padding: "7px 10px",
                 borderRadius: 6,
                 fontSize: 13,
-                border: "1.5px solid #e2e8f0",
+                border: "1.5px solid var(--probemap-border)",
                 outline: "none",
-                color: "#0f172a",
+                color: "var(--probemap-text)",
                 marginBottom: 16,
               }}
             />
@@ -438,11 +450,11 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                 style={{
                   padding: "6px 16px",
                   borderRadius: 6,
-                  border: "1.5px solid #e2e8f0",
-                  background: "#fff",
+                  border: "1.5px solid var(--probemap-border)",
+                  background: "var(--probemap-modal-bg)",
                   fontSize: 13,
                   cursor: deleting ? "default" : "pointer",
-                  color: "#64748b",
+                  color: "var(--probemap-text-muted)",
                 }}
               >
                 {t("cancel")}
@@ -457,8 +469,8 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                   border: "none",
                   fontSize: 13,
                   cursor: deleteConfirmText === project.name && !deleting ? "pointer" : "default",
-                  background: deleteConfirmText === project.name && !deleting ? "#ef4444" : "#f1f5f9",
-                  color: deleteConfirmText === project.name && !deleting ? "#fff" : "#94a3b8",
+                  background: deleteConfirmText === project.name && !deleting ? "#ef4444" : "var(--probemap-bg-subtle)",
+                  color: deleteConfirmText === project.name && !deleting ? "var(--probemap-on-accent)" : "var(--probemap-text-faint)",
                   transition: "background 0.15s, color 0.15s",
                 }}
               >
@@ -475,7 +487,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
 
 function Label({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", marginBottom: 5 }}>{children}</div>
+    <div style={{ fontSize: 11, fontWeight: 600, color: "var(--probemap-text-muted)", marginBottom: 5 }}>{children}</div>
   );
 }
 
@@ -485,7 +497,7 @@ const inputStyle: React.CSSProperties = {
   padding: "6px 10px",
   borderRadius: 6,
   fontSize: 13,
-  border: "1.5px solid #e2e8f0",
+  border: "1.5px solid var(--probemap-border)",
   outline: "none",
-  color: "#0f172a",
+  color: "var(--probemap-text)",
 };

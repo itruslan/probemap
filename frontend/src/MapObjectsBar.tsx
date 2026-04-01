@@ -1,5 +1,4 @@
 import {
-  FaBox,
   FaExpand,
   FaLock,
   FaMagnifyingGlassMinus,
@@ -11,14 +10,18 @@ import { useI18n } from "./i18n";
 
 type Props = {
   onAddArea: () => void;
-  onAddCustom: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
   /** Как у стандартных Controls: переключение «замка» — перетаскивание, связи, выделение */
   canvasInteractive: boolean;
   onToggleCanvasInteraction: () => void;
+  /** Метрики устарели — панель недоступна */
   readOnly?: boolean;
+  /** Замок включён: нельзя добавлять объекты с панели; разблокировка по кнопке замка */
+  addBlocked?: boolean;
+  /** Метрики/API недоступны — отключить зум и замок (только просмотр карты из кэша) */
+  freezeToolbar?: boolean;
 };
 
 export function MapObjectsBar({
@@ -30,8 +33,12 @@ export function MapObjectsBar({
   canvasInteractive,
   onToggleCanvasInteraction,
   readOnly,
+  addBlocked,
+  freezeToolbar,
 }: Props) {
   const { t } = useI18n();
+  const cannotAdd = Boolean(readOnly || addBlocked);
+  const toolbarDead = Boolean(readOnly || freezeToolbar);
 
   return (
     <div className="map-objects-floating">
@@ -41,22 +48,12 @@ export function MapObjectsBar({
             <button
               type="button"
               className="map-objects-toolbar__btn"
-              disabled={readOnly}
+              disabled={cannotAdd}
               onClick={onAddArea}
               title={`${t("mapObjectsTitle")}: ${t("contextAddArea")}`}
               aria-label={t("contextAddArea")}
             >
               <FaObjectGroup className="map-objects-toolbar__icon" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="map-objects-toolbar__btn"
-              disabled={readOnly}
-              onClick={onAddCustom}
-              title={`${t("mapObjectsTitle")}: ${t("contextAddNode")}`}
-              aria-label={t("contextAddNode")}
-            >
-              <FaBox className="map-objects-toolbar__icon" aria-hidden />
             </button>
           </div>
         </section>
@@ -66,8 +63,9 @@ export function MapObjectsBar({
             <button
               type="button"
               className="map-objects-toolbar__btn"
+              disabled={toolbarDead}
               onClick={onZoomIn}
-              title={t("mapZoomIn")}
+              title={`${t("mapCanvasActions")}: ${t("mapZoomIn")}`}
               aria-label={t("mapZoomIn")}
             >
               <FaMagnifyingGlassPlus className="map-objects-toolbar__icon" aria-hidden />
@@ -75,8 +73,9 @@ export function MapObjectsBar({
             <button
               type="button"
               className="map-objects-toolbar__btn"
+              disabled={toolbarDead}
               onClick={onZoomOut}
-              title={t("mapZoomOut")}
+              title={`${t("mapCanvasActions")}: ${t("mapZoomOut")}`}
               aria-label={t("mapZoomOut")}
             >
               <FaMagnifyingGlassMinus className="map-objects-toolbar__icon" aria-hidden />
@@ -84,8 +83,9 @@ export function MapObjectsBar({
             <button
               type="button"
               className="map-objects-toolbar__btn"
+              disabled={toolbarDead}
               onClick={onFitView}
-              title={t("mapFitView")}
+              title={`${t("mapCanvasActions")}: ${t("mapFitView")}`}
               aria-label={t("mapFitView")}
             >
               <FaExpand className="map-objects-toolbar__icon" aria-hidden />
@@ -93,7 +93,7 @@ export function MapObjectsBar({
             <button
               type="button"
               className="map-objects-toolbar__btn"
-              disabled={readOnly}
+              disabled={readOnly || freezeToolbar}
               onClick={onToggleCanvasInteraction}
               title={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
               aria-label={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
@@ -101,7 +101,7 @@ export function MapObjectsBar({
               {canvasInteractive ? (
                 <FaUnlock className="map-objects-toolbar__icon" aria-hidden />
               ) : (
-                <FaLock className="map-objects-toolbar__icon" aria-hidden />
+                <FaLock className="map-objects-toolbar__icon map-objects-toolbar__icon--lock-active" aria-hidden />
               )}
             </button>
           </div>

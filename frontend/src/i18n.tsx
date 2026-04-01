@@ -12,22 +12,25 @@ const STRINGS = {
     settings: "Настройки",
     projectAdd: "Создать проект",
     settingsOpen: "Открыть настройки",
+    themeLight: "Светлая тема",
+    themeDark: "Тёмная тема",
+    themeToggleAria: "Переключить светлую или тёмную тему",
     mapUnavailableTitle: "Карта пока недоступна",
     mapUnavailableBody:
       "Укажите источник метрик (VictoriaMetrics), нажмите «Проверить» в настройках и сохраните.\nЗатем создайте проект при необходимости.",
 
-    nodesTitle: "Узлы",
-    nodesPaletteHelpAria: "Справка по панели узлов",
+    servicesTitle: "Сервисы",
+    servicesPaletteHelpAria: "Справка по панели сервисов",
     searchPlaceholder: "Поиск…",
     nothingFound: "Ничего не найдено",
     paletteAdd: "Добавить",
     onboardingTitle: "Создайте проект",
     onboardingBody:
-      "У каждого проекта свой холст и своя раскладка. Задайте фильтры по лейблам — в палитре останутся только подходящие узлы, затем переносите их на карту.",
+      "У каждого проекта свой холст и своя раскладка. Задайте фильтры по лейблам — в палитре останутся только подходящие сервисы, затем добавляйте их на карту через «Добавить», ПКМ по карте или плавающую панель.",
     monitoringHint:
-      "Слева — узлы из мониторинга. Перетащите на карту или нажмите «Добавить».\nПКМ по пустому месту карты — область и фигура.\nПлавающая панель на карте — объекты и масштаб.",
+      "Слева — сервисы из мониторинга. Добавьте на карту кнопкой «Добавить».\nПКМ по пустому месту карты — область и сервис.\nПлавающая панель на карте — инструменты и масштаб.",
 
-    mapObjectsTitle: "Объекты карты",
+    mapObjectsTitle: "Панель инструментов",
     mapCanvasActions: "Действия",
     mapZoomIn: "Увеличить",
     mapZoomOut: "Уменьшить",
@@ -36,19 +39,20 @@ const STRINGS = {
     mapUnlockInteraction: "Снова разрешить перетаскивание, связи и выделение",
 
     contextAddArea: "Добавить область",
-    contextAddNode: "Добавить узел",
-    contextAllOnCanvas: "Все узлы из мониторинга уже на карте",
+    contextAddService: "Добавить сервис",
+    contextAllServicesOnCanvas: "Все сервисы из мониторинга уже на карте",
 
     monitoringTitle: "МОНИТОРИНГ",
     monitoringSummary: "Пробы: {ok}/{total}",
     monitoringSourcesCoverage: "Blackbox: {present}/{expected}",
     descriptionTitle: "ОПИСАНИЕ",
     actionsTitle: "ДЕЙСТВИЯ",
+    labelsTitle: "МЕТКИ",
     noData: "Нет данных",
 
-    bindTitle: "ПРИВЯЗАТЬ",
-    noMetricsText: "Нет метрик — узел только на схеме, статус не подтягивается.",
-    noMetricsBadge: "Нет метрик",
+    datasourceStatusOk: "Датасорс отвечает (VictoriaMetrics / Prometheus)",
+    datasourceStatusBad: "Датасорс не отвечает или недоступен",
+    datasourceStatusUnknown: "URL источника не сохранён — откройте настройки",
     ok: "OK",
     uiOk: "ОК",
     fail: "Сбой",
@@ -95,7 +99,7 @@ const STRINGS = {
     settingsJobsA: "Из метрик ",
     settingsJobsB: " берутся значения стандартного лейбла ",
     settingsJobsC:
-      " (как в Prometheus: имя scrape job). Отметьте, какие job учитывать при сборе списка узлов в палитре.",
+      " (как в Prometheus: имя scrape job). Отметьте, какие job учитывать при сборе списка сервисов в палитре.",
     settingsJobsEmpty: "Сначала укажите URL и нажмите «Проверить», чтобы подтянуть список job.",
     settingsJobSources: "источники:",
 
@@ -124,9 +128,9 @@ const STRINGS = {
     settingsLabelNotSet: "— не задано —",
     settingsClose: "Закрыть",
 
-    labelMapServiceTitle: "Имя узла на карте (лейбл в метриках)",
+    labelMapServiceTitle: "Имя сервиса на карте (лейбл в метриках)",
     labelMapServiceHint:
-      "Лейбл метрики, по которому группируются таргеты в одну карточку узла (часто service или instance).",
+      "Лейбл метрики, по которому группируются таргеты в одну карточку сервиса (часто service или instance).",
     labelMapPortTitle: "Порт / endpoint",
     labelMapPortHint: "Лейбл с номером порта или идентификатором проверяемого endpoint.",
     labelMapProbeSourceTitle: "Источник пробы (инстанс blackbox)",
@@ -152,12 +156,12 @@ const STRINGS = {
 
     /** Проект */
     projectIntro:
-      "Один тип узлов на карте. Условия по лейблам из VictoriaMetrics (как в PromQL): все выбранные пары должны совпасть. Лейблы подгружаются после настройки источника данных.",
+      "Один тип сервисов на карте. Условия по лейблам из VictoriaMetrics (как в PromQL): все выбранные пары должны совпасть. Лейблы подгружаются после настройки источника данных.",
     projectNameLabel: "Название проекта",
     projectNamePlaceholder: "Например: Production",
     projectFilterSection: "Фильтр по лейблам метрик",
     projectFilterHint:
-      "Пусто — показать все узлы из выбранных job. Несколько строк — пересечение условий (AND).",
+      "Пусто — показать все сервисы из выбранных job. Несколько строк — пересечение условий (AND).",
     projectOptionLabel: "— лейбл —",
     projectOptionValue: "— значение —",
     projectPlaceholderProd: "prod",
@@ -166,9 +170,8 @@ const STRINGS = {
     projectAddCondition: "+ Условие (ещё лейбл)",
 
     defaultGroupLabel: "Область",
-    defaultNodeLabel: "Узел",
+    defaultServiceLabel: "Сервис",
 
-    deleteFromMapTitle: "Удалить с карты",
     deleteConfirmLead: "Введите",
     deleteConfirmTail: "для подтверждения:",
     copyName: "Копировать название",
@@ -185,6 +188,7 @@ const STRINGS = {
     iconAdd: "Добавить иконку",
     layerBack: "На слой назад",
     layerForward: "На слой вперёд",
+    layerOrder: "Слой {n}/{total}",
     layerBackShort: "back",
     layerForwardShort: "front",
 
@@ -205,22 +209,25 @@ const STRINGS = {
     settings: "Settings",
     projectAdd: "Create project",
     settingsOpen: "Open settings",
+    themeLight: "Light theme",
+    themeDark: "Dark theme",
+    themeToggleAria: "Switch light or dark theme",
     mapUnavailableTitle: "Map is unavailable yet",
     mapUnavailableBody:
       "Specify the metrics source (VictoriaMetrics), click «Check» in settings, and save.\nThen create a project if needed.",
 
-    nodesTitle: "Nodes",
-    nodesPaletteHelpAria: "Nodes panel help",
+    servicesTitle: "Services",
+    servicesPaletteHelpAria: "Services panel help",
     searchPlaceholder: "Search…",
     nothingFound: "Nothing found",
     paletteAdd: "Add",
     onboardingTitle: "Create a project",
     onboardingBody:
-      "Each project has its own canvas and layout. Set label filters — only matching nodes appear in the palette — then add them to the map.",
+      "Each project has its own canvas and layout. Set label filters — only matching services appear in the palette — then add them with «Add», the canvas context menu, or the floating toolbar.",
     monitoringHint:
-      "Monitored nodes on the left. Drag onto the map or use «Add».\nRight‑click empty canvas for area and shape.\nThe floating panel on the map — objects and zoom.",
+      "Monitored services on the left. Use «Add» to place one on the map.\nRight‑click empty canvas for area and service.\nThe floating toolbar — tools and zoom.",
 
-    mapObjectsTitle: "Map objects",
+    mapObjectsTitle: "Toolbar",
     mapCanvasActions: "Actions",
     mapZoomIn: "Zoom in",
     mapZoomOut: "Zoom out",
@@ -229,19 +236,20 @@ const STRINGS = {
     mapUnlockInteraction: "Unlock dragging, connections, and selection",
 
     contextAddArea: "Add area",
-    contextAddNode: "Add node",
-    contextAllOnCanvas: "All monitored nodes are already on the canvas",
+    contextAddService: "Add service",
+    contextAllServicesOnCanvas: "All monitored services are already on the canvas",
 
     monitoringTitle: "MONITORING",
     monitoringSummary: "Probes: {ok}/{total}",
     monitoringSourcesCoverage: "Blackbox: {present}/{expected}",
     descriptionTitle: "DESCRIPTION",
     actionsTitle: "ACTIONS",
+    labelsTitle: "LABELS",
     noData: "No data",
 
-    bindTitle: "BIND",
-    noMetricsText: "No metrics — node only on the canvas; status is not fetched.",
-    noMetricsBadge: "No metrics",
+    datasourceStatusOk: "Datasource is reachable (VictoriaMetrics / Prometheus)",
+    datasourceStatusBad: "Datasource is unreachable or not responding",
+    datasourceStatusUnknown: "Datasource URL is not saved — open Settings",
     ok: "OK",
     uiOk: "OK",
     fail: "Fail",
@@ -287,7 +295,7 @@ const STRINGS = {
     settingsJobsA: "From ",
     settingsJobsB: " metrics we read the standard ",
     settingsJobsC:
-      " label (Prometheus scrape job name). Choose which jobs to include when building the palette node list.",
+      " label (Prometheus scrape job name). Choose which jobs to include when building the palette service list.",
     settingsJobsEmpty: "Enter the URL and click «Check» first to load the job list.",
     settingsJobSources: "sources:",
 
@@ -316,9 +324,9 @@ const STRINGS = {
     settingsLabelNotSet: "— not set —",
     settingsClose: "Close",
 
-    labelMapServiceTitle: "Node name on the map (metric label)",
+    labelMapServiceTitle: "Service name on the map (metric label)",
     labelMapServiceHint:
-      "Metric label used to group targets into one node card (often service or instance).",
+      "Metric label used to group targets into one service card (often service or instance).",
     labelMapPortTitle: "Port / endpoint",
     labelMapPortHint: "Label for port number or endpoint identifier.",
     labelMapProbeSourceTitle: "Probe source (blackbox instance)",
@@ -343,12 +351,12 @@ const STRINGS = {
     placeholderEnvironment: "environment",
 
     projectIntro:
-      "One node type on the map. Conditions use labels from VictoriaMetrics (like PromQL): every selected pair must match. Labels load after the datasource is configured.",
+      "One service type on the map. Conditions use labels from VictoriaMetrics (like PromQL): every selected pair must match. Labels load after the datasource is configured.",
     projectNameLabel: "Project name",
     projectNamePlaceholder: "e.g. Production",
     projectFilterSection: "Metric label filter",
     projectFilterHint:
-      "Empty — show all nodes from selected jobs. Multiple rows — intersection (AND).",
+      "Empty — show all services from selected jobs. Multiple rows — intersection (AND).",
     projectOptionLabel: "— label —",
     projectOptionValue: "— value —",
     projectPlaceholderProd: "prod",
@@ -357,9 +365,8 @@ const STRINGS = {
     projectAddCondition: "+ Another condition",
 
     defaultGroupLabel: "Area",
-    defaultNodeLabel: "Node",
+    defaultServiceLabel: "Service",
 
-    deleteFromMapTitle: "Remove from map",
     deleteConfirmLead: "Type",
     deleteConfirmTail: "to confirm:",
     copyName: "Copy name",
@@ -376,6 +383,7 @@ const STRINGS = {
     iconAdd: "Add icon",
     layerBack: "Send backward",
     layerForward: "Bring forward",
+    layerOrder: "Layer {n}/{total}",
     layerBackShort: "back",
     layerForwardShort: "front",
 
@@ -416,7 +424,10 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const value = useMemo<I18nContextValue>(() => {
     return {
       lang,
-      setLang,
+      setLang: (next) => {
+        // Не триггерить лишний ре-рендер и побочные эффекты, если язык уже выбран
+        setLang((prev) => (prev === next ? prev : next));
+      },
       t: (key) => STRINGS[lang][key] ?? STRINGS.ru[key] ?? String(key),
     };
   }, [lang]);

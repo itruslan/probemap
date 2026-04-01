@@ -47,6 +47,8 @@ export interface Service {
   id: string;
   name: string;
   ports: Port[];
+  /** Лейблы из метрик: только согласованные между сериями (без расхождений между blackbox). */
+  labels?: Record<string, string>;
 }
 
 export interface ServicesResponse {
@@ -88,6 +90,18 @@ export interface LayoutNode {
   zIndex?: number;
   description?: string;
   actions?: ServiceAction[];
+  /** У custom-узла: порты из метрик после привязки к сервису каталога */
+  ports?: Port[];
+}
+
+export interface DatasourceStatusResponse {
+  configured: boolean;
+  ok: boolean;
+  name?: string | null;
+}
+
+export async function fetchDatasourceStatus(): Promise<DatasourceStatusResponse> {
+  return apiFetch<DatasourceStatusResponse>(`${BASE}/api/datasource/status`);
 }
 
 export interface Group {

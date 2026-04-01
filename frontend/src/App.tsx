@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
+import type { IconType } from "react-icons";
+import { FaMoon, FaSun } from "react-icons/fa6";
 import { ReactFlowProvider } from "@xyflow/react";
 import {
   ApiError,
-  fetchServices, fetchProjectServices, fetchProjects,
+  fetchServices, fetchProjectServices, fetchProjects, fetchDatasourceStatus,
   createProject, updateProject, deleteProject,
   type ServicesResponse, type Project, type ProjectFilter,
 } from "./api";
@@ -12,6 +14,7 @@ import { ProjectModal } from "./ProjectModal";
 import { ProjectSelect } from "./ProjectSelect";
 import { I18nProvider, useI18n } from "./i18n";
 import { POLL_INTERVAL_OPTIONS_SEC, POLL_INTERVAL_STORAGE_KEY, readPollIntervalSec } from "./pollInterval";
+import { applyTheme, getStoredTheme, type Theme } from "./theme";
 
 function LanguageToggleButton() {
   const { lang, setLang } = useI18n();
@@ -46,12 +49,12 @@ function LanguageToggleButton() {
         gap: 4,
         padding: "3px 8px",
         borderRadius: 6,
-        border: "1.5px solid #e2e8f0",
-        background: "#fff",
+        border: "1.5px solid var(--probemap-border)",
+        background: "var(--probemap-bg)",
       }}
     >
       {flagBtn("ru", "🇷🇺", "Русский")}
-      <span style={{ color: "#cbd5e1", fontSize: 13, userSelect: "none", lineHeight: 1 }} aria-hidden>
+      <span style={{ color: "var(--probemap-lang-divider)", fontSize: 13, userSelect: "none", lineHeight: 1 }} aria-hidden>
         /
       </span>
       {flagBtn("en", "🇬🇧", "English")}
@@ -70,6 +73,64 @@ function SettingsButton({ onClick }: { onClick: () => void }) {
     >
       {t("settings")}
     </button>
+  );
+}
+
+function ThemeToggleButton() {
+  const { t } = useI18n();
+  const [theme, setTheme] = useState<Theme>(() => getStoredTheme());
+
+  const setMode = (next: Theme) => {
+    setTheme(next);
+    applyTheme(next);
+  };
+
+  const iconBtn = (mode: Theme, Icon: IconType, label: string) => (
+    <button
+      key={mode}
+      type="button"
+      onClick={() => setMode(mode)}
+      aria-label={label}
+      aria-pressed={theme === mode}
+      title={label}
+      style={{
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        padding: "2px 4px",
+        lineHeight: 1,
+        fontSize: 18,
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        color: theme === mode ? "var(--probemap-theme-toggle-on)" : "var(--probemap-text-faint)",
+        transition: "color 0.15s ease",
+      }}
+    >
+      <Icon size={18} aria-hidden />
+    </button>
+  );
+
+  return (
+    <div
+      role="group"
+      aria-label={t("themeToggleAria")}
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 4,
+        padding: "3px 8px",
+        borderRadius: 6,
+        border: "1.5px solid var(--probemap-border)",
+        background: "var(--probemap-bg)",
+      }}
+    >
+      {iconBtn("light", FaSun, t("themeLight"))}
+      <span style={{ color: "var(--probemap-lang-divider)", fontSize: 13, userSelect: "none", lineHeight: 1 }} aria-hidden>
+        /
+      </span>
+      {iconBtn("dark", FaMoon, t("themeDark"))}
+    </div>
   );
 }
 
@@ -100,6 +161,12 @@ function AppContent() {
   const [pollIntervalSec, setPollIntervalSec] = useState<(typeof POLL_INTERVAL_OPTIONS_SEC)[number]>(readPollIntervalSec);
   /** Только ручной «Обновить» в тулбаре — не автоопрос и не эффект при смене проекта */
   const [toolbarRefreshPending, setToolbarRefreshPending] = useState(false);
+  /** Последняя проверка доступности VictoriaMetrics по URL из конфига */
+  const [datasourceStatus, setDatasourceStatus] = useState<{
+    configured: boolean;
+    ok: boolean;
+    name?: string | null;
+  } | null>(null);
 
   // Load projects on mount
   useEffect(() => {
@@ -124,6 +191,9 @@ function AppContent() {
         setError(null);
         setLoadFailed(false);
         setMetricsStale(false);
+        fetchDatasourceStatus().then(setDatasourceStatus).catch(() =>
+          setDatasourceStatus({ configured: false, ok: false }),
+        );
       })
       .catch((e) => {
         if (e instanceof ApiError) {
@@ -155,6 +225,18 @@ function AppContent() {
         if (opts?.fromToolbar) setToolbarRefreshPending(false);
       });
   }, [activeProject, t]);
+
+  useEffect(() => {
+    if (!projectsLoaded) return;
+    const tick = () => {
+      fetchDatasourceStatus()
+        .then(setDatasourceStatus)
+        .catch(() => setDatasourceStatus({ configured: false, ok: false }));
+    };
+    tick();
+    const id = window.setInterval(tick, 45_000);
+    return () => window.clearInterval(id);
+  }, [projectsLoaded]);
 
   useEffect(() => {
     setData(null);
@@ -202,17 +284,17 @@ function AppContent() {
   }, [activeProject?.id]);
 
   return (
-      <div style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw" }}>
+      <div className="app-shell" style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw" }}>
       {/* Header */}
       <div style={{
         minHeight: 48, flexShrink: 0,
         display: "flex", alignItems: "stretch",
         padding: "0 14px",
-        borderBottom: "1px solid #e2e8f0",
-        background: "#fff",
+        borderBottom: "1px solid var(--probemap-border)",
+        background: "var(--probemap-header-bg)",
         zIndex: 20,
       }}>
-        {/* Слева: бренд */}
+        {/* Слева: бренд, настройки */}
         <div
           style={{
             flex: 1,
@@ -223,9 +305,10 @@ function AppContent() {
             minWidth: 0,
           }}
         >
-          <span style={{ fontSize: 14, fontWeight: 700, color: "#0f172a", letterSpacing: "-0.02em", flexShrink: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--probemap-text)", letterSpacing: "-0.02em", flexShrink: 0 }}>
             probemap
           </span>
+          <SettingsButton onClick={() => setSettingsOpen(true)} />
         </div>
 
         {/* По центру: активный проект */}
@@ -251,7 +334,7 @@ function AppContent() {
           )}
         </div>
 
-        {/* Справа: автоопрос / обновить, настройки, язык */}
+        {/* Справа: автоопрос / обновить, тема, язык */}
         <div
           style={{
             flex: 1,
@@ -272,8 +355,17 @@ function AppContent() {
               flexWrap: "nowrap",
             }}
           />
-          <SettingsButton onClick={() => setSettingsOpen(true)} />
-          <LanguageToggleButton />
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexShrink: 0,
+            }}
+          >
+            <ThemeToggleButton />
+            <LanguageToggleButton />
+          </div>
         </div>
       </div>
 
@@ -291,9 +383,9 @@ function AppContent() {
               alignItems: "center",
               gap: 10,
               padding: "10px 14px",
-              background: "#fffbeb",
-              borderBottom: "1px solid #fcd34d",
-              color: "#92400e",
+              background: "var(--probemap-warn-banner-bg)",
+              borderBottom: "1px solid var(--probemap-warn-banner-border)",
+              color: "var(--probemap-warn-banner-text)",
               fontSize: 13,
               boxSizing: "border-box",
             }}
@@ -308,9 +400,9 @@ function AppContent() {
               style={{
                 padding: "4px 12px",
                 borderRadius: 6,
-                border: "1px solid #d97706",
-                background: "#fff",
-                color: "#92400e",
+                border: "1px solid var(--probemap-warn-banner-border)",
+                background: "var(--probemap-bg)",
+                color: "var(--probemap-warn-banner-text)",
                 fontSize: 12,
                 cursor: "pointer",
                 fontWeight: 600,
@@ -327,7 +419,7 @@ function AppContent() {
                 borderRadius: 6,
                 border: "1px solid transparent",
                 background: "transparent",
-                color: "#92400e",
+                color: "var(--probemap-warn-banner-text)",
                 fontSize: 12,
                 cursor: "pointer",
                 flexShrink: 0,
@@ -352,12 +444,12 @@ function AppContent() {
               style={{
                 maxWidth: 400,
                 textAlign: "center",
-                color: "#64748b",
+                color: "var(--probemap-text-muted)",
                 fontSize: 14,
                 lineHeight: 1.55,
               }}
             >
-              <div style={{ fontSize: 15, fontWeight: 600, color: "#334155", marginBottom: 10 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--probemap-text-secondary)", marginBottom: 10 }}>
                 {t("mapUnavailableTitle")}
               </div>
               <p style={{ margin: "0 0 20px", whiteSpace: "pre-line" }}>
@@ -370,8 +462,8 @@ function AppContent() {
                   padding: "8px 20px",
                   borderRadius: 8,
                   border: "none",
-                  background: "#3b82f6",
-                  color: "#fff",
+                  background: "var(--probemap-blue)",
+                  color: "var(--probemap-on-accent)",
                   fontSize: 14,
                   cursor: "pointer",
                   fontWeight: 600,
@@ -389,7 +481,7 @@ function AppContent() {
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              color: "#94a3b8",
+              color: "var(--probemap-text-faint)",
               fontSize: 13,
             }}
           >
@@ -398,7 +490,7 @@ function AppContent() {
         )}
         {projectsLoaded && !error && !needsSetup && projects.length === 0 && (
           (!data && fetching) ? (
-            <div style={{ padding: 20, fontSize: 13, color: "#94a3b8" }}>{t("loading")}</div>
+            <div style={{ padding: 20, fontSize: 13, color: "var(--probemap-text-faint)" }}>{t("loading")}</div>
           ) : (
             <div
               style={{
@@ -414,12 +506,12 @@ function AppContent() {
                 style={{
                   maxWidth: 440,
                   textAlign: "center",
-                  color: "#64748b",
+                  color: "var(--probemap-text-muted)",
                   fontSize: 14,
                   lineHeight: 1.55,
                 }}
               >
-                <div style={{ fontSize: 17, fontWeight: 600, color: "#334155", marginBottom: 12 }}>
+                <div style={{ fontSize: 17, fontWeight: 600, color: "var(--probemap-text-secondary)", marginBottom: 12 }}>
                   {t("onboardingTitle")}
                 </div>
                 <p style={{ margin: "0 0 24px" }}>{t("onboardingBody")}</p>
@@ -430,17 +522,17 @@ function AppContent() {
                     padding: "10px 24px",
                     borderRadius: 8,
                     border: "none",
-                    background: "#334155",
-                    color: "#f8fafc",
+                    background: "var(--probemap-btn-slate)",
+                    color: "var(--probemap-btn-slate-text)",
                     fontSize: 14,
                     cursor: "pointer",
                     fontWeight: 600,
                   }}
                   onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#475569";
+                    e.currentTarget.style.background = "var(--probemap-btn-slate-hover)";
                   }}
                   onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#334155";
+                    e.currentTarget.style.background = "var(--probemap-btn-slate)";
                   }}
                 >
                   {t("projectAdd")}
@@ -459,13 +551,14 @@ function AppContent() {
               pollIntervalSec={pollIntervalSec}
               onPollIntervalSecChange={setPollIntervalSecPersist}
               metricsStale={metricsStale}
+              datasourceStatus={datasourceStatus}
             />
           </ReactFlowProvider>
         )}
         {!needsSetup && !data && !(projectsLoaded && projects.length === 0 && !error) && (
           fetching ? (
             error ? null : (
-              <div style={{ padding: 20, fontSize: 13, color: "#94a3b8" }}>{t("loading")}</div>
+              <div style={{ padding: 20, fontSize: 13, color: "var(--probemap-text-faint)" }}>{t("loading")}</div>
             )
           ) : loadFailed && !error ? (
             <div
@@ -476,7 +569,7 @@ function AppContent() {
                 justifyContent: "center",
                 padding: 32,
                 boxSizing: "border-box",
-                color: "#64748b",
+                color: "var(--probemap-text-muted)",
                 fontSize: 14,
                 lineHeight: 1.55,
                 textAlign: "center",

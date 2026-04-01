@@ -1,27 +1,25 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
 import { useState } from "react";
-import { IconRenderer } from "../IconRenderer";
-import { IconPicker } from "../IconPicker";
 import { useI18n } from "../i18n";
 
 export interface GroupNodeData {
   label: string;
   color?: string;
-  icon?: string;
 }
 
+// Полупрозрачные цвета — акцент на рамке, не на заливке
 const COLORS = [
-  { bg: "rgba(241,245,249,0.6)", border: "#cbd5e1", label: "#64748b" },   // серый (default)
-  { bg: "rgba(219,234,254,0.6)", border: "#93c5fd", label: "#1d4ed8" },   // синий
-  { bg: "rgba(220,252,231,0.6)", border: "#86efac", label: "#15803d" },   // зелёный
-  { bg: "rgba(254,243,199,0.6)", border: "#fcd34d", label: "#b45309" },   // жёлтый
-  { bg: "rgba(252,231,243,0.6)", border: "#f9a8d4", label: "#9d174d" },   // розовый
-  { bg: "rgba(237,233,254,0.6)", border: "#c4b5fd", label: "#6d28d9" },   // фиолетовый
+  { bg: "rgba(241,245,249,0.22)", border: "#cbd5e1" }, // серый
+  { bg: "rgba(219,234,254,0.22)", border: "#93c5fd" }, // синий
+  { bg: "rgba(220,252,231,0.22)", border: "#86efac" }, // зелёный
+  { bg: "rgba(254,243,199,0.22)", border: "#fcd34d" }, // жёлтый
+  { bg: "rgba(252,231,243,0.22)", border: "#f9a8d4" }, // розовый
+  { bg: "rgba(237,233,254,0.22)", border: "#c4b5fd" }, // фиолетовый
 ];
 
 export function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
-  const { setNodes, getNodes, updateNodeData } = useReactFlow();
+  const { setNodes, getNodes } = useReactFlow();
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
@@ -30,16 +28,18 @@ export function GroupNode({ id, data, selected }: NodeProps) {
     const i = COLORS.findIndex((c) => c.bg === d.color);
     return i >= 0 ? i : 0;
   });
-  const [showColors, setShowColors] = useState(false);
-  const [pickerAnchor, setPickerAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [showChrome, setShowChrome] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [layerHint, setLayerHint] = useState<"back" | "front" | null>(null);
 
-
-  const openPicker = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setPickerAnchor({ x: e.clientX + 8, y: e.clientY });
-  };
-
-  const color = COLORS[colorIdx];
+  const hasColor = !!d.color;
+  const color = hasColor
+    ? COLORS[colorIdx]
+    : {
+        bg: "transparent",
+        border: "var(--probemap-border-strong)",
+      };
+  const labelColor = hasColor ? "var(--probemap-text)" : "var(--probemap-text-muted)";
 
   const shiftZ = (delta: number) => {
     const allNodes = getNodes();
@@ -56,12 +56,10 @@ export function GroupNode({ id, data, selected }: NodeProps) {
     const targetIdx = curIdx + delta;
     if (targetIdx < 0 || targetIdx >= groups.length) return;
 
-    // Move current group to target position, shift others
     const reordered = [...groups];
     const [moved] = reordered.splice(curIdx, 1);
     reordered.splice(targetIdx, 0, moved);
 
-    // Reassign z-indices: all negative, ordered from back to front
     const zMap = new Map<string, number>();
     reordered.forEach((g, i) => zMap.set(g.id, -(reordered.length - i)));
 
@@ -70,9 +68,22 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         const newZ = zMap.get(n.id);
         if (newZ !== undefined) return { ...n, style: { ...n.style, zIndex: newZ } };
         return n;
-      })
+      }),
     );
   };
+
+  const layerOrder = (() => {
+    const groups = getNodes()
+      .filter((n) => n.type === "group")
+      .sort((a, b) => {
+        const za = (a.style?.zIndex as number) ?? -1;
+        const zb = (b.style?.zIndex as number) ?? -1;
+        if (za !== zb) return za - zb;
+        return a.id.localeCompare(b.id);
+      });
+    const idx = groups.findIndex((n) => n.id === id);
+    return { idx, total: groups.length };
+  })();
 
   return (
     <>
@@ -94,112 +105,283 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           boxSizing: "border-box",
           position: "relative",
         }}
-        onMouseEnter={() => setShowColors(true)}
-        onMouseLeave={() => setShowColors(false)}
+        onMouseEnter={() => setShowChrome(true)}
+        onMouseLeave={() => {
+          setShowChrome(false);
+          setPaletteOpen(false);
+          setLayerHint(null);
+        }}
       >
-        {/* Заголовок */}
         <div
           style={{
-            position: "absolute", top: 4, left: 8,
-            display: "flex", alignItems: "center", gap: 4,
+            position: "absolute",
+            top: 4,
+            left: 8,
+            display: "flex",
+            alignItems: "center",
             maxWidth: "calc(100% - 160px)",
           }}
         >
-          {/* Иконка — кнопка для выбора */}
+          {/* Общая кнопка выбора цвета области */}
           <button
-            onClick={openPicker}
-            title={d.icon ? t("iconChange") : t("iconAdd")}
+            type="button"
+            onClick={() => setPaletteOpen((v) => !v)}
+            title={t("groupColor")}
             style={{
-              display: "flex", alignItems: "center", justifyContent: "center",
-              width: 18, height: 18, borderRadius: 4, flexShrink: 0,
-              border: d.icon ? "none" : `1px dashed ${color.border}`,
-              background: "transparent", cursor: "pointer", padding: 0,
-              color: color.label,
+              width: 18,
+              height: 18,
+              borderRadius: 999,
+            border: "none",
+              padding: 0,
+              marginRight: 6,
+            background: "transparent",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            {d.icon ? <IconRenderer name={d.icon} size={13} /> : <span style={{ fontSize: 10, lineHeight: 1 }}>+</span>}
+            <span
+              aria-hidden
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: hasColor ? color.bg : "transparent",
+                border: hasColor ? `1px solid ${color.border}` : "1px solid var(--probemap-border-strong)",
+              }}
+            />
           </button>
-
-          {/* Название */}
           {editing ? (
             <input
               autoFocus
               value={label}
               onChange={(e) => setLabel(e.target.value)}
-              onBlur={() => { d.label = label; setEditing(false); }}
-              onKeyDown={(e) => { if (e.key === "Enter") { d.label = label; setEditing(false); } }}
+              onBlur={() => {
+                d.label = label;
+                setEditing(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  d.label = label;
+                  setEditing(false);
+                }
+              }}
               style={{
-                background: "transparent", border: "none",
+                background: "transparent",
+                border: "none",
                 borderBottom: `1.5px solid ${color.border}`,
-                outline: "none", fontSize: 12, fontWeight: 600,
-                color: color.label, width: 100,
+                outline: "none",
+                fontSize: 12,
+                fontWeight: 600,
+                color: labelColor,
+                width: "min(100%, 220px)",
               }}
             />
           ) : (
             <span
               onDoubleClick={() => setEditing(true)}
-              style={{ fontSize: 12, fontWeight: 600, color: color.label, cursor: "text", userSelect: "none" }}
+              style={{
+                fontSize: 12,
+                fontWeight: 600,
+                color: labelColor,
+                cursor: "text",
+                userSelect: "none",
+              }}
             >
               {label}
             </span>
           )}
         </div>
 
-        {pickerAnchor && (
-          <IconPicker
-            anchorX={pickerAnchor.x}
-            anchorY={pickerAnchor.y}
-            onSelect={(name) => { updateNodeData(id, { icon: name }); setPickerAnchor(null); }}
-            onClose={() => setPickerAnchor(null)}
-          />
-        )}
-
-        {/* Цветовые пресеты + кнопки слоёв */}
-        {showColors && (
+        {showChrome && (
           <div
             style={{
-              position: "absolute", top: 4, right: 6,
-              display: "flex", gap: 4, alignItems: "center",
+              position: "absolute",
+              top: 4,
+              right: 6,
+              display: "flex",
+              gap: 4,
+              alignItems: "center",
+            }}
+          >
+            {/* Кнопки изменения слоя */}
+            <button
+              type="button"
+              onClick={() => shiftZ(-1)}
+              title={t("layerBack")}
+              onMouseEnter={() => setLayerHint("back")}
+              onMouseLeave={() => setLayerHint(null)}
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 999,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 9,
+                lineHeight: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                color: labelColor,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: "4px solid transparent",
+                  borderRight: "4px solid transparent",
+                  borderTop: `7px solid ${labelColor}`,
+                }}
+              />
+            </button>
+            <button
+              type="button"
+              onClick={() => shiftZ(1)}
+              title={t("layerForward")}
+              onMouseEnter={() => setLayerHint("front")}
+              onMouseLeave={() => setLayerHint(null)}
+              style={{
+                width: 18,
+                height: 18,
+                borderRadius: 999,
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 9,
+                lineHeight: 1,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                padding: 0,
+                color: labelColor,
+              }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 0,
+                  height: 0,
+                  borderLeft: "4px solid transparent",
+                  borderRight: "4px solid transparent",
+                  borderBottom: `7px solid ${labelColor}`,
+                }}
+              />
+            </button>
+          </div>
+        )}
+
+        {/* Палитра цветов, открывается из общей кнопки в левом верхнем углу */}
+        {paletteOpen && (
+          <div
+            style={{
+              position: "absolute",
+              top: 28,
+              left: 8,
+              display: "flex",
+              gap: 6,
+              padding: "4px 6px",
+              borderRadius: 8,
+              background: "var(--probemap-bg)",
+              boxShadow: "0 4px 18px rgba(15,23,42,0.24)",
+              border: "1px solid var(--probemap-border)",
+              zIndex: 10,
             }}
           >
             {COLORS.map((c, i) => (
-              <div
+              <button
                 key={i}
-                onClick={() => { setColorIdx(i); d.color = c.bg; }}
+                type="button"
+                onClick={() => {
+                  setColorIdx(i);
+                  d.color = c.bg;
+                  setPaletteOpen(false);
+                }}
                 style={{
-                  width: 14, height: 14, borderRadius: "50%",
-                  background: c.bg, border: `2px solid ${c.border}`,
+                  width: 18,
+                  height: 18,
+                  borderRadius: 999,
+                  padding: 0,
+                  border: `2px solid ${c.border}`,
+                  background: c.bg,
                   cursor: "pointer",
                   outline: i === colorIdx ? `2px solid ${c.border}` : "none",
                   outlineOffset: 1,
                 }}
+                aria-label={t("groupColor")}
               />
             ))}
-            <div style={{ width: 1, height: 14, background: color.border, margin: "0 2px" }} />
-            <button
-              onClick={() => shiftZ(-1)}
-              title={t("layerBack")}
-              style={{
-                height: 18, borderRadius: 4, border: `1px solid ${color.border}`,
-                background: "rgba(255,255,255,0.8)", cursor: "pointer",
-                fontSize: 9, lineHeight: 1, display: "flex", alignItems: "center",
-                justifyContent: "center", padding: "0 4px", color: color.label,
-              }}
-            >
-              back
-            </button>
-            <button
-              onClick={() => shiftZ(1)}
-              title={t("layerForward")}
-              style={{
-                height: 18, borderRadius: 4, border: `1px solid ${color.border}`,
-                background: "rgba(255,255,255,0.8)", cursor: "pointer",
-                fontSize: 9, lineHeight: 1, display: "flex", alignItems: "center",
-                justifyContent: "center", padding: "0 4px", color: color.label,
-              }}
-            >
-              front
-            </button>
+          </div>
+        )}
+
+        {/* Подпись к кнопкам слоёв — текст из i18n, в зависимости от языка */}
+        {layerHint === "back" && (
+          <div
+            style={{
+              position: "absolute",
+              top: 26,
+              right: 6,
+              padding: "3px 6px",
+              borderRadius: 6,
+              background: "rgba(15,23,42,0.9)",
+              color: "#f9fafb",
+              fontSize: 10,
+              lineHeight: 1.3,
+              maxWidth: 180,
+              boxShadow: "0 4px 14px rgba(15,23,42,0.5)",
+              pointerEvents: "none",
+            }}
+          >
+            {t("layerBack")}
+          </div>
+        )}
+        {layerHint === "front" && (
+          <div
+            style={{
+              position: "absolute",
+              top: 26,
+              right: 6,
+              padding: "3px 6px",
+              borderRadius: 6,
+              background: "rgba(15,23,42,0.9)",
+              color: "#f9fafb",
+              fontSize: 10,
+              lineHeight: 1.3,
+              maxWidth: 190,
+              boxShadow: "0 4px 14px rgba(15,23,42,0.5)",
+              pointerEvents: "none",
+            }}
+          >
+            {t("layerForward")}
+          </div>
+        )}
+
+        {layerHint && (
+          <div
+            style={{
+              position: "absolute",
+              top: 4,
+              right: 50,
+              padding: "2px 6px",
+              borderRadius: 999,
+              background: "var(--probemap-bg)",
+              border: "1px solid var(--probemap-border)",
+              color: labelColor,
+              fontSize: 10,
+              lineHeight: 1.2,
+              fontVariantNumeric: "tabular-nums",
+              userSelect: "none",
+              boxShadow: "0 4px 14px rgba(15,23,42,0.14)",
+              pointerEvents: "none",
+            }}
+          >
+            {t("layerOrder")
+              .replace("{n}", layerOrder.idx >= 0 ? String(layerOrder.idx + 1) : "—")
+              .replace("{total}", String(layerOrder.total))}
           </div>
         )}
       </div>

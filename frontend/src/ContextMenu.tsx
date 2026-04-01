@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaObjectGroup, FaBox } from "react-icons/fa6";
+import { FaObjectGroup, FaGlobe } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";
 
@@ -15,7 +15,6 @@ interface Props {
   y: number;
   services: Service[];
   onAddArea: () => void;
-  onAddObject: () => void;
   onAddService: (svc: Service) => void;
   onClose: () => void;
 }
@@ -23,7 +22,7 @@ interface Props {
 const MENU_W = 188;
 const SUB_W = 200;
 
-export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddService, onClose }: Props) {
+export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }: Props) {
   const { t } = useI18n();
   const mainRef = useRef<HTMLDivElement>(null);
   const subRef = useRef<HTMLDivElement>(null);
@@ -58,14 +57,14 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
         style={{
           position: "fixed", top, left,
           zIndex: 1000,
-          background: "#fff",
-          border: "1.5px solid #e2e8f0",
+          background: "var(--probemap-bg)",
+          border: "1.5px solid var(--probemap-border)",
           borderRadius: 8,
           boxShadow: "0 4px 16px rgba(0,0,0,.12)",
           width: MENU_W,
           padding: "4px 0",
           fontSize: 13,
-          color: "#0f172a",
+          color: "var(--probemap-text)",
         }}
         onContextMenu={(e) => e.preventDefault()}
       >
@@ -76,11 +75,10 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
           onMouseEnter={() => setShowSub(false)}
         />
         <Row
-          icon={<FaBox size={13} />}
-          label={t("contextAddNode")}
+          icon={<FaGlobe size={13} />}
+          label={t("contextAddService")}
           arrow
           active={showSub}
-          onClick={() => { onAddObject(); onClose(); }}
           onMouseEnter={(e) => { setSubY(e.currentTarget.getBoundingClientRect().top); setShowSub(true); }}
         />
       </div>
@@ -93,14 +91,14 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
             top: Math.min(subY, window.innerHeight - 300),
             left: subLeft,
             zIndex: 1001,
-            background: "#fff",
-            border: "1.5px solid #e2e8f0",
+            background: "var(--probemap-bg)",
+            border: "1.5px solid var(--probemap-border)",
             borderRadius: 8,
             boxShadow: "0 4px 16px rgba(0,0,0,.12)",
             width: SUB_W,
             padding: "4px 0",
             fontSize: 13,
-            color: "#0f172a",
+            color: "var(--probemap-text)",
             maxHeight: 320,
             overflowY: "auto",
           }}
@@ -114,8 +112,8 @@ export function ContextMenu({ x, y, services, onAddArea, onAddObject, onAddServi
               />
             ))}
           {services.length === 0 && (
-            <div style={{ padding: "8px 14px 6px", color: "#94a3b8", fontSize: 12, lineHeight: 1.35 }}>
-              {t("contextAllOnCanvas")}
+            <div style={{ padding: "8px 14px 6px", color: "var(--probemap-text-faint)", fontSize: 12, lineHeight: 1.35 }}>
+              {t("contextAllServicesOnCanvas")}
             </div>
           )}
         </div>
@@ -145,25 +143,25 @@ function Row({
         padding: hint ? "7px 14px" : "6px 14px",
         cursor: onClick ? "pointer" : "default",
         userSelect: "none",
-        background: active ? "#f1f5f9" : "",
+        background: active ? "var(--probemap-bg-subtle)" : "",
         justifyContent: "space-between",
       }}
       onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = ""; }}
-      onMouseOver={(e) => { if (onClick || arrow) e.currentTarget.style.background = "#f1f5f9"; }}
+      onMouseOver={(e) => { if (onClick || arrow) e.currentTarget.style.background = "var(--probemap-bg-subtle)"; }}
       onMouseOut={(e) => { if (!active) e.currentTarget.style.background = ""; }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0, flex: 1 }}>
         {icon != null && (
-          <span style={{ color: "#64748b", display: "flex", flexShrink: 0, marginTop: hint ? 2 : 0 }}>{icon}</span>
+          <span style={{ color: "var(--probemap-text-muted)", display: "flex", flexShrink: 0, marginTop: hint ? 2 : 0 }}>{icon}</span>
         )}
         <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-          <span style={{ color: "#0f172a", lineHeight: 1.25 }}>{label}</span>
+          <span style={{ color: "var(--probemap-text)", lineHeight: 1.25 }}>{label}</span>
           {hint && (
-            <span style={{ fontSize: 11, color: "#94a3b8", fontWeight: 400, lineHeight: 1.2 }}>{hint}</span>
+            <span style={{ fontSize: 11, color: "var(--probemap-text-faint)", fontWeight: 400, lineHeight: 1.2 }}>{hint}</span>
           )}
         </div>
       </div>
-      {arrow && <span style={{ color: "#94a3b8", fontSize: 11, flexShrink: 0, alignSelf: "center" }}>›</span>}
+      {arrow && <span style={{ color: "var(--probemap-text-faint)", fontSize: 11, flexShrink: 0, alignSelf: "center" }}>›</span>}
     </div>
   );
 }

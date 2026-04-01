@@ -9,17 +9,9 @@
       "matchServiceId": null
     },
     {
-      "id": "dns-google-mozilla",
-      "x": -1077.370324616093,
-      "y": -398.33063473683444,
-      "type": "service",
-      "label": "dns-google-mozilla",
-      "matchServiceId": null
-    },
-    {
       "id": "google-dns-tcp",
-      "x": -1246.3244871160962,
-      "y": -232.38659199693402,
+      "x": -1047.8530575075288,
+      "y": -410.2508844873591,
       "type": "service",
       "label": "google-dns-tcp",
       "matchServiceId": null
@@ -39,14 +31,6 @@
       "type": "service",
       "label": "dns-quad9-mozilla",
       "matchServiceId": null
-    },
-    {
-      "id": "google-dns-tls",
-      "x": -1397.3022165422794,
-      "y": -515.6071516263362,
-      "type": "service",
-      "label": "google-dns-tls",
-      "matchServiceId": null
     }
   ],
   "groups": [],
@@ -57,29 +41,12 @@
       "target": "dns-cf-example",
       "targetHandle": "left",
       "id": "xy-edge__icmp-cf-secondaryright-dns-cf-exampleleft"
-    },
-    {
-      "source": "google-dns-tcp",
-      "sourceHandle": "right",
-      "target": "dns-google-mozilla",
-      "targetHandle": "bottom",
-      "id": "xy-edge__google-dns-tcpright-dns-google-mozillabottom"
-    },
-    {
-      "source": "dns-google-mozilla",
-      "sourceHandle": "right",
-      "target": "dns-cf-example",
-      "targetHandle": "left",
-      "selected": false,
-      "id": "xy-edge__dns-google-mozillaright-dns-cf-exampleleft"
     }
   ],
   "service_configs": {
     "dns-cf-example": {},
-    "dns-google-mozilla": {},
     "google-dns-tcp": {},
     "icmp-cf-secondary": {},
-    "dns-quad9-mozilla": {},
-    "google-dns-tls": {}
+    "dns-quad9-mozilla": {}
   }
 }

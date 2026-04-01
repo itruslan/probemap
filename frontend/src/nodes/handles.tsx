@@ -4,7 +4,7 @@ const STYLE: React.CSSProperties = {
   width: 10,
   height: 10,
   background: "#94a3b8",
-  border: "2px solid #fff",
+  border: "2px solid var(--probemap-bg)",
   opacity: 0,
   transition: "opacity 0.15s",
 };

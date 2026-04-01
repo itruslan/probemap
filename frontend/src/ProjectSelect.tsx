@@ -111,8 +111,8 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
               overflowY: "auto",
               padding: "6px 0",
               borderRadius: 8,
-              border: "1.5px solid #e2e8f0",
-              background: "#fff",
+              border: "1.5px solid var(--probemap-border)",
+              background: "var(--probemap-modal-bg)",
               boxShadow: "0 10px 40px rgba(15, 23, 42, 0.12)",
               boxSizing: "border-box",
             }}

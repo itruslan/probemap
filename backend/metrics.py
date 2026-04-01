@@ -97,6 +97,41 @@ def _norm_label(m: dict[str, Any], key: str) -> str:
     return str(v) if v is not None and v != "" else ""
 
 
+def _metric_label_denylist(src_l: str) -> set[str]:
+    """Лейблы, которые не показываем в UI: имя метрики, job scrape, источник пробы, instance."""
+    return {
+        "__name__",
+        "job",
+        src_l,
+        "instance",
+    }
+
+
+def _consensus_labels(metrics_list: list[dict[str, Any]], deny: set[str]) -> dict[str, str]:
+    """Только лейблы с одним и тем же непустым значением во всех сериях сервиса (нет расхождений между blackbox)."""
+    if not metrics_list:
+        return {}
+    keys: set[str] = set()
+    for m in metrics_list:
+        keys |= set(m.keys())
+    out: dict[str, str] = {}
+    for k in sorted(keys):
+        if k in deny:
+            continue
+        nonempty = [
+            str(m.get(k)).strip()
+            for m in metrics_list
+            if m.get(k) is not None and str(m.get(k)).strip() != ""
+        ]
+        if not nonempty:
+            continue
+        unique = set(nonempty)
+        if len(unique) != 1:
+            continue
+        out[k] = next(iter(unique))
+    return out
+
+
 def _probe_source_label_name(lm: dict[str, Any]) -> str:
     """Имя лейбла в метриках для различения инстансов/источников пробы (раньше «zone»)."""
     v = lm.get("probe_source") or lm.get("zone") or "instance"
@@ -208,6 +243,16 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         if job:
             entry["job"] = job
         services_map[svc_name]["ports"].append(entry)
+
+    deny = _metric_label_denylist(src_l)
+    by_svc: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for s in status_series:
+        m = s["metric"]
+        by_svc[m.get(svc_l) or "unknown"].append(m)
+    for svc_name, row in services_map.items():
+        lbls = _consensus_labels(by_svc.get(svc_name, []), deny)
+        if lbls:
+            row["labels"] = lbls
 
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 

@@ -3,16 +3,16 @@ import { FaCircleQuestion } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";
 import { HoverTooltip } from "./Tooltip";
+import { useIsDraggingOnCanvas } from "./DragContext";
 
 interface PaletteProps {
   services: Service[];
   onCanvas: Set<string>;
-  onDragStart: (service: Service) => void;
   /** Добавить сервис на карту (тот же путь, что выбор сервиса в ПКМ) */
   onAddService: (service: Service) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  /** Подсветка узла на карте при наведении (только если узел из мониторинга уже на карте) */
+  /** Подсветка сервиса на карте при наведении (только если сервис из мониторинга уже на карте) */
   onHoverChange: (id: string | null) => void;
   /** Данные устарели — без перетаскивания и добавления */
   readOnly?: boolean;
@@ -21,7 +21,6 @@ interface PaletteProps {
 export function Palette({
   services,
   onCanvas,
-  onDragStart,
   onAddService,
   readOnly = false,
   selectedId,
@@ -29,32 +28,39 @@ export function Palette({
   onHoverChange,
 }: PaletteProps) {
   const { t } = useI18n();
+  const dragging = useIsDraggingOnCanvas();
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [nodesHelpTarget, setNodesHelpTarget] = useState<HTMLElement | null>(null);
-  const nodesHelpHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [servicesHelpTarget, setServicesHelpTarget] = useState<HTMLElement | null>(null);
+  const servicesHelpHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const clearNodesHelpHideTimer = () => {
-    if (nodesHelpHideTimer.current) {
-      clearTimeout(nodesHelpHideTimer.current);
-      nodesHelpHideTimer.current = null;
+  const clearServicesHelpHideTimer = () => {
+    if (servicesHelpHideTimer.current) {
+      clearTimeout(servicesHelpHideTimer.current);
+      servicesHelpHideTimer.current = null;
     }
   };
 
-  const showNodesHelp = (el: HTMLElement) => {
-    clearNodesHelpHideTimer();
-    setNodesHelpTarget(el);
+  const showServicesHelp = (el: HTMLElement) => {
+    if (dragging) return;
+    clearServicesHelpHideTimer();
+    setServicesHelpTarget(el);
   };
 
-  const scheduleHideNodesHelp = () => {
-    clearNodesHelpHideTimer();
-    nodesHelpHideTimer.current = setTimeout(() => {
-      setNodesHelpTarget(null);
-      nodesHelpHideTimer.current = null;
+  const scheduleHideServicesHelp = () => {
+    clearServicesHelpHideTimer();
+    servicesHelpHideTimer.current = setTimeout(() => {
+      setServicesHelpTarget(null);
+      servicesHelpHideTimer.current = null;
     }, 220);
   };
 
-  useEffect(() => () => clearNodesHelpHideTimer(), []);
+  useEffect(() => () => clearServicesHelpHideTimer(), []);
+  useEffect(() => {
+    if (!dragging) return;
+    clearServicesHelpHideTimer();
+    setServicesHelpTarget(null);
+  }, [dragging]);
 
   const filtered = services
     .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
@@ -99,13 +105,13 @@ export function Palette({
     >
       <div className="palette-sidebar__header">
         <span className="palette-sidebar__title-wrap">
-          <span className="palette-sidebar__title">{t("nodesTitle")}</span>
+          <span className="palette-sidebar__title">{t("servicesTitle")}</span>
           <button
             type="button"
             className="palette-sidebar__help"
-            aria-label={t("nodesPaletteHelpAria")}
-            onMouseEnter={(e) => showNodesHelp(e.currentTarget)}
-            onMouseLeave={scheduleHideNodesHelp}
+            aria-label={t("servicesPaletteHelpAria")}
+            onMouseEnter={(e) => showServicesHelp(e.currentTarget)}
+            onMouseLeave={scheduleHideServicesHelp}
           >
             <FaCircleQuestion aria-hidden className="palette-sidebar__help-icon" />
           </button>
@@ -142,10 +148,6 @@ export function Palette({
           return (
             <div
               key={svc.id}
-              draggable={!readOnly}
-              onDragStart={() => {
-                if (!readOnly) onDragStart(svc);
-              }}
               onClick={() => handleClick(svc)}
               onMouseEnter={() => handleMouseEnter(svc)}
               onMouseLeave={handleMouseLeave}
@@ -172,14 +174,14 @@ export function Palette({
         )}
       </div>
 
-      {nodesHelpTarget && (
+      {servicesHelpTarget && !dragging && (
         <HoverTooltip
-          targetEl={nodesHelpTarget}
+          targetEl={servicesHelpTarget}
           label={t("monitoringHint")}
           multiline
           placement="below"
-          onInteractiveEnter={clearNodesHelpHideTimer}
-          onInteractiveLeave={scheduleHideNodesHelp}
+          onInteractiveEnter={clearServicesHelpHideTimer}
+          onInteractiveLeave={scheduleHideServicesHelp}
         />
       )}
     </aside>

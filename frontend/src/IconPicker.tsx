@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { resolveIcon, ALL_ICONS } from "./icons";
+import { resolveIcon, ALL_ICONS, type IconEntry } from "./icons";
 import { fetchIcons, uploadIcon, deleteIcon, type CustomIcon } from "./api";
 import { HoverTooltip } from "./Tooltip";
 import { useI18n } from "./i18n";
@@ -11,12 +11,14 @@ interface Props {
   anchorY: number;
   onSelect: (name: string) => void;
   onClose: () => void;
+  /** Встроенные иконки (по умолчанию — полный список `ALL_ICONS`) */
+  builtinIcons?: IconEntry[];
 }
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
 
 
-export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
+export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }: Props) {
   const { t } = useI18n();
   const ref = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -50,6 +52,8 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
 
   const [nameError, setNameError] = useState(false);
 
+  const builtins = builtinIcons ?? ALL_ICONS;
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -80,7 +84,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
       ref={ref}
       style={{
         position: "fixed", left, top, width: W, zIndex: 2000,
-        background: "#fff", border: "1.5px solid #e2e8f0",
+        background: "var(--probemap-modal-bg)", border: "1.5px solid var(--probemap-border)",
         borderRadius: 10, boxShadow: "0 6px 24px rgba(0,0,0,.14)",
         padding: "6px 0 8px", display: "flex", flexDirection: "column",
         maxHeight: "min(480px, calc(100vh - 16px))", overflowY: "auto",
@@ -88,11 +92,11 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
       onMouseDown={(e) => e.stopPropagation()}
     >
       {/* Built-in icons */}
-      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", padding: "6px 12px 4px", letterSpacing: "0.05em" }}>
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--probemap-text-faint)", padding: "6px 12px 4px", letterSpacing: "0.05em" }}>
         {t("iconSectionBuiltin")}
       </div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4, padding: "2px 8px" }}>
-        {ALL_ICONS.map((item) => {
+        {builtins.map((item) => {
           const Icon = resolveIcon(item.icon);
           return (
             <div
@@ -100,12 +104,22 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
               onClick={() => onSelect(item.icon)}
               style={{
                 position: "relative", width: 36, height: 36, borderRadius: 8,
-                border: "1px solid #f1f5f9", cursor: "pointer",
+                border: "1px solid var(--probemap-border)", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
-                color: "#475569",
+                color: "var(--probemap-text-muted)",
               }}
-              onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.color = "#3b82f6"; setTooltip({ label: item.label, el: e.currentTarget }); }}
-              onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#f1f5f9"; e.currentTarget.style.background = ""; e.currentTarget.style.color = "#475569"; setTooltip(null); }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "var(--probemap-interactive-hover-border)";
+                e.currentTarget.style.background = "var(--probemap-interactive-hover-bg)";
+                e.currentTarget.style.color = "var(--probemap-blue)";
+                setTooltip({ label: item.label, el: e.currentTarget });
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "var(--probemap-border)";
+                e.currentTarget.style.background = "";
+                e.currentTarget.style.color = "var(--probemap-text-muted)";
+                setTooltip(null);
+              }}
             >
               <Icon size={16} />
             </div>
@@ -114,8 +128,8 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
       </div>
 
       {/* Custom icons section */}
-      <div style={{ height: 1, background: "#f1f5f9", margin: "6px 0 2px" }} />
-      <div style={{ fontSize: 10, fontWeight: 700, color: "#94a3b8", padding: "4px 12px 4px", letterSpacing: "0.05em" }}>
+      <div style={{ height: 1, background: "var(--probemap-border)", margin: "6px 0 2px" }} />
+      <div style={{ fontSize: 10, fontWeight: 700, color: "var(--probemap-text-faint)", padding: "4px 12px 4px", letterSpacing: "0.05em" }}>
         {t("iconSectionCustom")}
       </div>
 
@@ -127,17 +141,17 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
               onClick={() => onSelect(`custom:${icon.name}`)}
               style={{
                 position: "relative", width: 36, height: 36, borderRadius: 8,
-                border: "1px solid #f1f5f9", cursor: "pointer",
+                border: "1px solid var(--probemap-border)", cursor: "pointer",
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "#93c5fd";
-                e.currentTarget.style.background = "#eff6ff";
+                e.currentTarget.style.borderColor = "var(--probemap-interactive-hover-border)";
+                e.currentTarget.style.background = "var(--probemap-interactive-hover-bg)";
                 (e.currentTarget.querySelector(".del-btn") as HTMLElement | null)?.style.setProperty("display", "flex");
                 setTooltip({ label: icon.name, el: e.currentTarget });
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "#f1f5f9";
+                e.currentTarget.style.borderColor = "var(--probemap-border)";
                 e.currentTarget.style.background = "";
                 (e.currentTarget.querySelector(".del-btn") as HTMLElement | null)?.style.setProperty("display", "none");
                 setTooltip(null);
@@ -186,7 +200,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
                   style={{
                     width: "100%", boxSizing: "border-box",
                     padding: "4px 6px", borderRadius: 5, fontSize: 12, outline: "none",
-                    border: `1.5px solid ${nameError ? "#ef4444" : "#e2e8f0"}`,
+                    border: `1.5px solid ${nameError ? "#ef4444" : "var(--probemap-border)"}`,
                   }}
                 />
               </div>
@@ -194,7 +208,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
                 onClick={handleUpload}
                 style={{
                   padding: "4px 8px", borderRadius: 5, border: "none",
-                  background: "#3b82f6", color: "#fff", fontSize: 11, cursor: "pointer", flexShrink: 0,
+                  background: "var(--probemap-blue)", color: "var(--probemap-on-accent)", fontSize: 11, cursor: "pointer", flexShrink: 0,
                 }}
               >{t("uiOk")}</button>
             </div>
@@ -207,11 +221,11 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose }: Props) {
             onClick={() => fileRef.current?.click()}
             style={{
               width: "100%", padding: "5px 0", borderRadius: 6,
-              border: "1.5px dashed #cbd5e1", background: "none",
-              fontSize: 12, color: "#64748b", cursor: "pointer",
+              border: "1.5px dashed var(--probemap-border-strong)", background: "none",
+              fontSize: 12, color: "var(--probemap-text-muted)", cursor: "pointer",
             }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#64748b"; }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--probemap-blue)"; e.currentTarget.style.color = "var(--probemap-blue)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--probemap-border-strong)"; e.currentTarget.style.color = "var(--probemap-text-muted)"; }}
           >
             {t("iconUpload")}
           </button>

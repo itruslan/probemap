@@ -79,6 +79,19 @@ async def test_config(body: dict[str, Any]) -> dict[str, Any]:
     return {"ok": ok}
 
 
+@app.get("/api/datasource/status")
+async def datasource_status() -> dict[str, Any]:
+    """Живой доступ к VictoriaMetrics (по URL из сохранённого конфига)."""
+    c = cfg_mod.read_config()
+    ds = c.get("datasource") or {}
+    name = (ds.get("name") or "").strip() or None
+    url = (ds.get("url") or "").strip()
+    if not url:
+        return {"configured": False, "ok": False, "name": name}
+    ok = await metrics.test_datasource(url)
+    return {"configured": True, "ok": ok, "name": name}
+
+
 @app.get("/api/config/discover/jobs")
 async def discover_jobs() -> list[dict[str, Any]]:
     try:

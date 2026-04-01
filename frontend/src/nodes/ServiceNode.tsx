@@ -1,4 +1,4 @@
-import { useReactFlow, useNodes, type Node, type NodeProps } from "@xyflow/react";
+import { useReactFlow, type NodeProps } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import type { Port, ServiceAction } from "../api";
@@ -7,10 +7,13 @@ import { IconRenderer } from "../IconRenderer";
 import { AllHandles } from "./handles";
 import { IconPicker } from "../IconPicker";
 import { useColliding } from "../CollisionContext";
+import { useIsDraggingOnCanvas } from "../DragContext";
 import { HoverTooltip } from "../Tooltip";
 import { useProbeSources, useServices } from "../ServicesContext";
+import { DEFAULT_SERVICE_ICON_NAME, SERVICE_BUILTIN_ICONS } from "../icons";
 import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
+import { ServiceLabelsSection } from "../ServiceLabelsSection";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -57,29 +60,16 @@ function kindKeyForBadge(kind: string): string {
 export interface ServiceNodeData {
   label: string;
   ports: Port[];
-  /** Если это сервис-узел без метрик или “связанный” пользовательский узел — хранит id сервиса */
+  /** Резерв: привязка к id в каталоге, если id узла не совпадает с каталогом */
   matchServiceId?: string | null;
   icon?: string;
   description?: string;
   actions?: ServiceAction[];
 }
 
-/** Id сервисов, уже представленных другим узлом (узел с id из каталога или с matchServiceId). */
-function occupiedServiceIds(nodes: Node[], excludeNodeId: string, catalogIds: Set<string>): Set<string> {
-  const used = new Set<string>();
-  for (const n of nodes) {
-    if (n.type !== "service" || n.id === excludeNodeId) continue;
-    const md = n.data as unknown as ServiceNodeData;
-    if (md.matchServiceId) used.add(md.matchServiceId);
-    else if (catalogIds.has(n.id)) used.add(n.id);
-  }
-  return used;
-}
-
 export function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
   const { updateNodeData } = useReactFlow();
-  const nodes = useNodes();
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
   const { t } = useI18n();
@@ -87,6 +77,10 @@ export function ServiceNode({ data, id }: NodeProps) {
   const nodeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showPanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Панель «МОНИТОРИНГ» при наведении — не сразу, чтобы не мешать при движении по карте */
+  const SERVICE_PANEL_SHOW_DELAY_MS = 1000;
 
   const [visible, setVisible] = useState(false);
   const [locked, setLocked] = useState(false);
@@ -104,27 +98,14 @@ export function ServiceNode({ data, id }: NodeProps) {
   const [newActionUrl, setNewActionUrl] = useState("");
 
   const colliding = useColliding(id);
+  const dragging = useIsDraggingOnCanvas();
   const portAgg = aggStatus(d.ports ?? []);
-  const isNoMetrics = (d.ports ?? []).length === 0;
 
-  /** Для привязки: не показывать сервисы, уже занятые другим узлом; текущая привязка остаётся в списке. */
-  const bindableServices = useMemo(() => {
-    const catalogIds = new Set(services.map((s) => s.id));
-    const used = occupiedServiceIds(nodes, id, catalogIds);
-    const currentEffective = d.matchServiceId ?? (catalogIds.has(id) ? id : null);
-    return services.filter(
-      (svc) => !used.has(svc.id) || (currentEffective != null && svc.id === currentEffective),
-    );
-  }, [nodes, services, id, d.matchServiceId]);
-
-  const bindToService = (serviceId: string | null) => {
-    const svc = serviceId ? services.find((s) => s.id === serviceId) ?? null : null;
-    updateNodeData(id, {
-      matchServiceId: serviceId,
-      label: svc?.name ?? d.label,
-      ports: svc?.ports ?? [],
-    });
-  };
+  const svcId = d.matchServiceId ?? id;
+  const catalogLabels = useMemo(
+    () => services.find((s) => s.id === svcId)?.labels,
+    [services, svcId],
+  );
 
   // Строка на пару порт×зона×job×module; тип пробы для зоны без серии — из агрегата порта (не «TCP» по умолчанию)
   const probeRows = (d.ports ?? []).flatMap((p) =>
@@ -188,26 +169,59 @@ export function ServiceNode({ data, id }: NodeProps) {
     return Array.from(sourceAgg.keys()).sort((a, b) => a.localeCompare(b, "ru"));
   })();
 
-  const nodeTint = status === "ok"
-    ? { border: "#22c55e66", bg: "#22c55e0f" }
-    : status === "warn"
-      ? { border: "#f9731666", bg: "#f973160f" }
-      : status === "down"
-        ? { border: "#ef444466", bg: "#ef44440f" }
-        : { border: "#cbd5e1", bg: "#fff" };
+  const inCatalog = services.some((s) => s.id === id);
+  const offline =
+    (d.ports ?? []).length === 0 || (services.length > 0 && !inCatalog);
+
+  const dotStatusKey = offline ? "unknown" : status;
+
+  const nodeTint = offline
+    ? { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg-subtle)" }
+    : status === "ok"
+      ? { border: "#22c55e66", bg: "#22c55e0f" }
+      : status === "warn"
+        ? { border: "#f9731666", bg: "#f973160f" }
+        : status === "down"
+          ? { border: "#ef444466", bg: "#ef44440f" }
+          : { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg)" };
+
+  const clearShowPanelTimer = () => {
+    if (showPanelTimer.current) {
+      clearTimeout(showPanelTimer.current);
+      showPanelTimer.current = null;
+    }
+  };
 
   const show = () => {
+    if (dragging) return;
     if (hideTimer.current) clearTimeout(hideTimer.current);
-    setVisible(true);
+    clearShowPanelTimer();
+    showPanelTimer.current = setTimeout(() => {
+      setVisible(true);
+      showPanelTimer.current = null;
+    }, SERVICE_PANEL_SHOW_DELAY_MS);
   };
 
   const hide = () => {
+    clearShowPanelTimer();
     if (locked) return;
     hideTimer.current = setTimeout(() => setVisible(false), 150);
   };
 
+  useEffect(() => {
+    if (!dragging) return;
+    // Во время drag не показываем hover-панель и тултипы
+    clearShowPanelTimer();
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setVisible(false);
+    setActionTooltip(null);
+    setSourceTooltip(null);
+    setBlackboxDotTooltip(null);
+  }, [dragging]);
+
   const handleNodeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
+    clearShowPanelTimer();
     if (locked) {
       setLocked(false);
       setVisible(false);
@@ -219,11 +233,19 @@ export function ServiceNode({ data, id }: NodeProps) {
     }
   };
 
+  useEffect(
+    () => () => {
+      clearShowPanelTimer();
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!locked) return;
     const onMouse = (e: MouseEvent) => {
-      if (panelRef.current?.contains(e.target as Node)) return;
-      if (nodeRef.current?.contains(e.target as Node)) return;
+      if (e.target instanceof globalThis.Node && panelRef.current?.contains(e.target)) return;
+      if (e.target instanceof globalThis.Node && nodeRef.current?.contains(e.target)) return;
       setLocked(false);
       setVisible(false);
     };
@@ -286,8 +308,8 @@ export function ServiceNode({ data, id }: NodeProps) {
       style={{
         ...panelStyle,
         zIndex: 3000,
-        background: "#fff",
-        border: `1.5px solid ${locked ? "#93c5fd" : "#e2e8f0"}`,
+        background: "var(--probemap-modal-bg)",
+        border: `1.5px solid ${locked ? "#93c5fd" : "var(--probemap-border)"}`,
         borderRadius: 10,
         boxShadow: locked ? "0 6px 24px rgba(59,130,246,.18)" : "0 4px 16px rgba(0,0,0,.1)",
         padding: "12px 14px",
@@ -295,21 +317,47 @@ export function ServiceNode({ data, id }: NodeProps) {
         position: "relative",
       }}
     >
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 10,
+          marginBottom: 10,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 13,
+            fontWeight: 700,
+            color: "var(--probemap-text)",
+            minWidth: 0,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            letterSpacing: "-0.01em",
+          }}
+          title={d.label}
+        >
+          {d.label}
+        </div>
+      </div>
+
       {/* Probes */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 7 }}>
-        <div style={{ fontWeight: 700, color: "#94a3b8", fontSize: 10, letterSpacing: "0.06em" }}>{t("monitoringTitle")}</div>
+        <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", fontSize: 10, letterSpacing: "0.06em" }}>{t("monitoringTitle")}</div>
         {totalPresent > 0 && (
           <div style={{
             fontSize: 11,
             fontWeight: 700,
-            color: status === "ok" ? "#16a34a" : status === "down" ? "#ef4444" : status === "warn" ? "#f97316" : "#94a3b8",
+            color: status === "ok" ? "#16a34a" : status === "down" ? "#ef4444" : status === "warn" ? "#f97316" : "var(--probemap-text-faint)",
           }}>
             {t("monitoringSummary").replace("{ok}", String(okPresent)).replace("{total}", String(totalPresent))}
           </div>
         )}
       </div>
       {expectedBb > 0 && (
-        <div style={{ fontSize: 10, color: "#94a3b8", marginBottom: 8, marginTop: -4 }}>
+        <div style={{ fontSize: 10, color: "var(--probemap-text-faint)", marginBottom: 8, marginTop: -4 }}>
           {t("monitoringSourcesCoverage").replace("{present}", String(presentBb)).replace("{expected}", String(expectedBb))}
         </div>
       )}
@@ -347,7 +395,7 @@ export function ServiceNode({ data, id }: NodeProps) {
               {chips.portText && (
                 <span style={{
                   fontSize: 10, fontFamily: "ui-monospace, monospace", fontWeight: 600,
-                  color: "#475569", letterSpacing: "-0.02em",
+                  color: "var(--probemap-text-secondary)", letterSpacing: "-0.02em",
                 }}>
                   {chips.portText}
                 </span>
@@ -356,7 +404,7 @@ export function ServiceNode({ data, id }: NodeProps) {
             </div>
             <span
               style={{
-                color: "#0f172a",
+                color: "var(--probemap-text)",
                 fontSize: 12,
                 minWidth: 0,
                 overflow: "hidden",
@@ -369,6 +417,7 @@ export function ServiceNode({ data, id }: NodeProps) {
               onMouseEnter={(e) => {
                 const label = [row.source, row.module].filter(Boolean).join(" · ");
                 if (!label) return;
+                if (dragging) return;
                 setSourceTooltip({ label, el: e.currentTarget });
               }}
               onMouseLeave={() => setSourceTooltip(null)}
@@ -378,7 +427,7 @@ export function ServiceNode({ data, id }: NodeProps) {
             </span>
             <span
               style={{
-                color: "#94a3b8",
+                color: "var(--probemap-text-faint)",
                 fontSize: 11,
                 textAlign: "right",
                 fontVariantNumeric: "tabular-nums",
@@ -389,42 +438,14 @@ export function ServiceNode({ data, id }: NodeProps) {
           </div>
         );
       }) : (
-        <div style={{ color: "#94a3b8", marginBottom: 4 }}>
+        <div style={{ color: "var(--probemap-text-faint)", marginBottom: 4 }}>
           {t("noData")}
-          {locked && isNoMetrics && (
-            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontWeight: 700, color: "#94a3b8", fontSize: 10, letterSpacing: "0.06em" }}>{t("bindTitle")}</div>
-              <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.4 }}>{t("noMetricsText")}</div>
-              <select
-                value={d.matchServiceId ?? ""}
-                onChange={(e) => bindToService(e.target.value ? e.target.value : null)}
-                style={{
-                  width: "100%",
-                  boxSizing: "border-box",
-                  padding: "6px 8px",
-                  borderRadius: 7,
-                  border: "1.5px solid #e2e8f0",
-                  background: "#fff",
-                  color: "#0f172a",
-                  fontSize: 12,
-                  outline: "none",
-                }}
-              >
-                <option value="">{t("emDash")}</option>
-                {bindableServices.map((svc) => (
-                  <option key={svc.id} value={svc.id}>
-                    {svc.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
         </div>
       )}
 
       {/* Description */}
-      <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>{t("descriptionTitle")}</div>
+      <div style={{ height: 1, background: "var(--probemap-bg-subtle)", margin: "10px 0 8px" }} />
+      <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>{t("descriptionTitle")}</div>
       {locked && editingDesc ? (
         <div>
           <textarea autoFocus value={descDraft.slice(0, 120)}
@@ -433,17 +454,17 @@ export function ServiceNode({ data, id }: NodeProps) {
             onBlur={() => commitDesc(descDraft)}
             placeholder={t("descriptionPlaceholder")}
             rows={2}
-            style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
+            style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
-            <span style={{ fontSize: 10, color: "#94a3b8" }}>
+            <span style={{ fontSize: 10, color: "var(--probemap-text-faint)" }}>
               {t("descriptionSaveHintBefore")}
               <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span>
               {t("descriptionSaveHintAfter")}
             </span>
             <span style={{
               fontSize: 10,
-              color: descDraft.length >= 110 ? "#ef4444" : descDraft.length >= 100 ? "#f97316" : "#94a3b8",
+              color: descDraft.length >= 110 ? "#ef4444" : descDraft.length >= 100 ? "#f97316" : "var(--probemap-text-faint)",
               fontWeight: descDraft.length >= 100 ? 600 : 400,
             }}>
               {descDraft.length}/120
@@ -453,15 +474,15 @@ export function ServiceNode({ data, id }: NodeProps) {
       ) : (
         <div
           onClick={locked ? () => { setDescDraft(d.description ?? ""); setEditingDesc(true); } : undefined}
-          style={{ cursor: locked ? "text" : "default", color: d.description ? "#0f172a" : "#94a3b8", minHeight: 18, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", padding: "2px 0" }}
+          style={{ cursor: locked ? "text" : "default", color: d.description ? "var(--probemap-text)" : "var(--probemap-text-faint)", minHeight: 18, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word", padding: "2px 0" }}
         >
           {d.description || (locked ? t("descriptionClickToAdd") : t("emDash"))}
         </div>
       )}
 
       {/* Actions */}
-      <div style={{ height: 1, background: "#f1f5f9", margin: "10px 0 8px" }} />
-      <div style={{ fontWeight: 700, color: "#94a3b8", marginBottom: 8, fontSize: 10, letterSpacing: "0.06em" }}>{t("actionsTitle")}</div>
+      <div style={{ height: 1, background: "var(--probemap-bg-subtle)", margin: "10px 0 8px" }} />
+      <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", marginBottom: 8, fontSize: 10, letterSpacing: "0.06em" }}>{t("actionsTitle")}</div>
       <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "flex-start" }}>
         {(d.actions ?? []).map((action, i) => (
           <div key={i} style={{ position: "relative" }}
@@ -469,9 +490,9 @@ export function ServiceNode({ data, id }: NodeProps) {
             onMouseLeave={(e) => { const b = e.currentTarget.querySelector<HTMLElement>(".rm-act"); if (b) b.style.display = "none"; }}
           >
             <a href={action.url} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 7, background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#475569", textDecoration: "none" }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: t("actionOpenTo").replace("{label}", action.label), el: e.currentTarget }); }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "#f8fafc"; e.currentTarget.style.borderColor = "#e2e8f0"; e.currentTarget.style.color = "#475569"; setActionTooltip(null); }}
+              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 7, background: "var(--probemap-bg-muted)", border: "1.5px solid var(--probemap-border)", color: "var(--probemap-text-secondary)", textDecoration: "none" }}
+              onMouseEnter={(e) => { if (dragging) return; e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: t("actionOpenTo").replace("{label}", action.label), el: e.currentTarget }); }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--probemap-bg-muted)"; e.currentTarget.style.borderColor = "var(--probemap-border)"; e.currentTarget.style.color = "var(--probemap-text-secondary)"; setActionTooltip(null); }}
             >
               <IconRenderer name={action.icon} size={14} />
             </a>
@@ -491,7 +512,6 @@ export function ServiceNode({ data, id }: NodeProps) {
                   border: "none",
                   background: "#ef4444",
                   cursor: "pointer",
-                  display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   padding: 0,
@@ -507,28 +527,30 @@ export function ServiceNode({ data, id }: NodeProps) {
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
               <button onClick={(e) => setActionPickerAnchor({ x: e.clientX + 8, y: e.clientY })}
-                style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 7, background: "#f8fafc", border: "1.5px solid #e2e8f0", color: "#475569", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 7, background: "var(--probemap-bg-muted)", border: "1.5px solid var(--probemap-border)", color: "var(--probemap-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <IconRenderer name={newActionIcon} size={14} />
               </button>
               <input placeholder={t("actionNamePlaceholder")} value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
-                style={{ flex: 1, border: "1.5px solid #e2e8f0", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }} />
+                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)" }} />
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <input autoFocus placeholder={t("actionUrlPlaceholder")} value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addAction(); if (e.key === "Escape") setAddingAction(false); }}
-                style={{ flex: 1, border: "1.5px solid #e2e8f0", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "#0f172a" }} />
-              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "#3b82f6", color: "#fff", fontSize: 12, cursor: "pointer" }}>{t("uiOk")}</button>
-              <button onClick={() => setAddingAction(false)} style={{ padding: "4px 8px", borderRadius: 5, border: "1.5px solid #e2e8f0", background: "none", color: "#94a3b8", fontSize: 12, cursor: "pointer" }}>✕</button>
+                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)" }} />
+              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "var(--probemap-blue)", color: "var(--probemap-on-accent)", fontSize: 12, cursor: "pointer" }}>{t("uiOk")}</button>
+              <button onClick={() => setAddingAction(false)} style={{ padding: "4px 8px", borderRadius: 5, border: "1.5px solid var(--probemap-border)", background: "none", color: "var(--probemap-text-faint)", fontSize: 12, cursor: "pointer" }}>✕</button>
             </div>
           </div>
         ) : (
           <button onClick={() => setAddingAction(true)}
-            style={{ width: 32, height: 32, borderRadius: 7, background: "none", border: "1.5px dashed #cbd5e1", color: "#94a3b8", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#3b82f6"; e.currentTarget.style.color = "#3b82f6"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#cbd5e1"; e.currentTarget.style.color = "#94a3b8"; }}
+            style={{ width: 32, height: 32, borderRadius: 7, background: "none", border: "1.5px dashed var(--probemap-border-strong)", color: "var(--probemap-text-faint)", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--probemap-blue)"; e.currentTarget.style.color = "var(--probemap-blue)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--probemap-border-strong)"; e.currentTarget.style.color = "var(--probemap-text-faint)"; }}
           >+</button>
         ))}
       </div>
+
+      <ServiceLabelsSection labels={catalogLabels} />
 
       {/* Delete from canvas */}
       {locked && (
@@ -570,13 +592,13 @@ export function ServiceNode({ data, id }: NodeProps) {
           background: nodeTint.bg,
           border: `1.5px solid ${nodeTint.border}`,
           borderRadius: 8,
-          padding: "8px 12px", minWidth: 140, boxShadow: "0 1px 4px rgba(0,0,0,.1)",
+          padding: "8px 12px", minWidth: 140, boxShadow: "var(--probemap-node-card-shadow)",
           position: "relative", cursor: "pointer",
-          outline: colliding ? "2px solid #f97316" : locked ? "2px solid #93c5fd" : undefined,
-          transition: "outline 0.1s",
+          outline: !colliding && locked ? "2px solid #93c5fd" : undefined,
+          opacity: colliding ? 0.5 : 1,
+          transition: "opacity 0.1s, outline 0.1s",
         }}
       >
-        {colliding && <div style={{ position: "absolute", inset: 0, borderRadius: 8, background: "rgba(249,115,22,0.15)", pointerEvents: "none", zIndex: 10 }} />}
         <AllHandles />
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: ((d.ports ?? []).length > 0 || blackboxOrder.length > 0) ? 5 : 0 }}>
@@ -585,17 +607,17 @@ export function ServiceNode({ data, id }: NodeProps) {
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => { e.stopPropagation(); setPickerAnchor({ x: e.clientX + 8, y: e.clientY }); }}
               title={t("changeIconTitle")}
-              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "#64748b", display: "flex", borderRadius: 4 }}
+              style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--probemap-text-muted)", display: "flex", borderRadius: 4 }}
             >
-              <IconRenderer name={d.icon ?? "FaDisplay"} size={14} />
+              <IconRenderer name={d.icon ?? DEFAULT_SERVICE_ICON_NAME} size={14} />
             </button>
-            <div style={{ position: "absolute", bottom: -1, right: -1, width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[status], border: "1.5px solid #fff", pointerEvents: "none" }} />
+            <div style={{ position: "absolute", bottom: -1, right: -1, width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[dotStatusKey] ?? STATUS_COLOR.unknown, border: "1.5px solid var(--probemap-status-dot-border)", pointerEvents: "none" }} />
           </div>
           <span
             style={{
               fontWeight: 600,
               fontSize: 13,
-              color: "#0f172a",
+              color: "var(--probemap-text)",
               flex: 1,
               minWidth: 0,
               userSelect: "none",
@@ -662,14 +684,14 @@ export function ServiceNode({ data, id }: NodeProps) {
                   return (
                     <div
                       key={src}
-                      onMouseEnter={(e) => setBlackboxDotTooltip({ label: src, el: e.currentTarget })}
+                      onMouseEnter={(e) => { if (dragging) return; setBlackboxDotTooltip({ label: src, el: e.currentTarget }); }}
                       onMouseLeave={() => setBlackboxDotTooltip(null)}
                       style={{
                         width: 7,
                         height: 7,
                         borderRadius: "50%",
                         background: dotBg,
-                        border: "1.5px solid #fff",
+                        border: "1.5px solid var(--probemap-status-dot-border)",
                         boxShadow: "0 0 0 1px rgba(15,23,42,0.14)",
                         flexShrink: 0,
                         cursor: "default",
@@ -686,14 +708,22 @@ export function ServiceNode({ data, id }: NodeProps) {
       {panel}
 
       {pickerAnchor && (
-        <IconPicker anchorX={pickerAnchor.x} anchorY={pickerAnchor.y}
+        <IconPicker
+          anchorX={pickerAnchor.x}
+          anchorY={pickerAnchor.y}
+          builtinIcons={SERVICE_BUILTIN_ICONS}
           onSelect={(name) => { updateNodeData(id, { icon: name }); setPickerAnchor(null); }}
-          onClose={() => setPickerAnchor(null)} />
+          onClose={() => setPickerAnchor(null)}
+        />
       )}
       {actionPickerAnchor && (
-        <IconPicker anchorX={actionPickerAnchor.x} anchorY={actionPickerAnchor.y}
+        <IconPicker
+          anchorX={actionPickerAnchor.x}
+          anchorY={actionPickerAnchor.y}
+          builtinIcons={SERVICE_BUILTIN_ICONS}
           onSelect={(name) => { setNewActionIcon(name); setActionPickerAnchor(null); }}
-          onClose={() => setActionPickerAnchor(null)} />
+          onClose={() => setActionPickerAnchor(null)}
+        />
       )}
       {blackboxDotTooltip && (
         <HoverTooltip label={blackboxDotTooltip.label} targetEl={blackboxDotTooltip.el} />

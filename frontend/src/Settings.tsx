@@ -215,7 +215,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       prev ? { ...prev, label_map: { ...prev.label_map, [key]: value || null } } : prev,
     );
 
-  const testColor = testState === "ok" ? "#16a34a" : testState === "fail" ? "#ef4444" : "#64748b";
+  const testColor = testState === "ok" ? "#16a34a" : testState === "fail" ? "#ef4444" : "var(--probemap-text-muted)";
   const testLabel =
     testState === "testing"
       ? t("testChecking")
@@ -235,7 +235,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         position: "fixed",
         inset: 0,
         zIndex: 4000,
-        background: "rgba(0,0,0,0.3)",
+        background: "var(--probemap-overlay-scrim)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -243,7 +243,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     >
       <div
         style={{
-          background: "#fff",
+          background: "var(--probemap-modal-bg)",
           borderRadius: 12,
           width: 600,
           maxHeight: "90vh",
@@ -260,7 +260,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             marginBottom: 20,
           }}
         >
-          <span style={{ fontSize: 16, fontWeight: 700, color: "#0f172a" }}>{t("settings")}</span>
+          <span style={{ fontSize: 16, fontWeight: 700, color: "var(--probemap-text)" }}>{t("settings")}</span>
           <button
             type="button"
             onClick={onClose}
@@ -268,7 +268,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               background: "none",
               border: "none",
               fontSize: 18,
-              color: "#94a3b8",
+              color: "var(--probemap-text-faint)",
               cursor: "pointer",
               padding: 0,
             }}
@@ -324,7 +324,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             {t("settingsJobsC")}
           </p>
           {cfg.probe_jobs.length === 0 && discoveredJobs.length === 0 ? (
-            <div style={{ fontSize: 12, color: "#94a3b8" }}>{t("settingsJobsEmpty")}</div>
+            <div style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}>{t("settingsJobsEmpty")}</div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
               {cfg.probe_jobs.map((j) => {
@@ -340,11 +340,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       onChange={() => toggleJob(j.job)}
                       style={{ cursor: "pointer" }}
                     />
-                    <span style={{ fontSize: 13, color: "#0f172a", flex: 1, fontFamily: "monospace" }}>
+                    <span style={{ fontSize: 13, color: "var(--probemap-text)", flex: 1, fontFamily: "monospace" }}>
                       {j.job}
                     </span>
                     {info && (
-                      <span style={{ fontSize: 11, color: "#94a3b8" }}>
+                      <span style={{ fontSize: 11, color: "var(--probemap-text-faint)" }}>
                         {t("settingsJobSources")} {info.probe_sources.join(", ") || t("emDash")}
                       </span>
                     )}
@@ -381,12 +381,12 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             >
               {t("settingsPresetTeam")}
             </button>
-            <button type="button" onClick={clearFilterRules} style={{ ...presetBtn, color: "#94a3b8" }}>
+            <button type="button" onClick={clearFilterRules} style={{ ...presetBtn, color: "var(--probemap-text-faint)" }}>
               {t("settingsFilterClear")}
             </button>
           </div>
           {(cfg.metric_filter_rules ?? []).length === 0 ? (
-            <div style={{ fontSize: 12, color: "#94a3b8", marginBottom: 8 }}>
+            <div style={{ fontSize: 12, color: "var(--probemap-text-faint)", marginBottom: 8 }}>
               {t("settingsFilterNoRules")}
             </div>
           ) : (
@@ -446,9 +446,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                     onClick={() => removeFilterRule(i)}
                     title={t("delete")}
                     style={{
-                      border: "1.5px solid #e2e8f0",
+                      border: "1.5px solid var(--probemap-border)",
                       borderRadius: 6,
-                      background: "#fff",
+                      background: "var(--probemap-modal-bg)",
                       cursor: "pointer",
                       padding: "4px 8px",
                       display: "flex",
@@ -468,8 +468,8 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
 
           <div
             style={{
-              background: "#f8fafc",
-              border: "1.5px solid #e2e8f0",
+              background: "var(--probemap-bg-muted)",
+              border: "1.5px solid var(--probemap-border)",
               borderRadius: 8,
               padding: "10px 12px",
               marginBottom: 14,
@@ -479,7 +479,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               style={{
                 fontSize: 10,
                 fontWeight: 700,
-                color: "#94a3b8",
+                color: "var(--probemap-text-faint)",
                 letterSpacing: "0.06em",
                 marginBottom: 6,
               }}
@@ -490,7 +490,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               style={{
                 display: "block",
                 fontSize: 12,
-                color: "#0f172a",
+                color: "var(--probemap-text)",
                 wordBreak: "break-all",
                 lineHeight: 1.45,
                 fontFamily: "ui-monospace, monospace",
@@ -498,7 +498,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             >
               {selectorPreview?.example ?? t("ellipsis")}
             </code>
-            <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 8, lineHeight: 1.4 }}>
+            <div style={{ fontSize: 11, color: "var(--probemap-text-faint)", marginTop: 8, lineHeight: 1.4 }}>
               {t("settingsSelectorPreviewHint")}
             </div>
           </div>
@@ -530,11 +530,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           </p>
           {LABEL_FIELD_KEYS.map(({ key, titleKey, hintKey, required }) => (
             <div key={key} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "#334155", marginBottom: 4 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--probemap-text-secondary)", marginBottom: 4 }}>
                 {t(titleKey)}
                 {required ? "" : " "}
               </div>
-              <div style={{ fontSize: 11, color: "#94a3b8", lineHeight: 1.4, marginBottom: 6 }}>{t(hintKey)}</div>
+              <div style={{ fontSize: 11, color: "var(--probemap-text-faint)", lineHeight: 1.4, marginBottom: 6 }}>{t(hintKey)}</div>
               {availableLabels.length > 0 ? (
                 <select
                   value={(cfg.label_map[key] as string) ?? ""}
@@ -567,11 +567,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             style={{
               padding: "7px 18px",
               borderRadius: 7,
-              border: "1.5px solid #e2e8f0",
+              border: "1.5px solid var(--probemap-border)",
               background: "none",
               fontSize: 13,
               cursor: "pointer",
-              color: "#64748b",
+              color: "var(--probemap-text-muted)",
             }}
           >
             {t("settingsClose")}
@@ -586,8 +586,8 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               border: "none",
               fontSize: 13,
               cursor: "pointer",
-              background: saved ? "#22c55e" : "#3b82f6",
-              color: "#fff",
+              background: saved ? "#22c55e" : "var(--probemap-blue)",
+              color: "var(--probemap-on-accent)",
               transition: "background 0.2s",
             }}
           >
@@ -606,7 +606,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
         style={{
           fontSize: 10,
           fontWeight: 700,
-          color: "#94a3b8",
+          color: "var(--probemap-text-faint)",
           letterSpacing: "0.06em",
           marginBottom: 10,
         }}
@@ -621,7 +621,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 function InlineField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <span style={{ fontSize: 12, color: "#475569", width: 120, flexShrink: 0 }}>{label}</span>
+      <span style={{ fontSize: 12, color: "var(--probemap-text-secondary)", width: 120, flexShrink: 0 }}>{label}</span>
       <div style={{ flex: 1 }}>{children}</div>
     </div>
   );
@@ -630,16 +630,16 @@ function InlineField({ label, children }: { label: string; children: React.React
 const hintPara: React.CSSProperties = {
   margin: "0 0 10px",
   fontSize: 12,
-  color: "#64748b",
+  color: "var(--probemap-text-muted)",
   lineHeight: 1.5,
 };
 
 const codeInHint: React.CSSProperties = {
   fontSize: 11,
-  background: "#f1f5f9",
+  background: "var(--probemap-bg-subtle)",
   padding: "1px 5px",
   borderRadius: 4,
-  color: "#475569",
+  color: "var(--probemap-text-secondary)",
 };
 
 const inputStyle: React.CSSProperties = {
@@ -648,17 +648,18 @@ const inputStyle: React.CSSProperties = {
   padding: "5px 10px",
   borderRadius: 6,
   fontSize: 12,
-  border: "1.5px solid #e2e8f0",
+  border: "1.5px solid var(--probemap-border)",
   outline: "none",
-  color: "#0f172a",
+  background: "var(--probemap-input-bg)",
+  color: "var(--probemap-text)",
 };
 
 const presetBtn: React.CSSProperties = {
   padding: "4px 10px",
   borderRadius: 6,
-  border: "1.5px solid #e2e8f0",
-  background: "#fff",
+  border: "1.5px solid var(--probemap-border)",
+  background: "var(--probemap-modal-bg)",
   fontSize: 11,
-  color: "#475569",
+  color: "var(--probemap-text-secondary)",
   cursor: "pointer",
 };

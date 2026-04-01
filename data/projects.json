@@ -1,7 +1,7 @@
 [
   {
     "id": "cd7ea4d2",
-    "name": "Production",
+    "name": "PROD",
     "filters": [
       {
         "label": "environment",
@@ -15,7 +15,7 @@
   },
   {
     "id": "5cf5533d",
-    "name": "Staging",
+    "name": "STAGE",
     "filters": [
       {
         "label": "environment",

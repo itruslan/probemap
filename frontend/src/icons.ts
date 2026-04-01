@@ -3,7 +3,10 @@ import type { IconType } from "react-icons";
 
 export type { IconType };
 
-export const FALLBACK_ICON: IconType = Fa6.FaBox;
+/** Internet — иконка по умолчанию для сервисов и запасной вариант в IconRenderer */
+export const DEFAULT_SERVICE_ICON_NAME = "FaGlobe";
+
+export const FALLBACK_ICON: IconType = Fa6.FaGlobe;
 
 export function resolveIcon(name?: string): IconType {
   if (!name) return FALLBACK_ICON;
@@ -11,6 +14,9 @@ export function resolveIcon(name?: string): IconType {
 }
 
 export interface IconEntry { label: string; icon: string; }
+
+/** Встроенные пресеты для карточки сервиса (тип `service`): только Internet; прочее — custom-загрузки. */
+export const SERVICE_BUILTIN_ICONS: IconEntry[] = [{ label: "Internet", icon: "FaGlobe" }];
 
 export const ALL_ICONS: IconEntry[] = [
   // Infrastructure

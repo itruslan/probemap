@@ -32,21 +32,28 @@ export function DeleteConfirmNameHint({ name }: { name: string }) {
         marginBottom: 14,
         fontSize: 13,
         lineHeight: 1.5,
-        color: "#475569",
+        color: "var(--probemap-text-muted)",
+        minWidth: 0,
+        width: "100%",
+        boxSizing: "border-box",
       }}
     >
-      <span>{t("deleteConfirmLead")}</span>
+      <span style={{ flexShrink: 0 }}>{t("deleteConfirmLead")}</span>
       <span
         style={{
-          color: "#1e293b",
+          color: "var(--probemap-text)",
           fontWeight: 600,
           wordBreak: "break-word",
+          overflowWrap: "anywhere",
+          minWidth: 0,
+          maxWidth: "100%",
         }}
       >
         {name}
       </span>
       <button
         type="button"
+        className="delete-confirm-copy-btn"
         onClick={copy}
         title={copied ? t("nameCopied") : t("copyName")}
         aria-label={copied ? t("nameCopied") : t("copyName")}
@@ -55,11 +62,16 @@ export function DeleteConfirmNameHint({ name }: { name: string }) {
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          padding: "2px 6px",
+          width: 28,
+          height: 28,
+          padding: 0,
+          boxSizing: "border-box",
           borderRadius: 5,
-          border: copied ? "1.5px solid #86efac" : "1.5px solid #cbd5e1",
-          background: copied ? "#f0fdf4" : "#f8fafc",
-          color: copied ? "#15803d" : "#475569",
+          border: copied
+            ? "1.5px solid var(--probemap-success-muted-border)"
+            : "1.5px solid var(--probemap-border-strong)",
+          background: copied ? "var(--probemap-success-muted-bg)" : "var(--probemap-bg-muted)",
+          color: copied ? "var(--probemap-success-muted-text)" : "var(--probemap-text-muted)",
           cursor: "pointer",
           fontSize: 12,
           fontWeight: 500,
@@ -67,12 +79,12 @@ export function DeleteConfirmNameHint({ name }: { name: string }) {
         }}
       >
         {copied ? (
-          <FaCheck style={{ width: 14, height: 14 }} aria-hidden />
+          <FaCheck style={{ width: 14, height: 14, flexShrink: 0 }} aria-hidden />
         ) : (
-          <FaCopy style={{ width: 13, height: 13 }} aria-hidden />
+          <FaCopy style={{ width: 14, height: 14, flexShrink: 0 }} aria-hidden />
         )}
       </button>
-      <span>{t("deleteConfirmTail")}</span>
+      <span style={{ flexShrink: 0 }}>{t("deleteConfirmTail")}</span>
     </div>
   );
 }
