@@ -216,7 +216,7 @@ html, body {
 .palette-sidebar__help:hover {
   cursor: default;
   color: var(--probemap-text-muted);
-  background: rgba(148, 163, 184, 0.15);
+  background: var(--probemap-interactive-hover-bg);
 }
 
 .palette-sidebar__help:focus-visible {
@@ -316,21 +316,32 @@ html, body {
 .palette-row__add {
   flex-shrink: 0;
   margin: 0;
-  padding: 2px 8px;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
   border-radius: 5px;
   border: 1px solid var(--probemap-border-strong);
   background: var(--probemap-bg-muted);
   color: var(--probemap-text-secondary);
-  font-size: 11px;
-  font-weight: 600;
   cursor: pointer;
-  line-height: 1.25;
+  line-height: 0;
+  font-family: inherit;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
 }
 
 .palette-row__add:hover {
-  background: var(--probemap-bg-subtle);
-  border-color: var(--probemap-text-faint);
-  color: var(--probemap-text);
+  border-color: var(--probemap-interactive-hover-border);
+  background: var(--probemap-interactive-hover-bg);
+  color: var(--probemap-blue);
 }
 
 .palette-row__add:focus-visible {
@@ -512,12 +523,18 @@ html, body {
   cursor: pointer;
   font-family: inherit;
   color: var(--probemap-text-secondary);
-  transition: background 0.15s ease, color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    box-shadow 0.18s ease;
 }
 
 .map-objects-toolbar__btn:hover:not(:disabled) {
-  background: var(--probemap-bg-subtle);
+  background: var(--probemap-interactive-hover-bg);
   color: var(--probemap-text);
+  box-shadow:
+    0 0 0 1px rgba(59, 130, 246, 0.22),
+    0 2px 8px rgba(59, 130, 246, 0.08);
 }
 
 .map-objects-toolbar__btn:disabled {
@@ -539,7 +556,540 @@ html, body {
   height: 18px;
 }
 
+/* Контекстное меню карты (ПКМ) */
+.probemap-context-menu {
+  position: fixed;
+  z-index: 1000;
+  background: var(--probemap-bg);
+  border: 1.5px solid var(--probemap-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  padding: 4px 0;
+  font-size: 13px;
+  color: var(--probemap-text);
+}
+
+.probemap-context-menu--sub {
+  z-index: 1001;
+  max-height: 320px;
+  overflow-y: auto;
+}
+
+.probemap-context-menu__row {
+  appearance: none;
+  -webkit-appearance: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  text-align: left;
+  box-sizing: border-box;
+  justify-content: space-between;
+  transition: background 0.15s ease;
+}
+
+.probemap-context-menu__row:hover:not(:disabled) {
+  background: var(--probemap-interactive-hover-bg);
+}
+
+.probemap-context-menu__row:focus-visible {
+  outline: 2px solid var(--probemap-focus-ring);
+  outline-offset: -2px;
+  background: var(--probemap-interactive-hover-bg);
+}
+
+.probemap-context-menu__row--active {
+  background: var(--probemap-bg-subtle);
+}
+
+.probemap-context-menu__row--active:hover:not(:disabled),
+.probemap-context-menu__row--active:focus-visible {
+  background: var(--probemap-bg-subtle);
+}
+
+.probemap-context-menu__row--hint {
+  padding-top: 7px;
+  padding-bottom: 7px;
+}
+
+.probemap-context-menu__row-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.probemap-context-menu__icon {
+  color: var(--probemap-text-muted);
+  display: flex;
+  flex-shrink: 0;
+}
+
+.probemap-context-menu__icon--offset {
+  margin-top: 2px;
+}
+
+.probemap-context-menu__label-col {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.probemap-context-menu__label-text {
+  color: var(--probemap-text);
+  line-height: 1.25;
+}
+
+.probemap-context-menu__hint-text {
+  font-size: 11px;
+  color: var(--probemap-text-faint);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.probemap-context-menu__arrow {
+  color: var(--probemap-text-faint);
+  font-size: 11px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.probemap-context-menu__empty {
+  padding: 8px 14px 6px;
+  color: var(--probemap-text-faint);
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+/* Заголовки секций настроек с подсказкой по наведению */
+.probemap-settings-tip-title {
+  cursor: help;
+  border-bottom: 1px dotted transparent;
+}
+
+.probemap-settings-tip-title:hover {
+  border-bottom-color: var(--probemap-text-faint);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Общий паттерн кнопок: transition + :hover через токены темы (theme.css)    */
+/* -------------------------------------------------------------------------- */
+
+.probemap-btn {
+  font-family: inherit;
+  box-sizing: border-box;
+  margin: 0;
+  cursor: pointer;
+  border-style: solid;
+  border-width: 0;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.18s ease,
+    opacity 0.15s ease;
+}
+
+.probemap-btn:focus-visible {
+  outline: 2px solid var(--probemap-focus-ring);
+  outline-offset: 2px;
+}
+
+.probemap-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.probemap-btn--busy:disabled {
+  opacity: 0.88;
+  cursor: wait;
+}
+
+.probemap-btn--primary {
+  border: none;
+  background: var(--probemap-blue);
+  color: var(--probemap-on-accent);
+  font-weight: 600;
+}
+
+.probemap-btn--primary:hover:not(:disabled) {
+  background: var(--probemap-blue-hover);
+}
+
+.probemap-btn--slate {
+  border: none;
+  background: var(--probemap-btn-slate);
+  color: var(--probemap-btn-slate-text);
+  font-weight: 600;
+}
+
+.probemap-btn--slate:hover:not(:disabled) {
+  background: var(--probemap-btn-slate-hover);
+}
+
+.probemap-btn--success {
+  background: #22c55e !important;
+  color: #fff !important;
+}
+
+.probemap-btn--success:hover:not(:disabled) {
+  background: #16a34a !important;
+}
+
+.probemap-btn--ghost {
+  border: 1.5px solid var(--probemap-border);
+  background: transparent;
+  color: var(--probemap-text-muted);
+}
+
+.probemap-btn--ghost:hover:not(:disabled) {
+  background: var(--probemap-interactive-hover-bg);
+  border-color: var(--probemap-interactive-hover-border);
+  color: var(--probemap-text-secondary);
+}
+
+.probemap-btn--danger {
+  border: none;
+  background: #ef4444;
+  color: var(--probemap-on-accent);
+  font-weight: 600;
+}
+
+.probemap-btn--danger:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.probemap-btn--danger:disabled {
+  opacity: 1;
+  background: var(--probemap-bg-subtle);
+  color: var(--probemap-text-faint);
+  font-weight: 400;
+}
+
+.probemap-btn--md {
+  padding: 7px 18px;
+  border-radius: 7px;
+  font-size: 13px;
+}
+
+.probemap-btn--sm {
+  padding: 6px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.probemap-btn--lg {
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.probemap-btn--block {
+  display: block;
+  width: 100%;
+}
+
+/* Янтарный баннер ошибки загрузки (App) */
+.probemap-btn.probemap-btn--warn-retry {
+  border-width: 1px;
+  border-style: solid;
+  border-color: var(--probemap-warn-banner-border);
+  background: var(--probemap-bg);
+  color: var(--probemap-warn-banner-text);
+  padding: 4px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.probemap-btn.probemap-btn--warn-retry:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.probemap-btn.probemap-btn--warn-dismiss {
+  border-width: 1px;
+  border-style: solid;
+  border-color: transparent;
+  background: transparent;
+  color: var(--probemap-warn-banner-text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.probemap-btn.probemap-btn--warn-dismiss:hover:not(:disabled) {
+  background: var(--probemap-interactive-hover-bg);
+  border-color: var(--probemap-interactive-hover-border);
+}
+
+/* GroupNode: мини-кнопки поверх области */
+.probemap-btn.probemap-btn--icon-tiny {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+  line-height: 1;
+  font-size: 9px;
+}
+
+.probemap-btn.probemap-btn--icon-tiny:hover:not(:disabled) {
+  background: var(--probemap-interactive-hover-bg);
+}
+
+.probemap-btn.probemap-btn--color-swatch {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  padding: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.15s ease, outline 0.12s ease;
+}
+
+.probemap-btn.probemap-btn--color-swatch:hover:not(:disabled) {
+  transform: scale(1.06);
+  box-shadow: 0 0 0 2px var(--probemap-bg), 0 0 0 3px var(--probemap-interactive-hover-border);
+}
+
+.probemap-btn--preset {
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  border: 1.5px solid var(--probemap-border);
+  background: var(--probemap-bg-muted);
+  color: var(--probemap-text-secondary);
+  font-weight: 500;
+}
+
+.probemap-btn--preset:hover:not(:disabled) {
+  border-color: var(--probemap-interactive-hover-border);
+  background: var(--probemap-interactive-hover-bg);
+  color: var(--probemap-blue);
+}
+
+.probemap-btn--preset.probemap-btn--preset-muted {
+  color: var(--probemap-text-faint);
+}
+
+.probemap-btn--preset.probemap-btn--preset-muted:hover:not(:disabled) {
+  color: var(--probemap-text-muted);
+}
+
+.probemap-btn--outline-dynamic {
+  box-sizing: border-box;
+  width: 140px;
+  min-width: 140px;
+  padding: 5px 10px;
+  border-radius: 6;
+  font-size: 12;
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+  text-align: center;
+  border-width: 1.5px;
+  border-style: solid;
+  background: transparent;
+}
+
+.probemap-btn--outline-dynamic:hover:not(:disabled) {
+  background: var(--probemap-interactive-hover-bg);
+}
+
+.probemap-btn.probemap-btn--icon-plain {
+  border-width: 1.5px;
+  border-color: var(--probemap-border);
+  border-style: solid;
+  border-radius: 6;
+  background: var(--probemap-modal-bg);
+  padding: 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.probemap-btn.probemap-btn--icon-plain:hover:not(:disabled) {
+  background: var(--probemap-interactive-hover-bg);
+  border-color: var(--probemap-interactive-hover-border);
+}
+
+.probemap-btn--xs {
+  padding: 4px 10px;
+  border-radius: 5px;
+  font-size: 12px;
+}
+
+/* Плитка выбора иконки (IconPicker) */
+.probemap-icon-tile {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  border: 1px solid var(--probemap-border);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--probemap-text-muted);
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.probemap-icon-tile:hover {
+  border-color: var(--probemap-interactive-hover-border);
+  background: var(--probemap-interactive-hover-bg);
+  color: var(--probemap-blue);
+}
+
+.probemap-icon-tile .probemap-icon-tile__del {
+  display: none;
+}
+
+.probemap-icon-tile:hover .probemap-icon-tile__del {
+  display: flex;
+}
+
+/* Ссылка-действие на карточке сервиса */
+.probemap-node-action-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: var(--probemap-bg-muted);
+  border: 1.5px solid var(--probemap-border);
+  color: var(--probemap-text-secondary);
+  text-decoration: none;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+.probemap-node-action-link:hover {
+  background: var(--probemap-interactive-hover-bg);
+  border-color: var(--probemap-interactive-hover-border);
+  color: var(--probemap-blue);
+}
+
+.probemap-btn-dashed-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: none;
+  border: 1.5px dashed var(--probemap-border-strong);
+  color: var(--probemap-text-faint);
+  cursor: pointer;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-family: inherit;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.probemap-btn-dashed-icon:hover {
+  border-color: var(--probemap-blue);
+  color: var(--probemap-blue);
+}
+
+.probemap-btn-dashed-wide {
+  width: 100%;
+  padding: 5px 0;
+  border-radius: 6px;
+  border: 1.5px dashed var(--probemap-border-strong);
+  background: none;
+  font-size: 12px;
+  color: var(--probemap-text-muted);
+  cursor: pointer;
+  font-family: inherit;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.probemap-btn-dashed-wide:hover {
+  border-color: var(--probemap-blue);
+  color: var(--probemap-blue);
+}
+
+.probemap-btn-remove-soft {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.probemap-btn-remove-soft:hover:not(:disabled) {
+  background: #fef2f2;
+}
+
+/* Круглая кнопка удаления на карте (узел / ребро) */
+.probemap-btn.probemap-btn--map-delete {
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: #ef4444;
+  color: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 0;
+  transition: background 0.15s ease, transform 0.12s ease;
+}
+
+.probemap-btn.probemap-btn--map-delete:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+.probemap-btn.probemap-btn--map-delete:focus-visible {
+  outline: 2px solid var(--probemap-focus-ring);
+  outline-offset: 2px;
+}
+
+.probemap-btn.probemap-btn--map-delete--sm {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+}
+
+.probemap-btn.probemap-btn--map-delete--md {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+}
+
 /* Как у строк палитры узлов при hover: белый фон, синяя рамка и лёгкая тень */
+/* Стабильные слоты под перевод (min-width / min-height): см. src/i18nLayout.ts */
+
+/* Контурные кнопки шапки/тулбара — тот же темп transition, что у .probemap-btn */
 .probemap-outline-hover-btn {
   font-family: inherit;
   border: 1.5px solid var(--probemap-border);
@@ -550,10 +1100,10 @@ html, body {
   font-size: 12px;
   cursor: pointer;
   transition:
-    background 0.18s ease,
-    color 0.18s ease,
-    border-color 0.18s ease,
-    box-shadow 0.2s ease,
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.18s ease,
     opacity 0.15s ease;
 }
 
@@ -569,6 +1119,24 @@ html, body {
 .probemap-outline-hover-btn:focus-visible {
   outline: 2px solid var(--probemap-focus-ring);
   outline-offset: 2px;
+}
+
+/* Шестерёнка «настройки» в шапке: квадратная кнопка, без текста */
+.probemap-outline-hover-btn.probemap-header-settings-gear {
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  min-height: 32px;
+  padding: 0;
+  color: var(--probemap-text-secondary);
+}
+
+.probemap-outline-hover-btn.probemap-header-settings-gear svg {
+  flex-shrink: 0;
 }
 
 .probemap-toolbar-refresh.probemap-outline-hover-btn {

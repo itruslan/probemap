@@ -14,6 +14,7 @@ import { DEFAULT_SERVICE_ICON_NAME, SERVICE_BUILTIN_ICONS } from "../icons";
 import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
+import { DeleteButton } from "./DeleteButton";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -65,6 +66,8 @@ export interface ServiceNodeData {
   icon?: string;
   description?: string;
   actions?: ServiceAction[];
+  /** Не учитывать источники пробы (значение лейбла probe_source) */
+  ignored_sources?: string[];
 }
 
 export function ServiceNode({ data, id }: NodeProps) {
@@ -108,7 +111,9 @@ export function ServiceNode({ data, id }: NodeProps) {
   );
 
   // Строка на пару порт×зона×job×module; тип пробы для зоны без серии — из агрегата порта (не «TCP» по умолчанию)
-  const probeRows = (d.ports ?? []).flatMap((p) =>
+  const ignoredSources = useMemo(() => new Set((d.ignored_sources ?? []).filter(Boolean)), [d.ignored_sources]);
+
+  const probeRowsAll = (d.ports ?? []).flatMap((p) =>
     Object.entries(p.sources ?? {}).map(([source, s]) => {
       const zt = s.probe_types ?? [];
       const mergedTypes = zt.length > 0 ? zt : (p.probe_types ?? []);
@@ -123,6 +128,8 @@ export function ServiceNode({ data, id }: NodeProps) {
       };
     }),
   );
+  const probeRows = probeRowsAll.filter((r) => !ignoredSources.has(r.source));
+
   probeRows.sort((a, b) => {
     const dj = (a.job ?? "").localeCompare(b.job ?? "", "ru");
     if (dj !== 0) return dj;
@@ -159,7 +166,9 @@ export function ServiceNode({ data, id }: NodeProps) {
 
   const status = probeRollupStatus !== "unknown" ? probeRollupStatus : portAgg;
 
-  const expectedBb = (probeSourcesGlobal ?? []).filter(Boolean).length;
+  const expectedBbList = (probeSourcesGlobal ?? []).filter(Boolean);
+  const ignoredExpected = expectedBbList.filter((s) => ignoredSources.has(s)).length;
+  const expectedBb = Math.max(0, expectedBbList.length - ignoredExpected);
   const presentBb = sourceAgg.size;
 
   /** Список blackbox (instance), в том же порядке что и в API; иначе — из фактических источников по узлу */
@@ -361,6 +370,41 @@ export function ServiceNode({ data, id }: NodeProps) {
           {t("monitoringSourcesCoverage").replace("{present}", String(presentBb)).replace("{expected}", String(expectedBb))}
         </div>
       )}
+      {blackboxOrder.length > 0 && locked && (
+        <div style={{ marginBottom: 8, marginTop: -2 }}>
+          <div style={{ fontSize: 10, color: "var(--probemap-text-faint)", marginBottom: 6 }}>
+            {t("monitoringSourcesToggleHint")}
+          </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+            {blackboxOrder.map((src) => {
+              const ignored = ignoredSources.has(src);
+              return (
+                <button
+                  key={src}
+                  type="button"
+                  className={`probemap-btn probemap-btn--xs ${ignored ? "probemap-btn--ghost" : "probemap-btn--slate"}`}
+                  onClick={() => {
+                    const next = new Set(Array.from(ignoredSources));
+                    if (next.has(src)) next.delete(src);
+                    else next.add(src);
+                    updateNodeData(id, { ignored_sources: Array.from(next).sort((a, b) => a.localeCompare(b, "ru")) });
+                  }}
+                  title={ignored ? t("monitoringIgnoreSourceOff") : t("monitoringIgnoreSourceOn")}
+                  style={{
+                    padding: "3px 6px",
+                    fontFamily: "ui-monospace, monospace",
+                    fontSize: 10,
+                    textDecoration: ignored ? "line-through" : "none",
+                    opacity: ignored ? 0.65 : 1,
+                  }}
+                >
+                  {src}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
       {probeRows.length > 0 ? probeRows.map((row) => {
         const chips = portProbeChips(row.port, row.probe_types, d.label, row.module);
         const rowStatusColor =
@@ -489,10 +533,16 @@ export function ServiceNode({ data, id }: NodeProps) {
             onMouseEnter={(e) => { if (!locked) return; const b = e.currentTarget.querySelector<HTMLElement>(".rm-act"); if (b) b.style.display = "flex"; }}
             onMouseLeave={(e) => { const b = e.currentTarget.querySelector<HTMLElement>(".rm-act"); if (b) b.style.display = "none"; }}
           >
-            <a href={action.url} target="_blank" rel="noopener noreferrer"
-              style={{ display: "flex", alignItems: "center", justifyContent: "center", width: 32, height: 32, borderRadius: 7, background: "var(--probemap-bg-muted)", border: "1.5px solid var(--probemap-border)", color: "var(--probemap-text-secondary)", textDecoration: "none" }}
-              onMouseEnter={(e) => { if (dragging) return; e.currentTarget.style.background = "#eff6ff"; e.currentTarget.style.borderColor = "#93c5fd"; e.currentTarget.style.color = "#3b82f6"; setActionTooltip({ label: t("actionOpenTo").replace("{label}", action.label), el: e.currentTarget }); }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--probemap-bg-muted)"; e.currentTarget.style.borderColor = "var(--probemap-border)"; e.currentTarget.style.color = "var(--probemap-text-secondary)"; setActionTooltip(null); }}
+            <a
+              href={action.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="probemap-node-action-link"
+              onMouseEnter={(e) => {
+                if (dragging) return;
+                setActionTooltip({ label: t("actionOpenTo").replace("{label}", action.label), el: e.currentTarget });
+              }}
+              onMouseLeave={() => setActionTooltip(null)}
             >
               <IconRenderer name={action.icon} size={14} />
             </a>
@@ -526,8 +576,12 @@ export function ServiceNode({ data, id }: NodeProps) {
         {locked && (addingAction ? (
           <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
             <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <button onClick={(e) => setActionPickerAnchor({ x: e.clientX + 8, y: e.clientY })}
-                style={{ width: 32, height: 32, flexShrink: 0, borderRadius: 7, background: "var(--probemap-bg-muted)", border: "1.5px solid var(--probemap-border)", color: "var(--probemap-text-secondary)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <button
+                type="button"
+                onClick={(e) => setActionPickerAnchor({ x: e.clientX + 8, y: e.clientY })}
+                className="probemap-node-action-link"
+                style={{ flexShrink: 0, cursor: "pointer", borderStyle: "solid" }}
+              >
                 <IconRenderer name={newActionIcon} size={14} />
               </button>
               <input placeholder={t("actionNamePlaceholder")} value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
@@ -537,46 +591,30 @@ export function ServiceNode({ data, id }: NodeProps) {
               <input autoFocus placeholder={t("actionUrlPlaceholder")} value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addAction(); if (e.key === "Escape") setAddingAction(false); }}
                 style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)" }} />
-              <button onClick={addAction} style={{ padding: "4px 10px", borderRadius: 5, border: "none", background: "var(--probemap-blue)", color: "var(--probemap-on-accent)", fontSize: 12, cursor: "pointer" }}>{t("uiOk")}</button>
-              <button onClick={() => setAddingAction(false)} style={{ padding: "4px 8px", borderRadius: 5, border: "1.5px solid var(--probemap-border)", background: "none", color: "var(--probemap-text-faint)", fontSize: 12, cursor: "pointer" }}>✕</button>
+              <button type="button" onClick={addAction} className="probemap-btn probemap-btn--primary probemap-btn--xs">
+                {t("uiOk")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setAddingAction(false)}
+                className="probemap-btn probemap-btn--ghost probemap-btn--xs"
+                style={{ padding: "4px 8px" }}
+              >
+                ✕
+              </button>
             </div>
           </div>
         ) : (
-          <button onClick={() => setAddingAction(true)}
-            style={{ width: 32, height: 32, borderRadius: 7, background: "none", border: "1.5px dashed var(--probemap-border-strong)", color: "var(--probemap-text-faint)", cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center" }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--probemap-blue)"; e.currentTarget.style.color = "var(--probemap-blue)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--probemap-border-strong)"; e.currentTarget.style.color = "var(--probemap-text-faint)"; }}
-          >+</button>
+          <button type="button" onClick={() => setAddingAction(true)} className="probemap-btn-dashed-icon">
+            +
+          </button>
         ))}
       </div>
 
       <ServiceLabelsSection labels={catalogLabels} />
 
       {/* Delete from canvas */}
-      {locked && (
-        <button
-          title={t("removeFromCanvas")}
-          onClick={(e) => {
-            e.stopPropagation();
-            document.dispatchEvent(new CustomEvent("delete-node-request", { detail: { id, label: d.label } }));
-          }}
-          style={{
-            position: "absolute", bottom: 10, right: 10,
-            width: 26, height: 26, borderRadius: 6,
-            border: "none", background: "transparent",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: 0,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={(e) => { e.currentTarget.style.background = "#fef2f2"; }}
-          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
-        >
-          <TrashIcon size={15} />
-        </button>
-      )}
+      {locked && <DeleteButton nodeId={id} label={d.label} />}
     </div>,
     document.body
     ),
@@ -674,7 +712,7 @@ export function ServiceNode({ data, id }: NodeProps) {
                 style={{ display: "flex", flexWrap: "wrap", gap: 5, alignItems: "center", flexShrink: 0, marginLeft: "auto" }}
                 onMouseDown={(e) => e.stopPropagation()}
               >
-                {blackboxOrder.map((src) => {
+                {blackboxOrder.filter((src) => !ignoredSources.has(src)).map((src) => {
                   const st = sourceAgg.get(src);
                   const dotBg =
                     !st ? "#9ca3af"

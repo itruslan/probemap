@@ -20,6 +20,17 @@ def _label_map() -> dict[str, Any]:
     return cfg_mod.read_config().get("label_map", cfg_mod.DEFAULT_LABEL_MAP)
 
 
+def _merge_label_map(raw: dict[str, Any] | None) -> dict[str, Any]:
+    """Слияние черновика label_map с дефолтами (как при чтении конфига)."""
+    lm = {**cfg_mod.DEFAULT_LABEL_MAP, **(raw or {})}
+    if raw and "probe_source" not in raw and "zone" in raw:
+        lm["probe_source"] = raw.get("zone") or "instance"
+    ps = str(lm.get("probe_source") or "").strip()
+    if not ps:
+        lm["probe_source"] = "instance"
+    return lm
+
+
 async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -84,9 +95,6 @@ def build_probe_success_selector(
             parts.append(f'{fl}="{_promql_escape_label_value(fv)}"')
     parts.extend(_cfg_rules_to_parts(cfg))
     inner = ", ".join(parts)
-    extra = (cfg.get("metric_extra_selector") or "").strip().strip(",").strip()
-    if extra:
-        inner = f"{inner}, {extra}" if inner else extra
     if not inner:
         return ""
     return "{" + inner + "}"
@@ -257,11 +265,13 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 
 
-async def discover_jobs() -> list[dict[str, Any]]:
-    vm_url = _get_vm_url()
-    lm = _label_map()
+async def discover_jobs_for(vm_url: str, label_map: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+    url = vm_url.strip().rstrip("/")
+    if not url:
+        raise RuntimeError("Datasource not configured")
+    lm = _merge_label_map(label_map)
     src_l = _probe_source_label_name(lm)
-    series = await _query(vm_url, f"group by (job, {src_l}) (probe_success)")
+    series = await _query(url, f"group by (job, {src_l}) (probe_success)")
     jobs: dict[str, set[str]] = defaultdict(set)
     for s in series:
         job = s["metric"].get("job")
@@ -274,18 +284,28 @@ async def discover_jobs() -> list[dict[str, Any]]:
     return [{"job": j, "probe_sources": sorted(z)} for j, z in sorted(jobs.items())]
 
 
-async def discover_labels() -> list[str]:
-    vm_url = _get_vm_url()
+async def discover_jobs() -> list[dict[str, Any]]:
+    return await discover_jobs_for(_get_vm_url(), _label_map())
+
+
+async def discover_labels_for(vm_url: str) -> list[str]:
+    url = vm_url.strip().rstrip("/")
+    if not url:
+        raise RuntimeError("Datasource not configured")
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(
-                f"{vm_url}/api/v1/labels",
+                f"{url}/api/v1/labels",
                 params={"match[]": "probe_success"},
             )
             r.raise_for_status()
             return sorted(r.json().get("data", []))
     except httpx.HTTPError as e:
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
+
+
+async def discover_labels() -> list[str]:
+    return await discover_labels_for(_get_vm_url())
 
 
 async def get_filter_values(label: str) -> list[str]:

@@ -7,6 +7,7 @@ import {
   type EdgeProps,
 } from "@xyflow/react";
 import { useState } from "react";
+import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 
 const ARROW = 7;
@@ -33,6 +34,7 @@ export function DeletableEdge({
 }: EdgeProps) {
   const [hover, setHover] = useState(false);
   const { deleteElements } = useReactFlow();
+  const { t } = useI18n();
 
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -73,20 +75,10 @@ export function DeletableEdge({
           >
             <button
               type="button"
+              className="probemap-btn probemap-btn--map-delete probemap-btn--map-delete--md"
+              aria-label={t("delete")}
+              title={t("delete")}
               onClick={() => deleteElements({ edges: [{ id }] })}
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: "50%",
-                border: "none",
-                background: "#ef4444",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                boxShadow: "0 1px 3px rgba(0,0,0,.3)",
-              }}
             >
               <TrashIcon variantOnRed size={10} />
             </button>

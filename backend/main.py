@@ -100,10 +100,34 @@ async def discover_jobs() -> list[dict[str, Any]]:
         raise _metrics_http_exception(e) from e
 
 
+@app.post("/api/config/discover/jobs")
+async def discover_jobs_for_url(body: dict[str, Any]) -> list[dict[str, Any]]:
+    url = (body.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="url required")
+    raw_lm = body.get("label_map")
+    lm = raw_lm if isinstance(raw_lm, dict) else None
+    try:
+        return await metrics.discover_jobs_for(url, lm)
+    except RuntimeError as e:
+        raise _metrics_http_exception(e) from e
+
+
 @app.get("/api/config/discover/labels")
 async def discover_labels() -> list[str]:
     try:
         return await metrics.discover_labels()
+    except RuntimeError as e:
+        raise _metrics_http_exception(e) from e
+
+
+@app.post("/api/config/discover/labels")
+async def discover_labels_for_url(body: dict[str, Any]) -> list[str]:
+    url = (body.get("url") or "").strip()
+    if not url:
+        raise HTTPException(status_code=400, detail="url required")
+    try:
+        return await metrics.discover_labels_for(url)
     except RuntimeError as e:
         raise _metrics_http_exception(e) from e
 
@@ -122,6 +146,9 @@ def post_project(body: dict[str, Any]) -> dict[str, Any]:
     name = (body.get("name") or "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name required")
+    ok, reason = cfg_mod.project_creation_allowed()
+    if not ok:
+        raise HTTPException(status_code=400, detail=reason)
     f = body.get("filter") or {}
     raw_filters = body.get("filters")
     flist = raw_filters if isinstance(raw_filters, list) else None

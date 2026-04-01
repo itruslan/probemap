@@ -3,17 +3,23 @@ import {
   fetchConfig,
   saveConfig,
   testDatasource,
-  discoverJobs,
-  discoverLabels,
+  discoverJobsForUrl,
+  discoverLabelsForUrl,
   previewMetricSelector,
   type AppConfig,
+  type Datasource,
   type DiscoveredJob,
   type MetricFilterOp,
   type MetricFilterRule,
   type MetricSelectorPreview,
+  type ProbeJob,
 } from "./api";
 import { useI18n, type I18nKey } from "./i18n";
+import { I18N_STABLE } from "./i18nLayout";
 import { TrashIcon } from "./TrashIcon";
+import { HoverTooltip } from "./Tooltip";
+
+const DEFAULT_DATASOURCE_NAME = "Prometheus";
 
 const OP_OPTIONS: { value: MetricFilterOp; labelKey: I18nKey }[] = [
   { value: "eq", labelKey: "opEq" },
@@ -41,17 +47,56 @@ function normalizeConfig(c: AppConfig): AppConfig {
     value: (r.value ?? "").trim(),
     op: (["eq", "re", "ne", "nre"].includes(r.op) ? r.op : "eq") as MetricFilterOp,
   }));
+  const rawDs = c.datasource;
+  const name = (rawDs?.name ?? "").trim() || DEFAULT_DATASOURCE_NAME;
+  const datasource: Datasource = rawDs
+    ? { ...rawDs, name, url: rawDs.url ?? "", type: rawDs.type || "victoriametrics" }
+    : { name: DEFAULT_DATASOURCE_NAME, type: "victoriametrics", url: "" };
   return {
     ...c,
+    datasource,
+    settings_targets_saved: c.settings_targets_saved === false ? false : true,
     label_map: normalizeLabelMap(c.label_map as AppConfig["label_map"] & { zone?: string }),
-    metric_extra_selector: c.metric_extra_selector ?? "",
     metric_filter_rules: rules,
   };
 }
 
+type CommittedSnapshot = {
+  ds: { name: string; url: string };
+  settings_targets_saved: boolean;
+  probe_jobs: ProbeJob[];
+  label_map: AppConfig["label_map"];
+  metric_filter_rules: MetricFilterRule[];
+};
+
+function snapshotFromConfig(c: AppConfig): CommittedSnapshot {
+  return {
+    ds: {
+      name: (c.datasource?.name ?? DEFAULT_DATASOURCE_NAME).trim() || DEFAULT_DATASOURCE_NAME,
+      url: (c.datasource?.url ?? "").trim(),
+    },
+    settings_targets_saved: c.settings_targets_saved !== false,
+    probe_jobs: JSON.parse(JSON.stringify(c.probe_jobs)) as ProbeJob[],
+    label_map: JSON.parse(JSON.stringify(c.label_map)) as AppConfig["label_map"],
+    metric_filter_rules: JSON.parse(JSON.stringify(c.metric_filter_rules ?? [])) as MetricFilterRule[],
+  };
+}
+
+function probeJobsEqual(a: ProbeJob[], b: ProbeJob[]): boolean {
+  if (a.length !== b.length) return false;
+  return a.every((x, i) => x.job === b[i]?.job && x.enabled === b[i]?.enabled);
+}
+
+function restEqualToCommitted(cfg: AppConfig, com: CommittedSnapshot): boolean {
+  return (
+    probeJobsEqual(cfg.probe_jobs, com.probe_jobs) &&
+    JSON.stringify(cfg.label_map) === JSON.stringify(com.label_map) &&
+    JSON.stringify(cfg.metric_filter_rules ?? []) === JSON.stringify(com.metric_filter_rules)
+  );
+}
+
 interface Props {
   onClose: () => void;
-  /** Фильтр активного проекта — превью селектора совпадает с запросом /api/projects/.../services */
   projectFilterPairs?: { label: string; value: string }[] | null;
 }
 
@@ -71,32 +116,90 @@ const LABEL_FIELD_KEYS: {
 export function Settings({ onClose, projectFilterPairs }: Props) {
   const { t } = useI18n();
   const [cfg, setCfg] = useState<AppConfig | null>(null);
+  const [committed, setCommitted] = useState<CommittedSnapshot | null>(null);
   const [testState, setTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
   const [discoveredJobs, setDiscoveredJobs] = useState<DiscoveredJob[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [discoveryUrl, setDiscoveryUrl] = useState<string | null>(null);
+  const [savingUrl, setSavingUrl] = useState(false);
+  const [savingTargets, setSavingTargets] = useState(false);
+  const [savingAdvanced, setSavingAdvanced] = useState(false);
+  const [savedFlash, setSavedFlash] = useState<"url" | "targets" | "advanced" | null>(null);
   const [selectorPreview, setSelectorPreview] = useState<MetricSelectorPreview | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
+  const didBootstrapDiscovery = useRef(false);
+  const discoveryRequestId = useRef(0);
+  const [settingsHoverTip, setSettingsHoverTip] = useState<{ label: string; el: HTMLElement } | null>(null);
+  const toggleSettingsTip = (label: string, el: HTMLElement) => {
+    setSettingsHoverTip((prev) => (prev && prev.label === label ? null : { label, el }));
+  };
 
   useEffect(() => {
-    fetchConfig().then((c) => setCfg(normalizeConfig(c)));
+    let cancelled = false;
+    fetchConfig().then((raw) => {
+      if (cancelled) return;
+      const n = normalizeConfig(raw);
+      setCfg(n);
+      setCommitted(snapshotFromConfig(n));
+    });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  const fetchDiscoveryMetadata = async (url: string, labelMap: AppConfig["label_map"]) => {
+    const u = url.trim();
+    if (!u) {
+      discoveryRequestId.current += 1;
+      setDiscoveredJobs([]);
+      setAvailableLabels([]);
+      setDiscoveryUrl(null);
+      return;
+    }
+    const id = ++discoveryRequestId.current;
+    try {
+      const lm = normalizeLabelMap(labelMap as AppConfig["label_map"] & { zone?: string });
+      const [jobs, labels] = await Promise.all([
+        discoverJobsForUrl(u, lm),
+        discoverLabelsForUrl(u),
+      ]);
+      if (id !== discoveryRequestId.current) return;
+      setDiscoveredJobs(jobs);
+      setAvailableLabels(labels);
+      setDiscoveryUrl(u);
+    } catch {
+      if (id !== discoveryRequestId.current) return;
+      setDiscoveredJobs([]);
+      setAvailableLabels([]);
+      setDiscoveryUrl(null);
+    }
+  };
+
+  useEffect(() => {
+    if (!cfg || !committed) return;
+    if (didBootstrapDiscovery.current) return;
+    didBootstrapDiscovery.current = true;
+    const u = committed.ds.url;
+    if (!u) return;
+    void fetchDiscoveryMetadata(u, cfg.label_map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [cfg, committed]);
 
   useEffect(() => {
     if (!cfg) return;
-    const t = window.setTimeout(() => {
-      const pairs = (projectFilterPairs ?? []).filter((p) => p.label?.trim() && p.value != null && String(p.value).trim() !== "");
+    const handle = window.setTimeout(() => {
+      const pairs = (projectFilterPairs ?? []).filter(
+        (p) => p.label?.trim() && p.value != null && String(p.value).trim() !== "",
+      );
       previewMetricSelector({
         probe_jobs: cfg.probe_jobs,
         metric_filter_rules: cfg.metric_filter_rules,
-        metric_extra_selector: cfg.metric_extra_selector,
         ...(pairs.length > 0 ? { project_filter_pairs: pairs } : {}),
       })
         .then(setSelectorPreview)
         .catch(() => setSelectorPreview({ selector: "", example: "probe_success" }));
     }, 320);
-    return () => window.clearTimeout(t);
+    return () => window.clearTimeout(handle);
   }, [cfg, projectFilterPairs]);
 
   useEffect(() => {
@@ -107,45 +210,148 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
-  if (!cfg) return null;
+  if (!cfg || !committed) return null;
 
-  const ds = cfg.datasource ?? { name: "", type: "victoriametrics", url: "" };
+  const ds = cfg.datasource ?? {
+    name: DEFAULT_DATASOURCE_NAME,
+    type: "victoriametrics",
+    url: "",
+  };
+
+  const urlDirty =
+    (ds.name ?? "").trim() !== committed.ds.name.trim() || (ds.url ?? "").trim() !== committed.ds.url.trim();
+
+  const targetsSavedOnServer = committed.settings_targets_saved;
+  const showJobs = committed.ds.url.length > 0;
+  const showAdvanced = showJobs && targetsSavedOnServer;
+
+  const targetsDirty = showJobs && !targetsSavedOnServer && !probeJobsEqual(cfg.probe_jobs, committed.probe_jobs);
+
+  const advancedDirty = showAdvanced && !restEqualToCommitted(cfg, committed);
+
+  const showTargetsFooter = showJobs && !targetsSavedOnServer;
 
   const handleTest = async () => {
     setTestState("testing");
     const ok = await testDatasource(ds.url);
     setTestState(ok ? "ok" : "fail");
-    if (ok) {
-      const [jobs, labels] = await Promise.all([discoverJobs(), discoverLabels()]);
-      setDiscoveredJobs(jobs);
-      setAvailableLabels(labels);
-      const existingMap = Object.fromEntries(cfg.probe_jobs.map((j) => [j.job, j.enabled]));
-      const merged = jobs.map((j) => ({
-        job: j.job,
-        enabled: existingMap[j.job] ?? true,
-      }));
-      setCfg((prev) => (prev ? { ...prev, probe_jobs: merged } : prev));
+  };
+
+  const handleCancelUrl = () => {
+    setCfg((prev) =>
+      prev
+        ? {
+            ...prev,
+            datasource: {
+              ...prev.datasource!,
+              name: committed.ds.name,
+              url: committed.ds.url,
+            },
+          }
+        : prev,
+    );
+    setTestState("idle");
+  };
+
+  const handleSaveUrl = async () => {
+    const url = (ds.url ?? "").trim();
+    if (!url) return;
+    setSavingUrl(true);
+    try {
+      const lm = normalizeLabelMap(cfg.label_map as AppConfig["label_map"] & { zone?: string });
+      const discovered = await discoverJobsForUrl(url, lm);
+      const probe_jobs: ProbeJob[] = discovered.map((d) => ({ job: d.job, enabled: false }));
+      await saveConfig({
+        ...cfg,
+        datasource: {
+          ...ds,
+          name: (ds.name ?? "").trim() || DEFAULT_DATASOURCE_NAME,
+          url,
+          type: ds.type || "victoriametrics",
+        },
+        probe_jobs,
+        settings_targets_saved: false,
+        metric_filter_rules: (cfg.metric_filter_rules ?? []).filter((r) => r.label.trim() && r.value.trim()),
+      });
+      const normalized = normalizeConfig(await fetchConfig());
+      setCfg(normalized);
+      setCommitted(snapshotFromConfig(normalized));
+      setSavedFlash("url");
+      setTimeout(() => setSavedFlash(null), 2000);
+      setTestState("idle");
+      await fetchDiscoveryMetadata(url, normalized.label_map);
+    } finally {
+      setSavingUrl(false);
     }
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    const rules = (cfg.metric_filter_rules ?? [])
-      .filter((r) => r.label.trim() && r.value.trim())
-      .map((r) => ({
-        label: r.label.trim(),
-        value: r.value.trim(),
-        op: r.op,
-      }));
-    await saveConfig({
-      ...cfg,
-      datasource: ds,
-      metric_extra_selector: (cfg.metric_extra_selector ?? "").trim(),
-      metric_filter_rules: rules,
-    });
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+  const handleCancelTargets = () => {
+    setCfg((prev) =>
+      prev
+        ? {
+            ...prev,
+            probe_jobs: JSON.parse(JSON.stringify(committed.probe_jobs)) as ProbeJob[],
+          }
+        : prev,
+    );
+  };
+
+  const handleSaveTargets = async () => {
+    setSavingTargets(true);
+    try {
+      await saveConfig({
+        ...cfg,
+        datasource: {
+          ...ds,
+          name: (ds.name ?? "").trim() || DEFAULT_DATASOURCE_NAME,
+          url: (ds.url ?? "").trim(),
+          type: ds.type || "victoriametrics",
+        },
+        probe_jobs: cfg.probe_jobs,
+        settings_targets_saved: true,
+        metric_filter_rules: (cfg.metric_filter_rules ?? []).filter((r) => r.label.trim() && r.value.trim()),
+      });
+      const normalized = normalizeConfig(await fetchConfig());
+      setCfg(normalized);
+      setCommitted(snapshotFromConfig(normalized));
+      setSavedFlash("targets");
+      setTimeout(() => setSavedFlash(null), 2000);
+      await fetchDiscoveryMetadata((normalized.datasource?.url ?? "").trim(), normalized.label_map);
+    } finally {
+      setSavingTargets(false);
+    }
+  };
+
+  const handleSaveAdvanced = async () => {
+    setSavingAdvanced(true);
+    try {
+      const rules = (cfg.metric_filter_rules ?? [])
+        .filter((r) => r.label.trim() && r.value.trim())
+        .map((r) => ({
+          label: r.label.trim(),
+          value: r.value.trim(),
+          op: r.op,
+        }));
+      await saveConfig({
+        ...cfg,
+        datasource: {
+          ...ds,
+          name: (ds.name ?? "").trim() || DEFAULT_DATASOURCE_NAME,
+          url: (ds.url ?? "").trim(),
+          type: ds.type || "victoriametrics",
+        },
+        metric_filter_rules: rules,
+        settings_targets_saved: true,
+      });
+      const normalized = normalizeConfig(await fetchConfig());
+      setCfg(normalized);
+      setCommitted(snapshotFromConfig(normalized));
+      setSavedFlash("advanced");
+      setTimeout(() => setSavedFlash(null), 2000);
+      await fetchDiscoveryMetadata((normalized.datasource?.url ?? "").trim(), normalized.label_map);
+    } finally {
+      setSavingAdvanced(false);
+    }
   };
 
   const addFilterRule = () =>
@@ -184,10 +390,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       prev
         ? {
             ...prev,
-            metric_filter_rules: [
-              ...(prev.metric_filter_rules ?? []),
-              { label, value, op },
-            ],
+            metric_filter_rules: [...(prev.metric_filter_rules ?? []), { label, value, op }],
           }
         : prev,
     );
@@ -195,8 +398,18 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const clearFilterRules = () =>
     setCfg((prev) => (prev ? { ...prev, metric_filter_rules: [] } : prev));
 
-  const setDs = (patch: Partial<typeof ds>) =>
-    setCfg((prev) => (prev ? { ...prev, datasource: { ...ds, ...patch } } : prev));
+  const setDs = (patch: Partial<typeof ds>) => {
+    const nextDs = { ...ds, ...patch };
+    const nu = (nextDs.url ?? "").trim();
+    if (nu !== (discoveryUrl ?? "")) {
+      discoveryRequestId.current += 1;
+      setDiscoveredJobs([]);
+      setAvailableLabels([]);
+      setDiscoveryUrl(null);
+      setTestState("idle");
+    }
+    setCfg((prev) => (prev ? { ...prev, datasource: nextDs } : prev));
+  };
 
   const toggleJob = (job: string) =>
     setCfg((prev) =>
@@ -224,6 +437,17 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         : testState === "fail"
           ? t("testFail")
           : t("testCheck");
+
+  const datasourceUrlHelpLabel = `${t("settingsDatasourceIntro")}\n\n${t("settingsCheckHint")}`;
+  const jobsSectionHelpLabel = [
+    `${t("settingsJobsA")}probe_success${t("settingsJobsB")}job${t("settingsJobsC")}`,
+    !targetsSavedOnServer ? t("settingsJobsStepHint") : null,
+    (ds.url ?? "").trim() !== "" && (ds.url ?? "").trim() !== (discoveryUrl ?? "").trim()
+      ? t("settingsNeedRecheckHint")
+      : null,
+  ]
+    .filter(Boolean)
+    .join("\n\n");
 
   return (
     <div
@@ -258,9 +482,23 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             alignItems: "center",
             justifyContent: "space-between",
             marginBottom: 20,
+            gap: 8,
           }}
         >
-          <span style={{ fontSize: 16, fontWeight: 700, color: "var(--probemap-text)" }}>{t("settings")}</span>
+          <span
+            style={{
+              fontSize: 16,
+              fontWeight: 700,
+              color: "var(--probemap-text)",
+              flex: 1,
+              minWidth: 0,
+              minHeight: I18N_STABLE.modalTitleMinHeightPx,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
+            {t("settings")}
+          </span>
           <button
             type="button"
             onClick={onClose}
@@ -271,6 +509,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               color: "var(--probemap-text-faint)",
               cursor: "pointer",
               padding: 0,
+              flexShrink: 0,
             }}
           >
             ×
@@ -278,36 +517,51 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         </div>
 
         <Section title={t("settingsSectionDatasource")}>
-          <p style={hintPara}>{t("settingsDatasourceIntro")}</p>
           <InlineField label={t("settingsName")}>
             <input value={ds.name} onChange={(e) => setDs({ name: e.target.value })} style={inputStyle} />
           </InlineField>
           <InlineField label={t("settingsUrlApi")}>
-            <div style={{ display: "flex", gap: 8 }}>
-              <input
-                value={ds.url}
-                onChange={(e) => {
-                  setDs({ url: e.target.value });
-                  setTestState("idle");
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <div
+                style={{ flex: 1, minWidth: 0 }}
+                onMouseEnter={(e) => {
+                  setSettingsHoverTip({ label: datasourceUrlHelpLabel, el: e.currentTarget });
                 }}
-                placeholder={t("settingsUrlPlaceholder")}
-                style={{ ...inputStyle, flex: 1 }}
-              />
+                onMouseLeave={() => setSettingsHoverTip(null)}
+              >
+                <input
+                  value={ds.url}
+                  onChange={(e) => setDs({ url: e.target.value })}
+                  placeholder={t("settingsUrlPlaceholder")}
+                  style={inputStyle}
+                />
+                {urlDirty ? (
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
+                    <button
+                      type="button"
+                      onClick={handleCancelUrl}
+                      disabled={savingUrl}
+                      className="probemap-btn probemap-btn--ghost probemap-btn--md"
+                    >
+                      {t("cancel")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveUrl()}
+                      disabled={savingUrl || !(ds.url ?? "").trim()}
+                      className={`probemap-btn probemap-btn--primary probemap-btn--md${savedFlash === "url" ? " probemap-btn--success" : ""}`}
+                    >
+                      {savedFlash === "url" ? t("saved") : savingUrl ? "…" : t("save")}
+                    </button>
+                  </div>
+                ) : null}
+              </div>
               <button
                 type="button"
                 onClick={() => void handleTest()}
-                disabled={!ds.url || testState === "testing"}
-                style={{
-                  padding: "5px 14px",
-                  borderRadius: 6,
-                  fontSize: 12,
-                  cursor: "pointer",
-                  border: `1.5px solid ${testColor}`,
-                  background: "none",
-                  color: testColor,
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                }}
+                disabled={!ds.url?.trim() || testState === "testing"}
+                className="probemap-btn probemap-btn--outline-dynamic"
+                style={{ borderColor: testColor, color: testColor }}
               >
                 {testLabel}
               </button>
@@ -315,291 +569,358 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           </InlineField>
         </Section>
 
-        <Section title={t("settingsSectionJobs")}>
-          <p style={hintPara}>
-            {t("settingsJobsA")}
-            <code style={codeInHint}>probe_success</code>
-            {t("settingsJobsB")}
-            <code style={codeInHint}>job</code>
-            {t("settingsJobsC")}
-          </p>
-          {cfg.probe_jobs.length === 0 && discoveredJobs.length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}>{t("settingsJobsEmpty")}</div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {cfg.probe_jobs.map((j) => {
-                const info = discoveredJobs.find((d) => d.job === j.job);
-                return (
-                  <label
-                    key={j.job}
-                    style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={j.enabled}
-                      onChange={() => toggleJob(j.job)}
-                      style={{ cursor: "pointer" }}
-                    />
-                    <span style={{ fontSize: 13, color: "var(--probemap-text)", flex: 1, fontFamily: "monospace" }}>
-                      {j.job}
-                    </span>
-                    {info && (
-                      <span style={{ fontSize: 11, color: "var(--probemap-text-faint)" }}>
-                        {t("settingsJobSources")} {info.probe_sources.join(", ") || t("emDash")}
-                      </span>
-                    )}
-                  </label>
-                );
-              })}
-            </div>
-          )}
-        </Section>
-
-        <Section title={t("settingsSectionFilter")}>
-          <p style={hintPara}>
-            {t("settingsFilterIntro")}
-          </p>
-          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
-            <button
-              type="button"
-              onClick={() => applyPreset("environment", "prod", "eq")}
-              style={presetBtn}
-            >
-              {t("settingsPresetEnvProd")}
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("environment", "staging", "ne")}
-              style={presetBtn}
-            >
-              {t("settingsPresetEnvStaging")}
-            </button>
-            <button
-              type="button"
-              onClick={() => applyPreset("team", "platform.*", "re")}
-              style={presetBtn}
-            >
-              {t("settingsPresetTeam")}
-            </button>
-            <button type="button" onClick={clearFilterRules} style={{ ...presetBtn, color: "var(--probemap-text-faint)" }}>
-              {t("settingsFilterClear")}
-            </button>
-          </div>
-          {(cfg.metric_filter_rules ?? []).length === 0 ? (
-            <div style={{ fontSize: 12, color: "var(--probemap-text-faint)", marginBottom: 8 }}>
-              {t("settingsFilterNoRules")}
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
-              {(cfg.metric_filter_rules ?? []).map((row, i) => (
-                <div
-                  key={i}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(100px, 1fr) 130px minmax(100px, 1fr) 36px",
-                    gap: 8,
-                    alignItems: "center",
-                  }}
-                >
-                  {availableLabels.length > 0 ? (
-                    <select
-                      value={row.label}
-                      onChange={(e) => patchFilterRule(i, { label: e.target.value })}
-                      style={{ ...inputStyle, cursor: "pointer" }}
+        {showJobs ? (
+          <Section
+            title={
+              <span
+                style={{ cursor: "help" }}
+                onMouseEnter={(e) => {
+                  setSettingsHoverTip({ label: jobsSectionHelpLabel, el: e.currentTarget });
+                }}
+                onMouseLeave={() => setSettingsHoverTip(null)}
+              >
+                {t("settingsSectionJobs")}
+              </span>
+            }
+          >
+            {cfg.probe_jobs.length === 0 && discoveredJobs.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}>{t("settingsJobsLoading")}</div>
+            ) : cfg.probe_jobs.length === 0 ? (
+              <div style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}>{t("settingsJobsEmptyVm")}</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {cfg.probe_jobs.map((j) => {
+                  const info = discoveredJobs.find((d) => d.job === j.job);
+                  return (
+                    <label
+                      key={j.job}
+                      style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
                     >
-                      <option value="">{t("settingsFilterLabelOption")}</option>
-                      {availableLabels.map((l) => (
-                        <option key={l} value={l}>
-                          {l}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      value={row.label}
-                      onChange={(e) => patchFilterRule(i, { label: e.target.value })}
-                      placeholder={t("placeholderEnvironment")}
-                      style={inputStyle}
-                    />
-                  )}
-                  <select
-                    value={row.op}
-                    onChange={(e) =>
-                      patchFilterRule(i, { op: e.target.value as MetricFilterOp })
-                    }
-                    style={{ ...inputStyle, cursor: "pointer", fontSize: 11 }}
-                  >
-                    {OP_OPTIONS.map((o) => (
-                      <option key={o.value} value={o.value}>
-                        {t(o.labelKey)}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={row.value}
-                    onChange={(e) => patchFilterRule(i, { value: e.target.value })}
-                    placeholder={t("settingsFilterValuePlaceholder")}
-                    style={inputStyle}
-                  />
+                      <input
+                        type="checkbox"
+                        checked={j.enabled}
+                        onChange={() => toggleJob(j.job)}
+                        style={{ cursor: "pointer" }}
+                      />
+                      <span
+                        style={{
+                          fontSize: 13,
+                          color: "var(--probemap-text)",
+                          flex: 1,
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {j.job}
+                      </span>
+                      {info && (
+                        <span style={{ fontSize: 11, color: "var(--probemap-text-faint)" }}>
+                          {t("settingsJobSources")} {info.probe_sources.join(", ") || t("emDash")}
+                        </span>
+                      )}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+            {showTargetsFooter ? (
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
+                {targetsDirty ? (
                   <button
                     type="button"
-                    onClick={() => removeFilterRule(i)}
-                    title={t("delete")}
-                    style={{
-                      border: "1.5px solid var(--probemap-border)",
-                      borderRadius: 6,
-                      background: "var(--probemap-modal-bg)",
-                      cursor: "pointer",
-                      padding: "4px 8px",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
+                    onClick={handleCancelTargets}
+                    disabled={savingTargets}
+                    className="probemap-btn probemap-btn--ghost probemap-btn--md"
                   >
-                    <TrashIcon size={14} />
+                    {t("cancel")}
                   </button>
+                ) : null}
+                <button
+                  type="button"
+                  onClick={() => void handleSaveTargets()}
+                  disabled={savingTargets}
+                  className={`probemap-btn probemap-btn--primary probemap-btn--md${savedFlash === "targets" ? " probemap-btn--success" : ""}`}
+                >
+                  {savedFlash === "targets" ? t("saved") : savingTargets ? "…" : t("save")}
+                </button>
+              </div>
+            ) : null}
+          </Section>
+        ) : null}
+
+        {showAdvanced ? (
+          <>
+            <Section
+              title={
+                <span
+                  className="probemap-settings-tip-title"
+                  style={{ letterSpacing: "inherit" }}
+                  onMouseEnter={(e) => {
+                    setSettingsHoverTip({ label: t("settingsFilterIntro"), el: e.currentTarget });
+                  }}
+                  onMouseLeave={() => setSettingsHoverTip(null)}
+                >
+                  {t("settingsSectionFilter")}
+                </span>
+              }
+            >
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("environment", "prod", "eq")}
+                  className="probemap-btn probemap-btn--preset"
+                >
+                  {t("settingsPresetEnvProd")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("environment", "staging", "ne")}
+                  className="probemap-btn probemap-btn--preset"
+                >
+                  {t("settingsPresetEnvStaging")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPreset("team", "platform.*", "re")}
+                  className="probemap-btn probemap-btn--preset"
+                >
+                  {t("settingsPresetTeam")}
+                </button>
+                <button
+                  type="button"
+                  onClick={clearFilterRules}
+                  className="probemap-btn probemap-btn--preset probemap-btn--preset-muted"
+                >
+                  {t("settingsFilterClear")}
+                </button>
+              </div>
+              {(cfg.metric_filter_rules ?? []).length === 0 ? null : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                  {(cfg.metric_filter_rules ?? []).map((row, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "minmax(100px, 1fr) 130px minmax(100px, 1fr) 36px",
+                        gap: 8,
+                        alignItems: "center",
+                      }}
+                    >
+                      {availableLabels.length > 0 ? (
+                        <select
+                          value={row.label}
+                          onChange={(e) => patchFilterRule(i, { label: e.target.value })}
+                          style={{ ...inputStyle, cursor: "pointer" }}
+                        >
+                          <option value="">{t("settingsFilterLabelOption")}</option>
+                          {availableLabels.map((l) => (
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={row.label}
+                          onChange={(e) => patchFilterRule(i, { label: e.target.value })}
+                          placeholder={t("placeholderEnvironment")}
+                          style={inputStyle}
+                        />
+                      )}
+                      <select
+                        value={row.op}
+                        onChange={(e) => patchFilterRule(i, { op: e.target.value as MetricFilterOp })}
+                        style={{ ...inputStyle, cursor: "pointer", fontSize: 11 }}
+                      >
+                        {OP_OPTIONS.map((o) => (
+                          <option key={o.value} value={o.value}>
+                            {t(o.labelKey)}
+                          </option>
+                        ))}
+                      </select>
+                      <input
+                        value={row.value}
+                        onChange={(e) => patchFilterRule(i, { value: e.target.value })}
+                        placeholder={t("settingsFilterValuePlaceholder")}
+                        style={inputStyle}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => removeFilterRule(i)}
+                        title={t("delete")}
+                        className="probemap-btn probemap-btn--icon-plain"
+                      >
+                        <TrashIcon size={14} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={addFilterRule}
+                className="probemap-btn probemap-btn--preset"
+                style={{ marginBottom: 14 }}
+              >
+                {t("settingsFilterAddRule")}
+              </button>
+
+              <div
+                style={{
+                  background: "var(--probemap-bg-muted)",
+                  border: "1.5px solid var(--probemap-border)",
+                  borderRadius: 8,
+                  padding: "10px 12px",
+                  marginBottom: 14,
+                }}
+              >
+                <span
+                  className="probemap-settings-tip-title"
+                  style={{
+                    display: "inline-block",
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "var(--probemap-text-faint)",
+                    letterSpacing: "0.06em",
+                    marginBottom: 6,
+                    cursor: "pointer",
+                  }}
+                  onMouseEnter={(e) => {
+                    setSettingsHoverTip({ label: t("settingsSelectorPreviewHint"), el: e.currentTarget });
+                  }}
+                  onMouseLeave={() => setSettingsHoverTip(null)}
+                  onClick={(e) => toggleSettingsTip(t("settingsSelectorPreviewHint"), e.currentTarget)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleSettingsTip(t("settingsSelectorPreviewHint"), e.currentTarget as unknown as HTMLElement);
+                    }
+                  }}
+                >
+                  {t("settingsSelectorPreviewTitle")}
+                </span>
+                <code
+                  style={{
+                    display: "block",
+                    fontSize: 12,
+                    color: "var(--probemap-text)",
+                    wordBreak: "break-all",
+                    lineHeight: 1.45,
+                    fontFamily: "ui-monospace, monospace",
+                  }}
+                >
+                  {selectorPreview?.example ?? t("ellipsis")}
+                </code>
+              </div>
+            </Section>
+
+            <Section
+              title={
+                <span
+                  className="probemap-settings-tip-title"
+                  style={{ letterSpacing: "inherit", cursor: "pointer" }}
+                  onMouseEnter={(e) => {
+                    setSettingsHoverTip({ label: t("settingsLabelMapIntro"), el: e.currentTarget });
+                  }}
+                  onMouseLeave={() => setSettingsHoverTip(null)}
+                  onClick={(e) => toggleSettingsTip(t("settingsLabelMapIntro"), e.currentTarget)}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      toggleSettingsTip(t("settingsLabelMapIntro"), e.currentTarget as unknown as HTMLElement);
+                    }
+                  }}
+                >
+                  {t("settingsSectionLabelMap")}
+                </span>
+              }
+            >
+              {LABEL_FIELD_KEYS.map(({ key, titleKey, hintKey, required }) => (
+                <div
+                  key={key}
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "minmax(96px, 40%) minmax(0, 1fr)",
+                    gap: 10,
+                    alignItems: "center",
+                    marginBottom: 8,
+                  }}
+                >
+                  <span
+                    className="probemap-settings-tip-title"
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "var(--probemap-text-secondary)",
+                      lineHeight: 1.35,
+                    }}
+                    onMouseEnter={(e) => {
+                      setSettingsHoverTip({ label: t(hintKey), el: e.currentTarget });
+                    }}
+                    onMouseLeave={() => setSettingsHoverTip(null)}
+                  >
+                    {t(titleKey)}
+                  </span>
+                  <div style={{ minWidth: 0 }}>
+                    {availableLabels.length > 0 ? (
+                      <select
+                        value={(cfg.label_map[key] as string) ?? ""}
+                        onChange={(e) => setLabelMap(key, e.target.value)}
+                        style={{ ...inputStyle, cursor: "pointer" }}
+                      >
+                        {!required && <option value="">{t("settingsLabelNotSet")}</option>}
+                        {availableLabels.map((l) => (
+                          <option key={l} value={l}>
+                            {l}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        value={(cfg.label_map[key] as string) ?? ""}
+                        onChange={(e) => setLabelMap(key, e.target.value)}
+                        placeholder={String(key)}
+                        style={inputStyle}
+                      />
+                    )}
+                  </div>
                 </div>
               ))}
-            </div>
-          )}
-          <button type="button" onClick={addFilterRule} style={{ ...presetBtn, marginBottom: 14 }}>
-            {t("settingsFilterAddRule")}
-          </button>
+            </Section>
 
-          <div
-            style={{
-              background: "var(--probemap-bg-muted)",
-              border: "1.5px solid var(--probemap-border)",
-              borderRadius: 8,
-              padding: "10px 12px",
-              marginBottom: 14,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 10,
-                fontWeight: 700,
-                color: "var(--probemap-text-faint)",
-                letterSpacing: "0.06em",
-                marginBottom: 6,
-              }}
-            >
-              {t("settingsSelectorPreviewTitle")}
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
+              <button type="button" onClick={onClose} className="probemap-btn probemap-btn--ghost probemap-btn--md">
+                {t("settingsClose")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleSaveAdvanced()}
+                disabled={savingAdvanced || !advancedDirty}
+                className={`probemap-btn probemap-btn--primary probemap-btn--md${savedFlash === "advanced" ? " probemap-btn--success" : ""}`}
+                style={{ opacity: advancedDirty ? 1 : 0.5 }}
+              >
+                {savedFlash === "advanced" ? t("saved") : savingAdvanced ? "…" : t("save")}
+              </button>
             </div>
-            <code
-              style={{
-                display: "block",
-                fontSize: 12,
-                color: "var(--probemap-text)",
-                wordBreak: "break-all",
-                lineHeight: 1.45,
-                fontFamily: "ui-monospace, monospace",
-              }}
-            >
-              {selectorPreview?.example ?? t("ellipsis")}
-            </code>
-            <div style={{ fontSize: 11, color: "var(--probemap-text-faint)", marginTop: 8, lineHeight: 1.4 }}>
-              {t("settingsSelectorPreviewHint")}
-            </div>
-          </div>
-        </Section>
-
-        <Section title={t("settingsSectionRawPromql")}>
-          <p style={hintPara}>
-            {t("settingsRawPromqlIntro")}
-          </p>
-          <textarea
-            value={cfg.metric_extra_selector ?? ""}
-            onChange={(e) =>
-              setCfg((prev) => (prev ? { ...prev, metric_extra_selector: e.target.value } : prev))
-            }
-            placeholder={t("settingsRawPromqlPlaceholder")}
-            rows={2}
-            style={{
-              ...inputStyle,
-              resize: "vertical",
-              fontFamily: "ui-monospace, monospace",
-              fontSize: 12,
-            }}
-          />
-        </Section>
-
-        <Section title={t("settingsSectionLabelMap")}>
-          <p style={hintPara}>
-            {t("settingsLabelMapIntro")}
-          </p>
-          {LABEL_FIELD_KEYS.map(({ key, titleKey, hintKey, required }) => (
-            <div key={key} style={{ marginBottom: 12 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--probemap-text-secondary)", marginBottom: 4 }}>
-                {t(titleKey)}
-                {required ? "" : " "}
-              </div>
-              <div style={{ fontSize: 11, color: "var(--probemap-text-faint)", lineHeight: 1.4, marginBottom: 6 }}>{t(hintKey)}</div>
-              {availableLabels.length > 0 ? (
-                <select
-                  value={(cfg.label_map[key] as string) ?? ""}
-                  onChange={(e) => setLabelMap(key, e.target.value)}
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                >
-                  {!required && <option value="">{t("settingsLabelNotSet")}</option>}
-                  {availableLabels.map((l) => (
-                    <option key={l} value={l}>
-                      {l}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={(cfg.label_map[key] as string) ?? ""}
-                  onChange={(e) => setLabelMap(key, e.target.value)}
-                  placeholder={String(key)}
-                  style={inputStyle}
-                />
-              )}
-            </div>
-          ))}
-        </Section>
-
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              padding: "7px 18px",
-              borderRadius: 7,
-              border: "1.5px solid var(--probemap-border)",
-              background: "none",
-              fontSize: 13,
-              cursor: "pointer",
-              color: "var(--probemap-text-muted)",
-            }}
-          >
-            {t("settingsClose")}
-          </button>
-          <button
-            type="button"
-            onClick={() => void handleSave()}
-            disabled={saving}
-            style={{
-              padding: "7px 18px",
-              borderRadius: 7,
-              border: "none",
-              fontSize: 13,
-              cursor: "pointer",
-              background: saved ? "#22c55e" : "var(--probemap-blue)",
-              color: "var(--probemap-on-accent)",
-              transition: "background 0.2s",
-            }}
-          >
-            {saved ? t("saved") : saving ? "…" : t("save")}
-          </button>
-        </div>
+          </>
+        ) : null}
       </div>
+      {settingsHoverTip && (
+        <HoverTooltip
+          label={settingsHoverTip.label}
+          targetEl={settingsHoverTip.el}
+          multiline
+          placement="below"
+        />
+      )}
     </div>
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div
@@ -620,27 +941,22 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 
 function InlineField({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-      <span style={{ fontSize: 12, color: "var(--probemap-text-secondary)", width: 120, flexShrink: 0 }}>{label}</span>
-      <div style={{ flex: 1 }}>{children}</div>
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
+      <span
+        style={{
+          fontSize: 12,
+          color: "var(--probemap-text-secondary)",
+          width: 120,
+          flexShrink: 0,
+          paddingTop: 6,
+        }}
+      >
+        {label}
+      </span>
+      <div style={{ flex: 1, minWidth: 0 }}>{children}</div>
     </div>
   );
 }
-
-const hintPara: React.CSSProperties = {
-  margin: "0 0 10px",
-  fontSize: 12,
-  color: "var(--probemap-text-muted)",
-  lineHeight: 1.5,
-};
-
-const codeInHint: React.CSSProperties = {
-  fontSize: 11,
-  background: "var(--probemap-bg-subtle)",
-  padding: "1px 5px",
-  borderRadius: 4,
-  color: "var(--probemap-text-secondary)",
-};
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -654,12 +970,3 @@ const inputStyle: React.CSSProperties = {
   color: "var(--probemap-text)",
 };
 
-const presetBtn: React.CSSProperties = {
-  padding: "4px 10px",
-  borderRadius: 6,
-  border: "1.5px solid var(--probemap-border)",
-  background: "var(--probemap-modal-bg)",
-  fontSize: 11,
-  color: "var(--probemap-text-secondary)",
-  cursor: "pointer",
-};

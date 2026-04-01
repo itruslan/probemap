@@ -1,7 +1,38 @@
 import json
 import os
+import re
 import uuid
 from typing import Any
+
+_LEGACY_EXTRA_SELECTOR_RE = re.compile(
+    r'([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"',
+)
+
+
+def _unescape_promql_double_quoted(s: str) -> str:
+    return s.replace("\\\"", '"').replace("\\\\", "\\")
+
+
+def _merge_legacy_metric_extra_into_rules(data: dict[str, Any], extra: str) -> None:
+    """Переносит только пары label=\"value\" из удалённого поля metric_extra_selector."""
+    rules = list(data.get("metric_filter_rules") or [])
+    seen = {
+        (
+            str(r.get("label") or "").strip(),
+            str(r.get("value") or "").strip(),
+            str(r.get("op") or "eq").lower(),
+        )
+        for r in rules
+        if isinstance(r, dict)
+    }
+    for m in _LEGACY_EXTRA_SELECTOR_RE.finditer(extra):
+        lb, raw_v = m.group(1), m.group(2)
+        v = _unescape_promql_double_quoted(raw_v)
+        key = (lb, v, "eq")
+        if key not in seen:
+            rules.append({"label": lb, "value": v, "op": "eq"})
+            seen.add(key)
+    data["metric_filter_rules"] = rules
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../data")
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
@@ -19,7 +50,6 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "datasource": None,
     "probe_jobs": [],
     "label_map": DEFAULT_LABEL_MAP,
-    "metric_extra_selector": "",
     "metric_filter_rules": [],
 }
 
@@ -59,15 +89,37 @@ def read_config() -> dict[str, Any]:
     if not str(lm.get("probe_source") or "").strip():
         lm["probe_source"] = "instance"
     data["label_map"] = lm
-    data.setdefault("metric_extra_selector", "")
     data.setdefault("metric_filter_rules", [])
+    _miss = object()
+    legacy = data.pop("metric_extra_selector", _miss)
+    if legacy is not _miss:
+        ex = str(legacy or "").strip().strip(",").strip()
+        if ex:
+            _merge_legacy_metric_extra_into_rules(data, ex)
+        write_config(data)
     return data
 
 
+def project_creation_allowed() -> tuple[bool, str]:
+    """Проверка перед POST /api/projects: URL датасорса и шаг таргетов.
+
+    Нет ключа settings_targets_saved — legacy, разрешаем.
+    """
+    c = read_config()
+    ds = c.get("datasource") or {}
+    url = (ds.get("url") or "").strip()
+    if not url:
+        return False, "datasource_not_configured"
+    if c.get("settings_targets_saved") is False:
+        return False, "settings_targets_unsaved"
+    return True, ""
+
+
 def write_config(cfg: dict[str, Any]) -> None:
+    out = {k: v for k, v in cfg.items() if k != "metric_extra_selector"}
     os.makedirs(DATA_DIR, exist_ok=True)
     with open(CONFIG_PATH, "w") as f:
-        json.dump(cfg, f, indent=2)
+        json.dump(out, f, indent=2)
 
 
 def read_projects() -> list[dict[str, Any]]:

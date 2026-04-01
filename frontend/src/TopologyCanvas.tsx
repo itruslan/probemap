@@ -45,13 +45,14 @@ function serviceToNode(
   icon?: string,
   description?: string,
   actions?: ServiceAction[],
+  ignored_sources?: string[],
   matchServiceId?: string | null,
 ): Node {
   return {
     id: svc.id,
     type: "service",
     position,
-    data: { label: svc.name, ports: svc.ports, icon, description, actions, matchServiceId: matchServiceId ?? null } satisfies ServiceNodeData,
+    data: { label: svc.name, ports: svc.ports, icon, description, actions, ignored_sources, matchServiceId: matchServiceId ?? null } satisfies ServiceNodeData,
   };
 }
 
@@ -418,7 +419,7 @@ export function TopologyCanvas({
             const svc = data.services.find((s) => s.id === ln.id) ?? null;
             const cfg = serviceConfigs.current[ln.id] ?? {};
             if (svc) {
-              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, ln.matchServiceId ?? null);
+              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, ln.matchServiceId ?? null);
             }
             // Узел service без метрик: сервис мог исчезнуть во время сохранения
             return {
@@ -431,6 +432,7 @@ export function TopologyCanvas({
                 icon: cfg.icon,
                 description: cfg.description,
                 actions: cfg.actions,
+                ignored_sources: cfg.ignored_sources,
                 matchServiceId: ln.matchServiceId ?? null,
               } satisfies ServiceNodeData,
             } as Node;
@@ -489,6 +491,7 @@ export function TopologyCanvas({
         icon: d.icon,
         description: d.description,
         actions: d.actions,
+        ignored_sources: d.ignored_sources,
       };
     });
   }, [nodes]);
@@ -621,7 +624,7 @@ export function TopologyCanvas({
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
         const position = screenToFlowPosition({ x: screenX, y: screenY });
         const cfg = serviceConfigs.current[svc.id] ?? {};
-        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, null)];
+        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null)];
       });
     },
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive]
@@ -635,7 +638,7 @@ export function TopologyCanvas({
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
         const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
         const cfg = serviceConfigs.current[svc.id] ?? {};
-        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, null)];
+        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null)];
       });
     },
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive]

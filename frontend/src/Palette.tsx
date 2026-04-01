@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { FaCircleQuestion } from "react-icons/fa6";
+import { FaCircleQuestion, FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";
 import { HoverTooltip } from "./Tooltip";
@@ -108,7 +108,7 @@ export function Palette({
           <span className="palette-sidebar__title">{t("servicesTitle")}</span>
           <button
             type="button"
-            className="palette-sidebar__help"
+            className="probemap-btn palette-sidebar__help"
             aria-label={t("servicesPaletteHelpAria")}
             onMouseEnter={(e) => showServicesHelp(e.currentTarget)}
             onMouseLeave={scheduleHideServicesHelp}
@@ -157,13 +157,15 @@ export function Palette({
               {!active && !readOnly && (
                 <button
                   type="button"
-                  className="palette-row__add"
+                  className="probemap-btn palette-row__add"
+                  aria-label={t("paletteAdd")}
+                  title={t("paletteAdd")}
                   onClick={(e) => {
                     e.stopPropagation();
                     onAddService(svc);
                   }}
                 >
-                  {t("paletteAdd")}
+                  <FaPlus size={11} aria-hidden />
                 </button>
               )}
             </div>

@@ -101,25 +101,18 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
           return (
             <div
               key={item.icon}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(item.icon);
+                }
+              }}
               onClick={() => onSelect(item.icon)}
-              style={{
-                position: "relative", width: 36, height: 36, borderRadius: 8,
-                border: "1px solid var(--probemap-border)", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                color: "var(--probemap-text-muted)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--probemap-interactive-hover-border)";
-                e.currentTarget.style.background = "var(--probemap-interactive-hover-bg)";
-                e.currentTarget.style.color = "var(--probemap-blue)";
-                setTooltip({ label: item.label, el: e.currentTarget });
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--probemap-border)";
-                e.currentTarget.style.background = "";
-                e.currentTarget.style.color = "var(--probemap-text-muted)";
-                setTooltip(null);
-              }}
+              className="probemap-icon-tile"
+              onMouseEnter={(e) => setTooltip({ label: item.label, el: e.currentTarget })}
+              onMouseLeave={() => setTooltip(null)}
             >
               <Icon size={16} />
             </div>
@@ -138,28 +131,22 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
           {customIcons.map((icon) => (
             <div
               key={icon.name}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  onSelect(`custom:${icon.name}`);
+                }
+              }}
               onClick={() => onSelect(`custom:${icon.name}`)}
-              style={{
-                position: "relative", width: 36, height: 36, borderRadius: 8,
-                border: "1px solid var(--probemap-border)", cursor: "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--probemap-interactive-hover-border)";
-                e.currentTarget.style.background = "var(--probemap-interactive-hover-bg)";
-                (e.currentTarget.querySelector(".del-btn") as HTMLElement | null)?.style.setProperty("display", "flex");
-                setTooltip({ label: icon.name, el: e.currentTarget });
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--probemap-border)";
-                e.currentTarget.style.background = "";
-                (e.currentTarget.querySelector(".del-btn") as HTMLElement | null)?.style.setProperty("display", "none");
-                setTooltip(null);
-              }}
+              className="probemap-icon-tile"
+              onMouseEnter={(e) => setTooltip({ label: icon.name, el: e.currentTarget })}
+              onMouseLeave={() => setTooltip(null)}
             >
-              <img src={`${BASE}${icon.url}`} style={{ width: 22, height: 22, objectFit: "contain" }} />
+              <img src={`${BASE}${icon.url}`} style={{ width: 22, height: 22, objectFit: "contain" }} alt="" />
               <button
-                className="del-btn"
+                className="probemap-icon-tile__del"
                 type="button"
                 onClick={(e) => handleDelete(e, icon.name)}
                 style={{
@@ -205,28 +192,20 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
                 />
               </div>
               <button
+                type="button"
                 onClick={handleUpload}
-                style={{
-                  padding: "4px 8px", borderRadius: 5, border: "none",
-                  background: "var(--probemap-blue)", color: "var(--probemap-on-accent)", fontSize: 11, cursor: "pointer", flexShrink: 0,
-                }}
-              >{t("uiOk")}</button>
+                className="probemap-btn probemap-btn--primary"
+                style={{ padding: "4px 8px", borderRadius: 5, fontSize: 11, flexShrink: 0 }}
+              >
+                {t("uiOk")}
+              </button>
             </div>
             {nameError && (
               <div style={{ fontSize: 10, color: "#ef4444", paddingLeft: 2 }}>{t("iconNameRequiredError")}</div>
             )}
           </div>
         ) : (
-          <button
-            onClick={() => fileRef.current?.click()}
-            style={{
-              width: "100%", padding: "5px 0", borderRadius: 6,
-              border: "1.5px dashed var(--probemap-border-strong)", background: "none",
-              fontSize: 12, color: "var(--probemap-text-muted)", cursor: "pointer",
-            }}
-            onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--probemap-blue)"; e.currentTarget.style.color = "var(--probemap-blue)"; }}
-            onMouseLeave={(e) => { e.currentTarget.style.borderColor = "var(--probemap-border-strong)"; e.currentTarget.style.color = "var(--probemap-text-muted)"; }}
-          >
+          <button type="button" onClick={() => fileRef.current?.click()} className="probemap-btn-dashed-wide">
             {t("iconUpload")}
           </button>
         )}

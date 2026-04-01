@@ -65,6 +65,8 @@ export interface ServiceConfig {
   icon?: string;
   description?: string;
   actions?: ServiceAction[];
+  /** Не учитывать источники пробы (значение лейбла probe_source, например instance/pod) */
+  ignored_sources?: string[];
 }
 
 export interface ServiceAction {
@@ -154,10 +156,13 @@ export interface AppConfig {
   datasource: Datasource | null;
   probe_jobs: ProbeJob[];
   label_map: LabelMap;
-  /** Доп. фрагмент внутри селектора probe_success, через запятую (продвинутый режим) */
-  metric_extra_selector?: string;
   /** Правила лейбл + значение (конструктор) */
   metric_filter_rules?: MetricFilterRule[];
+  /**
+   * false — после сохранения URL показан только шаг выбора job; true — полные настройки.
+   * В старых конфигах ключ отсутствует → считаем true (миграция).
+   */
+  settings_targets_saved?: boolean;
 }
 
 export interface MetricSelectorPreview {
@@ -299,7 +304,6 @@ export async function saveConfig(cfg: AppConfig): Promise<void> {
 export async function previewMetricSelector(body: {
   probe_jobs: ProbeJob[];
   metric_filter_rules?: MetricFilterRule[];
-  metric_extra_selector?: string;
   project_filter_pairs?: { label: string; value: string }[];
 }): Promise<MetricSelectorPreview> {
   return apiFetch<MetricSelectorPreview>(`${BASE}/api/config/preview-selector`, {
@@ -324,8 +328,32 @@ export async function discoverJobs(): Promise<DiscoveredJob[]> {
   return apiFetch<DiscoveredJob[]>(`${BASE}/api/config/discover/jobs`).catch(() => []);
 }
 
+/** Список job по явному URL (без сохранения конфига). */
+export async function discoverJobsForUrl(
+  url: string,
+  labelMap?: AppConfig["label_map"],
+): Promise<DiscoveredJob[]> {
+  return apiFetch<DiscoveredJob[]>(`${BASE}/api/config/discover/jobs`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      url,
+      ...(labelMap ? { label_map: labelMap } : {}),
+    }),
+  }).catch(() => []);
+}
+
 export async function discoverLabels(): Promise<string[]> {
   return apiFetch<string[]>(`${BASE}/api/config/discover/labels`).catch(() => []);
+}
+
+/** Список лейблов probe_success по явному URL (без сохранения конфига). */
+export async function discoverLabelsForUrl(url: string): Promise<string[]> {
+  return apiFetch<string[]>(`${BASE}/api/config/discover/labels`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url }),
+  }).catch(() => []);
 }
 
 // ---------------------------------------------------------------------------

@@ -1,18 +1,29 @@
 import { useCallback, useEffect, useState } from "react";
 import type { IconType } from "react-icons";
-import { FaMoon, FaSun } from "react-icons/fa6";
+import { FaGear, FaMoon, FaSun } from "react-icons/fa6";
 import { ReactFlowProvider } from "@xyflow/react";
 import {
   ApiError,
-  fetchServices, fetchProjectServices, fetchProjects, fetchDatasourceStatus,
-  createProject, updateProject, deleteProject,
-  type ServicesResponse, type Project, type ProjectFilter,
+  fetchConfig,
+  fetchServices,
+  fetchProjectServices,
+  fetchProjects,
+  fetchDatasourceStatus,
+  createProject,
+  updateProject,
+  deleteProject,
+  type AppConfig,
+  type ServicesResponse,
+  type Project,
+  type ProjectFilter,
 } from "./api";
 import { TopologyCanvas } from "./TopologyCanvas";
 import { Settings } from "./Settings";
 import { ProjectModal } from "./ProjectModal";
 import { ProjectSelect } from "./ProjectSelect";
 import { I18nProvider, useI18n } from "./i18n";
+import { I18N_STABLE } from "./i18nLayout";
+import { HoverTooltip } from "./Tooltip";
 import { POLL_INTERVAL_OPTIONS_SEC, POLL_INTERVAL_STORAGE_KEY, readPollIntervalSec } from "./pollInterval";
 import { applyTheme, getStoredTheme, type Theme } from "./theme";
 
@@ -64,14 +75,16 @@ function LanguageToggleButton() {
 
 function SettingsButton({ onClick }: { onClick: () => void }) {
   const { t } = useI18n();
+  const label = t("settingsOpen");
   return (
     <button
       type="button"
       onClick={onClick}
-      title={t("settings")}
-      className="probemap-outline-hover-btn"
+      title={label}
+      aria-label={label}
+      className="probemap-outline-hover-btn probemap-header-settings-gear"
     >
-      {t("settings")}
+      <FaGear size={16} aria-hidden />
     </button>
   );
 }
@@ -167,6 +180,10 @@ function AppContent() {
     ok: boolean;
     name?: string | null;
   } | null>(null);
+  /** Для гейта «создать проект» — мастер настроек и т.д. */
+  const [appConfigSnapshot, setAppConfigSnapshot] = useState<AppConfig | null>(null);
+  /** Подсказка для CTA пустых экранов (только кнопка, текст при наведении) */
+  const [emptyCtaHint, setEmptyCtaHint] = useState<{ label: string; el: HTMLElement } | null>(null);
 
   // Load projects on mount
   useEffect(() => {
@@ -239,6 +256,13 @@ function AppContent() {
   }, [projectsLoaded]);
 
   useEffect(() => {
+    if (!projectsLoaded) return;
+    fetchConfig()
+      .then(setAppConfigSnapshot)
+      .catch(() => setAppConfigSnapshot(null));
+  }, [projectsLoaded]);
+
+  useEffect(() => {
     setData(null);
     setError(null);
     setLoadFailed(false);
@@ -271,6 +295,47 @@ function AppContent() {
     if (activeProject?.id === p.id) setActiveProject(p);
   };
 
+  const cfgKnown = appConfigSnapshot !== null;
+  const dsKnown = datasourceStatus !== null;
+  const wizardIncomplete =
+    cfgKnown && appConfigSnapshot.settings_targets_saved === false;
+  const metricsNotReady =
+    dsKnown && (!datasourceStatus.configured || !datasourceStatus.ok);
+  const onboardingReady = cfgKnown && dsKnown && !wizardIncomplete && !metricsNotReady;
+  const onboardingChecking = !cfgKnown || !dsKnown;
+  /** Нет нормального датасорса в конфиге или мастер на шаге таргетов — показываем «Настроить датасорс». */
+  const showDatasourceSetupHead =
+    !onboardingChecking &&
+    (wizardIncomplete ||
+      (metricsNotReady && datasourceStatus !== null && !datasourceStatus.configured));
+
+  const datasourceCtaHelpLabel = `${t("datasourceSetupTitle")}\n\n${t("mapUnavailableBody")}`;
+  const onboardingCtaHelpLabel = (() => {
+    const title = onboardingReady
+      ? t("onboardingTitle")
+      : onboardingChecking
+        ? t("onboardingTitlePrereq")
+        : showDatasourceSetupHead
+          ? t("datasourceSetupTitle")
+          : t("onboardingTitlePrereq");
+    const body = onboardingChecking
+      ? t("onboardingBodyWait")
+      : wizardIncomplete
+        ? t("onboardingBlockedWizard")
+        : metricsNotReady
+          ? t("onboardingBlockedMetrics")
+          : t("onboardingBody");
+    return `${title}\n\n${body}`;
+  })();
+
+  const toggleEmptyCtaHint = (label: string, el: HTMLElement) => {
+    setEmptyCtaHint((prev) => (prev && prev.label === label ? null : { label, el }));
+  };
+
+  useEffect(() => {
+    setEmptyCtaHint(null);
+  }, [needsSetup, projects.length]);
+
   const performDeleteProject = useCallback(async (project: Project) => {
     await deleteProject(project.id);
     setProjects((prev) => {
@@ -294,7 +359,7 @@ function AppContent() {
         background: "var(--probemap-header-bg)",
         zIndex: 20,
       }}>
-        {/* Слева: бренд, настройки */}
+        {/* Слева: бренд */}
         <div
           style={{
             flex: 1,
@@ -308,7 +373,6 @@ function AppContent() {
           <span style={{ fontSize: 14, fontWeight: 700, color: "var(--probemap-text)", letterSpacing: "-0.02em", flexShrink: 0 }}>
             probemap
           </span>
-          <SettingsButton onClick={() => setSettingsOpen(true)} />
         </div>
 
         {/* По центру: активный проект */}
@@ -334,7 +398,7 @@ function AppContent() {
           )}
         </div>
 
-        {/* Справа: автоопрос / обновить, тема, язык */}
+        {/* Справа: автоопрос / обновить, тема, язык, настройки (край справа) */}
         <div
           style={{
             flex: 1,
@@ -365,6 +429,7 @@ function AppContent() {
           >
             <ThemeToggleButton />
             <LanguageToggleButton />
+            <SettingsButton onClick={() => setSettingsOpen(true)} />
           </div>
         </div>
       </div>
@@ -397,33 +462,16 @@ function AppContent() {
                 setError(null);
                 refresh();
               }}
-              style={{
-                padding: "4px 12px",
-                borderRadius: 6,
-                border: "1px solid var(--probemap-warn-banner-border)",
-                background: "var(--probemap-bg)",
-                color: "var(--probemap-warn-banner-text)",
-                fontSize: 12,
-                cursor: "pointer",
-                fontWeight: 600,
-                flexShrink: 0,
-              }}
+              className="probemap-btn probemap-btn--warn-retry"
+              style={{ flexShrink: 0 }}
             >
               {t("apiLoadRetry")}
             </button>
             <button
               type="button"
               onClick={() => setError(null)}
-              style={{
-                padding: "4px 10px",
-                borderRadius: 6,
-                border: "1px solid transparent",
-                background: "transparent",
-                color: "var(--probemap-warn-banner-text)",
-                fontSize: 12,
-                cursor: "pointer",
-                flexShrink: 0,
-              }}
+              className="probemap-btn probemap-btn--warn-dismiss"
+              style={{ flexShrink: 0 }}
             >
               {t("apiLoadDismiss")}
             </button>
@@ -433,43 +481,42 @@ function AppContent() {
           <div
             style={{
               height: "100%",
+              width: "100%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              minHeight: 0,
               padding: 32,
               boxSizing: "border-box",
             }}
           >
-            <div
-              style={{
-                maxWidth: 400,
-                textAlign: "center",
-                color: "var(--probemap-text-muted)",
-                fontSize: 14,
-                lineHeight: 1.55,
-              }}
-            >
-              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--probemap-text-secondary)", marginBottom: 10 }}>
-                {t("mapUnavailableTitle")}
-              </div>
-              <p style={{ margin: "0 0 20px", whiteSpace: "pre-line" }}>
-                {t("mapUnavailableBody")}
-              </p>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span
+                style={{ display: "inline-flex" }}
+                onMouseEnter={(e) => {
+                  setEmptyCtaHint({ label: datasourceCtaHelpLabel, el: e.currentTarget });
+                }}
+                onMouseLeave={() => setEmptyCtaHint(null)}
+              >
+                <button
+                  type="button"
+                  onClick={() => setSettingsOpen(true)}
+                  className="probemap-btn probemap-btn--primary probemap-btn--lg"
+                  style={{ minWidth: I18N_STABLE.settingsOpenMinWidthPx }}
+                >
+                  {t("datasourceSetupTitle")}
+                </button>
+              </span>
               <button
                 type="button"
-                onClick={() => setSettingsOpen(true)}
-                style={{
-                  padding: "8px 20px",
-                  borderRadius: 8,
-                  border: "none",
-                  background: "var(--probemap-blue)",
-                  color: "var(--probemap-on-accent)",
-                  fontSize: 14,
-                  cursor: "pointer",
-                  fontWeight: 600,
-                }}
+                aria-label={t("tooltipInfoAria")}
+                onClick={(e) => toggleEmptyCtaHint(datasourceCtaHelpLabel, e.currentTarget)}
+                onMouseEnter={(e) => setEmptyCtaHint({ label: datasourceCtaHelpLabel, el: e.currentTarget })}
+                onMouseLeave={() => setEmptyCtaHint(null)}
+                className="probemap-btn probemap-btn--ghost probemap-btn--md"
+                style={{ width: 34, minWidth: 34, paddingLeft: 0, paddingRight: 0 }}
               >
-                {t("settingsOpen")}
+                i
               </button>
             </div>
           </div>
@@ -495,47 +542,54 @@ function AppContent() {
             <div
               style={{
                 height: "100%",
+                width: "100%",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
+                minHeight: 0,
                 padding: 32,
                 boxSizing: "border-box",
               }}
             >
-              <div
-                style={{
-                  maxWidth: 440,
-                  textAlign: "center",
-                  color: "var(--probemap-text-muted)",
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                }}
-              >
-                <div style={{ fontSize: 17, fontWeight: 600, color: "var(--probemap-text-secondary)", marginBottom: 12 }}>
-                  {t("onboardingTitle")}
-                </div>
-                <p style={{ margin: "0 0 24px" }}>{t("onboardingBody")}</p>
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <span
+                  style={{ display: "inline-flex" }}
+                  onMouseEnter={(e) => {
+                    setEmptyCtaHint({ label: onboardingCtaHelpLabel, el: e.currentTarget });
+                  }}
+                  onMouseLeave={() => setEmptyCtaHint(null)}
+                >
+                  <button
+                    type="button"
+                    disabled={onboardingChecking}
+                    onClick={() => {
+                      if (onboardingReady) setProjectModal({});
+                      else setSettingsOpen(true);
+                    }}
+                    className={`probemap-btn probemap-btn--lg${onboardingReady ? " probemap-btn--slate" : " probemap-btn--primary"}${onboardingChecking ? " probemap-btn--busy" : ""}`}
+                    style={{
+                      minWidth: onboardingReady ? I18N_STABLE.ctaMinWidthPx : I18N_STABLE.settingsOpenMinWidthPx,
+                    }}
+                  >
+                    {onboardingChecking
+                      ? t("loading")
+                      : onboardingReady
+                        ? t("projectAdd")
+                        : showDatasourceSetupHead
+                          ? t("datasourceSetupTitle")
+                          : t("settingsOpen")}
+                  </button>
+                </span>
                 <button
                   type="button"
-                  onClick={() => setProjectModal({})}
-                  style={{
-                    padding: "10px 24px",
-                    borderRadius: 8,
-                    border: "none",
-                    background: "var(--probemap-btn-slate)",
-                    color: "var(--probemap-btn-slate-text)",
-                    fontSize: 14,
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "var(--probemap-btn-slate-hover)";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "var(--probemap-btn-slate)";
-                  }}
+                  aria-label={t("tooltipInfoAria")}
+                  onClick={(e) => toggleEmptyCtaHint(onboardingCtaHelpLabel, e.currentTarget)}
+                  onMouseEnter={(e) => setEmptyCtaHint({ label: onboardingCtaHelpLabel, el: e.currentTarget })}
+                  onMouseLeave={() => setEmptyCtaHint(null)}
+                  className="probemap-btn probemap-btn--ghost probemap-btn--md"
+                  style={{ width: 34, minWidth: 34, paddingLeft: 0, paddingRight: 0 }}
                 >
-                  {t("projectAdd")}
+                  i
                 </button>
               </div>
             </div>
@@ -581,11 +635,26 @@ function AppContent() {
         )}
       </div>
 
+      {emptyCtaHint && (
+        <HoverTooltip
+          label={emptyCtaHint.label}
+          targetEl={emptyCtaHint.el}
+          multiline
+          placement="below"
+        />
+      )}
+
       {settingsOpen && (
         <Settings
           projectFilterPairs={activeProject?.filters ?? null}
           onClose={() => {
             setSettingsOpen(false);
+            fetchConfig()
+              .then(setAppConfigSnapshot)
+              .catch(() => setAppConfigSnapshot(null));
+            fetchDatasourceStatus()
+              .then(setDatasourceStatus)
+              .catch(() => setDatasourceStatus({ configured: false, ok: false }));
             refresh();
           }}
         />

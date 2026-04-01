@@ -1,6 +1,6 @@
 {
   "datasource": {
-    "name": "VictoriaMetrics Homelab",
+    "name": "VictoriaMetrics",
     "type": "victoriametrics",
     "url": "https://victoriametrics.itruslan.ru"
   },
@@ -17,12 +17,6 @@
     "module": "module",
     "url": null
   },
-  "metric_extra_selector": "",
-  "metric_filter_rules": [
-    {
-      "label": "zone",
-      "value": "hshp-vps",
-      "op": "ne"
-    }
-  ]
+  "metric_filter_rules": [],
+  "settings_targets_saved": true
 }

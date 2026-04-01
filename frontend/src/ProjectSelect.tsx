@@ -179,26 +179,13 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
                     onCreateProject();
                     setOpen(false);
                   }}
+                  className="probemap-btn probemap-btn--slate probemap-btn--lg probemap-btn--block"
                   style={{
-                    display: "block",
                     width: "calc(100% - 12px)",
                     margin: "0 6px 6px",
-                    padding: "10px 12px",
-                    border: "none",
-                    borderRadius: 6,
-                    background: "#334155",
-                    color: "#f8fafc",
-                    fontSize: 14,
-                    fontWeight: 600,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.background = "#475569";
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = "#334155";
+                    boxSizing: "border-box",
+                    minHeight: 44,
+                    textAlign: "center",
                   }}
                 >
                   {t("projectAdd")}

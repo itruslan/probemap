@@ -1,0 +1,148 @@
+{
+  "nodes": [
+    {
+      "id": "anylink-vpn",
+      "x": -37.88645554198473,
+      "y": -333.8766655469586,
+      "type": "service",
+      "label": "anylink-vpn",
+      "matchServiceId": null
+    },
+    {
+      "id": "argocd",
+      "x": -407.9733118168987,
+      "y": -155.65688208182405,
+      "type": "service",
+      "label": "argocd",
+      "matchServiceId": null
+    },
+    {
+      "id": "debian",
+      "x": -428.54082354290557,
+      "y": -321.64617041771015,
+      "type": "service",
+      "label": "debian",
+      "matchServiceId": null
+    },
+    {
+      "id": "grafana-fh",
+      "x": -185.62659579324594,
+      "y": -572.4036368556792,
+      "type": "service",
+      "label": "grafana-fh",
+      "matchServiceId": null
+    },
+    {
+      "id": "authentik",
+      "x": -1207.0327848006339,
+      "y": -772.9885611479265,
+      "type": "service",
+      "label": "authentik",
+      "matchServiceId": null
+    },
+    {
+      "id": "cloudflare-speed",
+      "x": -1207.0327848006339,
+      "y": -682.9885611479265,
+      "type": "service",
+      "label": "cloudflare-speed",
+      "matchServiceId": null
+    },
+    {
+      "id": "cloudflare-www",
+      "x": -1207.0327848006339,
+      "y": -592.9885611479265,
+      "type": "service",
+      "label": "cloudflare-www",
+      "matchServiceId": null
+    },
+    {
+      "id": "eff",
+      "x": -1207.0327848006339,
+      "y": -502.9885611479265,
+      "type": "service",
+      "label": "eff",
+      "matchServiceId": null
+    },
+    {
+      "id": "github-api",
+      "x": -1207.0327848006339,
+      "y": -412.9885611479265,
+      "type": "service",
+      "label": "github-api",
+      "matchServiceId": null
+    },
+    {
+      "id": "grafana",
+      "x": -1207.0327848006339,
+      "y": -322.9885611479265,
+      "type": "service",
+      "label": "grafana",
+      "matchServiceId": null
+    },
+    {
+      "id": "iana",
+      "x": -1207.0327848006339,
+      "y": -232.98856114792648,
+      "type": "service",
+      "label": "iana",
+      "matchServiceId": null
+    },
+    {
+      "id": "rust-lang",
+      "x": -1207.0327848006339,
+      "y": -52.988561147926475,
+      "type": "service",
+      "label": "rust-lang",
+      "matchServiceId": null
+    },
+    {
+      "id": "wikipedia",
+      "x": -1207.0327848006339,
+      "y": 37.011438852073525,
+      "type": "service",
+      "label": "wikipedia",
+      "matchServiceId": null
+    },
+    {
+      "id": "pypi",
+      "x": -623.8498390663259,
+      "y": -549.5386325090026,
+      "type": "service",
+      "label": "pypi",
+      "matchServiceId": null
+    }
+  ],
+  "groups": [],
+  "edges": [
+    {
+      "source": "cloudflare-www",
+      "sourceHandle": "right",
+      "target": "pypi",
+      "targetHandle": "left",
+      "id": "xy-edge__cloudflare-wwwright-pypileft"
+    }
+  ],
+  "service_configs": {
+    "anylink-vpn": {},
+    "argocd": {},
+    "debian": {},
+    "grafana-fh": {},
+    "authentik": {},
+    "cloudflare-speed": {
+      "ignored_sources": []
+    },
+    "cloudflare-www": {
+      "ignored_sources": []
+    },
+    "eff": {},
+    "github-api": {},
+    "grafana": {},
+    "iana": {},
+    "pypi": {
+      "ignored_sources": []
+    },
+    "rust-lang": {},
+    "wikipedia": {}
+  }
+}

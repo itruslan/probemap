@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 import { TrashIcon } from "./TrashIcon";
 import {
+  ApiError,
   fetchProjectFilterValues,
   discoverLabels,
   fetchMetricLabelValues,
@@ -10,6 +11,7 @@ import {
   type ProjectFilter,
 } from "./api";
 import { useI18n } from "./i18n";
+import { I18N_STABLE } from "./i18nLayout";
 
 interface Props {
   project?: Project;
@@ -19,6 +21,16 @@ interface Props {
 }
 
 type Row = { label: string; value: string };
+
+function fastApiDetailCode(text: string): string | null {
+  try {
+    const j = JSON.parse(text) as { detail?: unknown };
+    if (typeof j.detail === "string") return j.detail;
+  } catch {
+    return null;
+  }
+  return null;
+}
 
 function projectToRows(p?: Project): Row[] {
   if (!p) return [{ label: "", value: "" }];
@@ -38,6 +50,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [valueOptions, setValueOptions] = useState<Record<string, string[]>>({});
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
@@ -61,6 +74,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
     setName(project?.name ?? "");
     setRows(r);
     setValueOptions({});
+    setSaveError(null);
     setDeleteConfirmOpen(false);
     setDeleteConfirmText("");
     const pid = project?.id;
@@ -128,10 +142,23 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
     const filters: ProjectFilter[] = rows
       .filter((r) => r.label.trim() && r.value.trim())
       .map((r) => ({ label: r.label.trim(), value: r.value.trim() }));
+    setSaveError(null);
     setSaving(true);
-    await onSave(name.trim(), filters);
-    setSaving(false);
-    onClose();
+    try {
+      await onSave(name.trim(), filters);
+      onClose();
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 400) {
+        const code = fastApiDetailCode(e.message);
+        if (code === "datasource_not_configured") setSaveError(t("projectCreateBlockedDatasource"));
+        else if (code === "settings_targets_unsaved") setSaveError(t("projectCreateBlockedWizard"));
+        else setSaveError(t("apiErrorHttp").replace("{status}", String(e.status)));
+      } else {
+        setSaveError(t("apiErrorNetwork"));
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -170,7 +197,18 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
             gap: 8,
           }}
         >
-          <span style={{ fontSize: 15, fontWeight: 700, color: "var(--probemap-text)" }}>
+          <span
+            style={{
+              fontSize: 15,
+              fontWeight: 700,
+              color: "var(--probemap-text)",
+              flex: 1,
+              minWidth: 0,
+              minHeight: I18N_STABLE.modalTitleMinHeightPx,
+              display: "flex",
+              alignItems: "center",
+            }}
+          >
             {project ? t("projectTitle") : t("projectTitleNew")}
           </span>
           <button
@@ -183,13 +221,22 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
               color: "var(--probemap-text-faint)",
               cursor: "pointer",
               padding: 0,
+              flexShrink: 0,
             }}
           >
             ×
           </button>
         </div>
 
-        <p style={{ margin: "0 0 16px", fontSize: 12, color: "var(--probemap-text-muted)", lineHeight: 1.45 }}>
+        <p
+          style={{
+            margin: "0 0 16px",
+            fontSize: 12,
+            color: "var(--probemap-text-muted)",
+            lineHeight: 1.45,
+            minHeight: I18N_STABLE.projectIntroMinHeightPx,
+          }}
+        >
           {t("projectIntro")}
         </p>
 
@@ -279,16 +326,8 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                       onClick={() => removeRow(i)}
                       disabled={rows.length <= 1}
                       title={t("projectRemoveCondition")}
-                      style={{
-                        padding: "6px 10px",
-                        borderRadius: 6,
-                        border: "1.5px solid var(--probemap-border)",
-                        background: "var(--probemap-modal-bg)",
-                        cursor: rows.length <= 1 ? "default" : "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
+                      className="probemap-btn probemap-btn--icon-plain"
+                      style={{ cursor: rows.length <= 1 ? "default" : "pointer" }}
                     >
                       <TrashIcon size={14} muted={rows.length <= 1} />
                     </button>
@@ -332,33 +371,41 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                   setDeleteConfirmText("");
                 }}
                 title={t("projectDelete")}
+                className="probemap-btn probemap-btn--danger probemap-btn--xs"
                 style={{
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  padding: "6px 8px",
+                  width: 34,
+                  minWidth: 34,
+                  height: 34,
+                  padding: 0,
                   borderRadius: 6,
                   display: "flex",
                   alignItems: "center",
+                  justifyContent: "center",
                 }}
               >
-                <TrashIcon size={16} />
+                <TrashIcon size={14} variantOnRed />
               </button>
             )}
           </div>
-          <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8, flexShrink: 0 }}>
+            {saveError ? (
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--probemap-text-secondary)",
+                  lineHeight: 1.4,
+                  maxWidth: 280,
+                  textAlign: "right",
+                }}
+              >
+                {saveError}
+              </div>
+            ) : null}
+            <div style={{ display: "flex", gap: 10 }}>
             <button
               type="button"
               onClick={onClose}
-              style={{
-                padding: "7px 18px",
-                borderRadius: 7,
-                border: "1.5px solid var(--probemap-border)",
-                background: "none",
-                fontSize: 13,
-                cursor: "pointer",
-                color: "var(--probemap-text-muted)",
-              }}
+              className="probemap-btn probemap-btn--ghost probemap-btn--md"
             >
               {t("cancel")}
             </button>
@@ -366,25 +413,12 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
               type="button"
               onClick={() => void handleSave()}
               disabled={!name.trim() || saving}
-              style={{
-                padding: "7px 18px",
-                borderRadius: 7,
-                border: "none",
-                fontSize: 13,
-                cursor: "pointer",
-                background: "var(--probemap-btn-slate)",
-                color: "var(--probemap-btn-slate-text)",
-                opacity: !name.trim() ? 0.5 : 1,
-              }}
-              onMouseEnter={(e) => {
-                if (!e.currentTarget.disabled) e.currentTarget.style.background = "var(--probemap-btn-slate-hover)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "var(--probemap-btn-slate)";
-              }}
+              className="probemap-btn probemap-btn--slate probemap-btn--md"
+              style={{ opacity: !name.trim() ? 0.5 : 1 }}
             >
               {saving ? "…" : t("save")}
             </button>
+            </div>
           </div>
         </div>
       </div>
@@ -447,15 +481,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                 type="button"
                 onClick={closeDeleteConfirm}
                 disabled={deleting}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: 6,
-                  border: "1.5px solid var(--probemap-border)",
-                  background: "var(--probemap-modal-bg)",
-                  fontSize: 13,
-                  cursor: deleting ? "default" : "pointer",
-                  color: "var(--probemap-text-muted)",
-                }}
+                className="probemap-btn probemap-btn--ghost probemap-btn--sm"
               >
                 {t("cancel")}
               </button>
@@ -463,16 +489,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                 type="button"
                 onClick={() => void doConfirmDelete()}
                 disabled={deleteConfirmText !== project.name || deleting}
-                style={{
-                  padding: "6px 16px",
-                  borderRadius: 6,
-                  border: "none",
-                  fontSize: 13,
-                  cursor: deleteConfirmText === project.name && !deleting ? "pointer" : "default",
-                  background: deleteConfirmText === project.name && !deleting ? "#ef4444" : "var(--probemap-bg-subtle)",
-                  color: deleteConfirmText === project.name && !deleting ? "var(--probemap-on-accent)" : "var(--probemap-text-faint)",
-                  transition: "background 0.15s, color 0.15s",
-                }}
+                className="probemap-btn probemap-btn--danger probemap-btn--sm"
               >
                 {t("delete")}
               </button>

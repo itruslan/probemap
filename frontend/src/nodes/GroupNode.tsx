@@ -127,19 +127,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             type="button"
             onClick={() => setPaletteOpen((v) => !v)}
             title={t("groupColor")}
-            style={{
-              width: 18,
-              height: 18,
-              borderRadius: 999,
-            border: "none",
-              padding: 0,
-              marginRight: 6,
-            background: "transparent",
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
+            className="probemap-btn probemap-btn--icon-tiny"
+            style={{ marginRight: 6 }}
           >
             <span
               aria-hidden
@@ -212,21 +201,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               title={t("layerBack")}
               onMouseEnter={() => setLayerHint("back")}
               onMouseLeave={() => setLayerHint(null)}
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 999,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: 9,
-                lineHeight: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                color: labelColor,
-              }}
+              className="probemap-btn probemap-btn--icon-tiny"
+              style={{ color: labelColor }}
             >
               <span
                 aria-hidden
@@ -245,21 +221,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               title={t("layerForward")}
               onMouseEnter={() => setLayerHint("front")}
               onMouseLeave={() => setLayerHint(null)}
-              style={{
-                width: 18,
-                height: 18,
-                borderRadius: 999,
-                border: "none",
-                background: "transparent",
-                cursor: "pointer",
-                fontSize: 9,
-                lineHeight: 1,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                padding: 0,
-                color: labelColor,
-              }}
+              className="probemap-btn probemap-btn--icon-tiny"
+              style={{ color: labelColor }}
             >
               <span
                 aria-hidden
@@ -301,14 +264,10 @@ export function GroupNode({ id, data, selected }: NodeProps) {
                   d.color = c.bg;
                   setPaletteOpen(false);
                 }}
+                className="probemap-btn probemap-btn--color-swatch"
                 style={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: 999,
-                  padding: 0,
                   border: `2px solid ${c.border}`,
                   background: c.bg,
-                  cursor: "pointer",
                   outline: i === colorIdx ? `2px solid ${c.border}` : "none",
                   outlineOffset: 1,
                 }}

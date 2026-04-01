@@ -1,7 +1,7 @@
 [
   {
-    "id": "cd7ea4d2",
-    "name": "PROD",
+    "id": "469a2f0b",
+    "name": "Production",
     "filters": [
       {
         "label": "environment",
@@ -11,20 +11,6 @@
     "filter": {
       "label": "environment",
       "value": "production"
-    }
-  },
-  {
-    "id": "5cf5533d",
-    "name": "STAGE",
-    "filters": [
-      {
-        "label": "environment",
-        "value": "staging"
-      }
-    ],
-    "filter": {
-      "label": "environment",
-      "value": "staging"
     }
   }
 ]

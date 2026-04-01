@@ -1,46 +1,5 @@
 {
-  "nodes": [
-    {
-      "id": "argocd",
-      "x": 981.7501375618049,
-      "y": 220.56990139214176,
-      "type": "service",
-      "description": "123",
-      "actions": [
-        {
-          "icon": "FaGlobe",
-          "label": "google",
-          "url": "https://google.com"
-        }
-      ]
-    },
-    {
-      "id": "authentik",
-      "x": 608.4558374753755,
-      "y": -51.432203808180375,
-      "type": "service"
-    },
-    {
-      "id": "grafana",
-      "x": 990.7952763648594,
-      "y": 49.53055300970841,
-      "type": "service"
-    }
-  ],
+  "nodes": [],
   "groups": [],
-  "edges": [],
-  "service_configs": {
-    "argocd": {
-      "description": "123",
-      "actions": [
-        {
-          "icon": "FaGlobe",
-          "label": "google",
-          "url": "https://google.com"
-        }
-      ]
-    },
-    "authentik": {},
-    "grafana": {}
-  }
+  "edges": []
 }

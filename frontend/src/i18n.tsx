@@ -16,17 +16,26 @@ const STRINGS = {
     themeDark: "Тёмная тема",
     themeToggleAria: "Переключить светлую или тёмную тему",
     mapUnavailableTitle: "Карта пока недоступна",
+    /** Экран 424 и шаг «ещё нет датасорса / не выбраны таргеты» — заголовок и кнопка-CTA */
+    datasourceSetupTitle: "Настроить датасорс",
     mapUnavailableBody:
-      "Укажите источник метрик (VictoriaMetrics), нажмите «Проверить» в настройках и сохраните.\nЗатем создайте проект при необходимости.",
+      "Укажите и сохраните URL источника метрик (Prometheus-совместимый API), выберите job и сохраните шаг таргетов — без этого карта и проекты не заработают.",
 
     servicesTitle: "Сервисы",
     servicesPaletteHelpAria: "Справка по панели сервисов",
+    tooltipInfoAria: "Подсказка",
     searchPlaceholder: "Поиск…",
     nothingFound: "Ничего не найдено",
     paletteAdd: "Добавить",
     onboardingTitle: "Создайте проект",
+    onboardingTitlePrereq: "Сначала настройте источник метрик",
     onboardingBody:
       "У каждого проекта свой холст и своя раскладка. Задайте фильтры по лейблам — в палитре останутся только подходящие сервисы, затем добавляйте их на карту через «Добавить», ПКМ по карте или плавающую панель.",
+    onboardingBodyWait: "Проверяем сохранённый конфиг и доступность источника…",
+    onboardingBlockedWizard:
+      "В настройках сохраните URL, выберите нужные job и нажмите «Сохранить» на шаге таргетов. Пока мастер не завершён, создавать проект нельзя — на карте не на что опираться.",
+    onboardingBlockedMetrics:
+      "Источник не указан, не сохранён в конфиге или сейчас не отвечает. Откройте настройки, проверьте URL кнопкой «Проверить» и сохраните конфигурацию.",
     monitoringHint:
       "Слева — сервисы из мониторинга. Добавьте на карту кнопкой «Добавить».\nПКМ по пустому месту карты — область и сервис.\nПлавающая панель на карте — инструменты и масштаб.",
 
@@ -45,6 +54,9 @@ const STRINGS = {
     monitoringTitle: "МОНИТОРИНГ",
     monitoringSummary: "Пробы: {ok}/{total}",
     monitoringSourcesCoverage: "Blackbox: {present}/{expected}",
+    monitoringSourcesToggleHint: "Источники: тапните, чтобы учитывать / не учитывать",
+    monitoringIgnoreSourceOn: "Не учитывать",
+    monitoringIgnoreSourceOff: "Учитывать",
     descriptionTitle: "ОПИСАНИЕ",
     actionsTitle: "ДЕЙСТВИЯ",
     labelsTitle: "МЕТКИ",
@@ -89,7 +101,15 @@ const STRINGS = {
 
     /** Настройки — секции и тексты */
     settingsDatasourceIntro:
-      "Prometheus-совместимый API (VictoriaMetrics). Без URL карта и списки лейблов работать не будут — это нормально до первой настройки.",
+      "Источник — Prometheus-совместимый API. Сначала сохраните URL — затем откроется выбор job и остальные настройки.",
+    settingsCheckHint:
+      "«Проверить» только проверяет доступность API по этому адресу; probemap не подключает источник, пока вы не нажмёте «Сохранить» под полем URL.",
+    settingsNeedRecheckHint:
+      "Текущий URL в поле не совпадает с адресом, с которого подгружены списки. Сохраните URL заново или верните прежнее значение.",
+    settingsJobsStepHint:
+      "Отметьте нужные job и нажмите «Сохранить» — без этого шага дальнейшие настройки не откроются. Можно сохранить и без выбранных job (если список пуст или вы отключите всё осознанно).",
+    settingsJobsLoading: "Загружаем список job…",
+    settingsJobsEmptyVm: "В метриках probe_success не найдено ни одного job — проверьте blackbox / scrape.",
     settingsName: "Название",
     settingsUrlApi: "URL API",
     settingsUrlPlaceholder: "https://victoria-metrics.example:8428",
@@ -100,47 +120,41 @@ const STRINGS = {
     settingsJobsB: " берутся значения стандартного лейбла ",
     settingsJobsC:
       " (как в Prometheus: имя scrape job). Отметьте, какие job учитывать при сборе списка сервисов в палитре.",
-    settingsJobsEmpty: "Сначала укажите URL и нажмите «Проверить», чтобы подтянуть список job.",
     settingsJobSources: "источники:",
 
-    settingsSectionFilter: "ОБЩИЙ ФИЛЬТР (КОНСТРУКТОР)",
+    settingsSectionFilter: "ФИЛЬТР МЕТРИК",
     settingsFilterIntro:
-      "Условия добавляются к селектору вместе с выбранными job и (для проекта) с его лейблами. Несколько строк — логическое И в PromQL.",
+      "Строки конструктора добавляются в селектор вместе с выбранными job; несколько строк — логическое И в PromQL.\n\nБез правил в запросе остаются только job и (при открытом проекте) фильтр проекта.",
     settingsPresetEnvProd: "+ environment=prod",
     settingsPresetEnvStaging: "+ environment≠staging",
     settingsPresetTeam: "+ team =~ platform.*",
     settingsFilterClear: "Очистить правила",
-    settingsFilterNoRules:
-      "Правил пока нет — метрики фильтруются только по job (и по проекту, если задан).",
     settingsFilterAddRule: "+ Добавить условие",
     settingsFilterLabelOption: "лейбл",
     settingsFilterValuePlaceholder: "prod или .*",
-    settingsSelectorPreviewTitle: "ПРЕВЬЮ СЕЛЕКТОРА",
+    settingsSelectorPreviewTitle: "Превью селектора",
     settingsSelectorPreviewHint:
-      "Именно такой фрагмент подставляется в запросы к probe_success (как на сервере). Для проекта к нему добавятся лейблы фильтра проекта.",
-    settingsSectionRawPromql: "ДОПОЛНИТЕЛЬНО (СЫРОЙ PROMQL)",
-    settingsRawPromqlIntro:
-      "Необязательно. Вставляется в конец селектора через запятую после правил конструктора. Для сложных выражений, если конструктора не хватает.",
-    settingsRawPromqlPlaceholder: 'например: cluster="eu-1"',
-    settingsSectionLabelMap: "КАК ЧИТАТЬ ЛЕЙБЛЫ МЕТРИК",
+      "Фрагмент, который уходит в запросы к probe_success на сервере. Для вида «проект» к нему добавляются лейблы фильтра проекта.",
+    settingsSectionLabelMap: "СООТВЕТСТВИЕ ЛЕЙБЛОВ",
     settingsLabelMapIntro:
-      "После «Проверить» можно выбрать реальные имена лейблов из VictoriaMetrics. Они должны совпадать с тем, что отдаёт ваш blackbox / scrape.",
+      "Выберите реальные имена лейблов из вашего источника метрик — они должны совпадать с тем, что отдаёт blackbox / scrape.",
     settingsLabelNotSet: "— не задано —",
     settingsClose: "Закрыть",
 
-    labelMapServiceTitle: "Имя сервиса на карте (лейбл в метриках)",
+    labelMapServiceTitle: "Имя сервиса",
     labelMapServiceHint:
-      "Лейбл метрики, по которому группируются таргеты в одну карточку сервиса (часто service или instance).",
-    labelMapPortTitle: "Порт / endpoint",
-    labelMapPortHint: "Лейбл с номером порта или идентификатором проверяемого endpoint.",
-    labelMapProbeSourceTitle: "Источник пробы (инстанс blackbox)",
+      "Лейбл в probe_success, по которому таргеты собираются в одну карточку на карте. Чаще всего service (иногда instance).",
+    labelMapPortTitle: "Порт",
+    labelMapPortHint: "Лейбл с портом или иным идентификатором проверяемого endpoint.",
+    labelMapProbeSourceTitle: "Источник пробы",
     labelMapProbeSourceHint:
-      "Лейбл в метриках, по которому различаются отдельные blackbox/экспортёры. Часто instance (адрес:порт процесса blackbox). Можно указать pod, hostname и т.д.",
-    labelMapModuleTitle: "Модуль blackbox",
+      "Лейбл, различающий инстансы blackbox (экспортёра). Обычно instance — адрес:порт процесса blackbox; при необходимости pod, hostname и т.п.",
+    labelMapModuleTitle: "Модуль пробы",
     labelMapModuleHint:
-      "Лейбл с именем модуля пробы (http_2xx, icmp и т.д.) — по нему определяется тип http/icmp/tcp.",
-    labelMapUrlTitle: "URL (необязательно)",
-    labelMapUrlHint: "Если нужен отдельный лейбл с адресом цели; можно оставить пустым.",
+      "Лейбл с именем модуля blackbox (http_2xx, icmp …); по нему определяется тип проверки (http / icmp / tcp).",
+    labelMapUrlTitle: "URL цели",
+    labelMapUrlHint:
+      "Если целевой URL хранится в отдельном лейбле — укажите его. Иначе оставьте «не задано».",
 
     opEq: "= равно",
     opRe: "=~ regex",
@@ -168,6 +182,8 @@ const STRINGS = {
     projectPlaceholderFirstLabel: "сначала лейбл",
     projectRemoveCondition: "Удалить условие",
     projectAddCondition: "+ Условие (ещё лейбл)",
+    projectCreateBlockedDatasource: "Сначала сохраните URL источника метрик в настройках.",
+    projectCreateBlockedWizard: "В настройках сохраните шаг выбора job (таргеты).",
 
     defaultGroupLabel: "Область",
     defaultServiceLabel: "Сервис",
@@ -213,17 +229,25 @@ const STRINGS = {
     themeDark: "Dark theme",
     themeToggleAria: "Switch light or dark theme",
     mapUnavailableTitle: "Map is unavailable yet",
+    datasourceSetupTitle: "Configure datasource",
     mapUnavailableBody:
-      "Specify the metrics source (VictoriaMetrics), click «Check» in settings, and save.\nThen create a project if needed.",
+      "Enter and save your metrics datasource URL (Prometheus-compatible API), pick jobs, and save the targets step — without that, the map and projects cannot work.",
 
     servicesTitle: "Services",
     servicesPaletteHelpAria: "Services panel help",
+    tooltipInfoAria: "Help tooltip",
     searchPlaceholder: "Search…",
     nothingFound: "Nothing found",
     paletteAdd: "Add",
     onboardingTitle: "Create a project",
+    onboardingTitlePrereq: "Set up the metrics source first",
     onboardingBody:
       "Each project has its own canvas and layout. Set label filters — only matching services appear in the palette — then add them with «Add», the canvas context menu, or the floating toolbar.",
+    onboardingBodyWait: "Checking saved config and datasource reachability…",
+    onboardingBlockedWizard:
+      "In settings, save the URL, pick the jobs you need, and click «Save» on the targets step. Until the setup wizard is finished you cannot create a project — there is no metric data to build on.",
+    onboardingBlockedMetrics:
+      "The datasource is missing, not saved in config, or not responding. Open settings, verify the URL with «Check», and save the configuration.",
     monitoringHint:
       "Monitored services on the left. Use «Add» to place one on the map.\nRight‑click empty canvas for area and service.\nThe floating toolbar — tools and zoom.",
 
@@ -242,6 +266,9 @@ const STRINGS = {
     monitoringTitle: "MONITORING",
     monitoringSummary: "Probes: {ok}/{total}",
     monitoringSourcesCoverage: "Blackbox: {present}/{expected}",
+    monitoringSourcesToggleHint: "Sources: tap to include / ignore",
+    monitoringIgnoreSourceOn: "Ignore",
+    monitoringIgnoreSourceOff: "Include",
     descriptionTitle: "DESCRIPTION",
     actionsTitle: "ACTIONS",
     labelsTitle: "LABELS",
@@ -285,7 +312,15 @@ const STRINGS = {
     emDash: "—",
 
     settingsDatasourceIntro:
-      "Prometheus-compatible API (VictoriaMetrics). Without a URL the map and label lists will not work — that is expected until you finish setup.",
+      "The datasource is a Prometheus-compatible API. Save the URL first — then job selection and the rest of the settings will appear.",
+    settingsCheckHint:
+      "«Check» only verifies that the API responds at this URL; probemap does not use the datasource until you click «Save» below the URL field.",
+    settingsNeedRecheckHint:
+      "The URL in the field does not match the address used to load the lists. Save the URL again or restore the previous value.",
+    settingsJobsStepHint:
+      "Select the jobs you need and click «Save» — advanced settings stay hidden until this step. You may save with none selected if the list is empty or you intend to disable all jobs.",
+    settingsJobsLoading: "Loading job list…",
+    settingsJobsEmptyVm: "No job labels found in probe_success — check blackbox / scrape configuration.",
     settingsName: "Name",
     settingsUrlApi: "API URL",
     settingsUrlPlaceholder: "https://victoria-metrics.example:8428",
@@ -296,47 +331,41 @@ const STRINGS = {
     settingsJobsB: " metrics we read the standard ",
     settingsJobsC:
       " label (Prometheus scrape job name). Choose which jobs to include when building the palette service list.",
-    settingsJobsEmpty: "Enter the URL and click «Check» first to load the job list.",
     settingsJobSources: "sources:",
 
-    settingsSectionFilter: "GLOBAL FILTER (BUILDER)",
+    settingsSectionFilter: "METRIC FILTER",
     settingsFilterIntro:
-      "Conditions are appended to the selector together with selected jobs and (for a project) its labels. Multiple rows are combined with logical AND in PromQL.",
+      "Builder rows are merged into the selector with the selected jobs; multiple rows are AND in PromQL.\n\nWith no rules, only jobs and (when a project is open) the project filter apply.",
     settingsPresetEnvProd: "+ environment=prod",
     settingsPresetEnvStaging: "+ environment≠staging",
     settingsPresetTeam: "+ team =~ platform.*",
     settingsFilterClear: "Clear rules",
-    settingsFilterNoRules:
-      "No rules yet — metrics are filtered by job only (and by the project filter if set).",
     settingsFilterAddRule: "+ Add condition",
     settingsFilterLabelOption: "label",
     settingsFilterValuePlaceholder: "prod or .*",
-    settingsSelectorPreviewTitle: "SELECTOR PREVIEW",
+    settingsSelectorPreviewTitle: "Selector preview",
     settingsSelectorPreviewHint:
-      "This exact fragment is used in probe_success queries (same as on the server). Project filter labels are added on top for project views.",
-    settingsSectionRawPromql: "EXTRA (RAW PROMQL)",
-    settingsRawPromqlIntro:
-      "Optional. Appended to the end of the selector after builder rules, comma-separated. For advanced expressions when the builder is not enough.",
-    settingsRawPromqlPlaceholder: 'e.g. cluster="eu-1"',
-    settingsSectionLabelMap: "HOW TO READ METRIC LABELS",
+      "Fragment sent in probe_success queries on the server. In project view, project filter labels are added too.",
+    settingsSectionLabelMap: "LABEL MAPPING",
     settingsLabelMapIntro:
-      "After «Check» you can pick real label names from VictoriaMetrics. They must match what your blackbox / scrape exposes.",
+      "Pick label names as they appear in your metrics source; they must match what blackbox / scrape exports.",
     settingsLabelNotSet: "— not set —",
     settingsClose: "Close",
 
-    labelMapServiceTitle: "Service name on the map (metric label)",
+    labelMapServiceTitle: "Service name",
     labelMapServiceHint:
-      "Metric label used to group targets into one service card (often service or instance).",
-    labelMapPortTitle: "Port / endpoint",
-    labelMapPortHint: "Label for port number or endpoint identifier.",
-    labelMapProbeSourceTitle: "Probe source (blackbox instance)",
+      "Label in probe_success used to group targets into one card on the map. Usually service (sometimes instance).",
+    labelMapPortTitle: "Port",
+    labelMapPortHint: "Label holding the port or another endpoint identifier.",
+    labelMapProbeSourceTitle: "Probe source",
     labelMapProbeSourceHint:
-      "Label that distinguishes blackbox exporters in metrics. Often instance (host:port of the blackbox process). May be pod, hostname, etc.",
-    labelMapModuleTitle: "Blackbox module",
+      "Label that distinguishes blackbox exporter instances. Often instance (blackbox host:port); alternatively pod, hostname, etc.",
+    labelMapModuleTitle: "Probe module",
     labelMapModuleHint:
-      "Label for the probe module name (http_2xx, icmp, …) — used to infer http/icmp/tcp type.",
-    labelMapUrlTitle: "URL (optional)",
-    labelMapUrlHint: "Separate label for target URL if needed; can be left empty.",
+      "Label with the blackbox module name (http_2xx, icmp, …); used to infer http / icmp / tcp.",
+    labelMapUrlTitle: "Target URL",
+    labelMapUrlHint:
+      "If the target URL lives in its own label, choose it here. Otherwise leave “not set”.",
 
     opEq: "= equals",
     opRe: "=~ regex",
@@ -363,6 +392,8 @@ const STRINGS = {
     projectPlaceholderFirstLabel: "label first",
     projectRemoveCondition: "Remove condition",
     projectAddCondition: "+ Another condition",
+    projectCreateBlockedDatasource: "Save the metrics datasource URL in settings first.",
+    projectCreateBlockedWizard: "Finish the job (targets) step in settings and save it.",
 
     defaultGroupLabel: "Area",
     defaultServiceLabel: "Service",

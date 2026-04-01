@@ -54,18 +54,8 @@ export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }
     <>
       <div
         ref={mainRef}
-        style={{
-          position: "fixed", top, left,
-          zIndex: 1000,
-          background: "var(--probemap-bg)",
-          border: "1.5px solid var(--probemap-border)",
-          borderRadius: 8,
-          boxShadow: "0 4px 16px rgba(0,0,0,.12)",
-          width: MENU_W,
-          padding: "4px 0",
-          fontSize: 13,
-          color: "var(--probemap-text)",
-        }}
+        className="probemap-context-menu"
+        style={{ top, left, width: MENU_W }}
         onContextMenu={(e) => e.preventDefault()}
       >
         <Row
@@ -86,21 +76,11 @@ export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }
       {showSub && (
         <div
           ref={subRef}
+          className="probemap-context-menu probemap-context-menu--sub"
           style={{
-            position: "fixed",
             top: Math.min(subY, window.innerHeight - 300),
             left: subLeft,
-            zIndex: 1001,
-            background: "var(--probemap-bg)",
-            border: "1.5px solid var(--probemap-border)",
-            borderRadius: 8,
-            boxShadow: "0 4px 16px rgba(0,0,0,.12)",
             width: SUB_W,
-            padding: "4px 0",
-            fontSize: 13,
-            color: "var(--probemap-text)",
-            maxHeight: 320,
-            overflowY: "auto",
           }}
         >
           {services.length > 0 &&
@@ -112,9 +92,7 @@ export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }
               />
             ))}
           {services.length === 0 && (
-            <div style={{ padding: "8px 14px 6px", color: "var(--probemap-text-faint)", fontSize: 12, lineHeight: 1.35 }}>
-              {t("contextAllServicesOnCanvas")}
-            </div>
+            <div className="probemap-context-menu__empty">{t("contextAllServicesOnCanvas")}</div>
           )}
         </div>
       )}
@@ -131,37 +109,40 @@ function Row({
   hint?: string;
   arrow?: boolean;
   active?: boolean;
-  onMouseEnter?: (e: React.MouseEvent<HTMLDivElement>) => void;
+  onMouseEnter?: (e: React.MouseEvent<HTMLButtonElement>) => void;
   onClick?: () => void;
 }) {
+  const rowClass = [
+    "probemap-context-menu__row",
+    active && "probemap-context-menu__row--active",
+    hint && "probemap-context-menu__row--hint",
+  ]
+    .filter(Boolean)
+    .join(" ");
+
   return (
-    <div
+    <button
+      type="button"
+      className={rowClass}
       onClick={onClick}
       onMouseEnter={onMouseEnter}
-      style={{
-        display: "flex", alignItems: "center", gap: 8,
-        padding: hint ? "7px 14px" : "6px 14px",
-        cursor: onClick ? "pointer" : "default",
-        userSelect: "none",
-        background: active ? "var(--probemap-bg-subtle)" : "",
-        justifyContent: "space-between",
-      }}
-      onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = ""; }}
-      onMouseOver={(e) => { if (onClick || arrow) e.currentTarget.style.background = "var(--probemap-bg-subtle)"; }}
-      onMouseOut={(e) => { if (!active) e.currentTarget.style.background = ""; }}
+      aria-expanded={arrow ? active : undefined}
+      aria-haspopup={arrow ? "menu" : undefined}
     >
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8, minWidth: 0, flex: 1 }}>
+      <span className="probemap-context-menu__row-inner">
         {icon != null && (
-          <span style={{ color: "var(--probemap-text-muted)", display: "flex", flexShrink: 0, marginTop: hint ? 2 : 0 }}>{icon}</span>
+          <span
+            className={`probemap-context-menu__icon${hint ? " probemap-context-menu__icon--offset" : ""}`}
+          >
+            {icon}
+          </span>
         )}
-        <div style={{ display: "flex", flexDirection: "column", gap: 2, minWidth: 0 }}>
-          <span style={{ color: "var(--probemap-text)", lineHeight: 1.25 }}>{label}</span>
-          {hint && (
-            <span style={{ fontSize: 11, color: "var(--probemap-text-faint)", fontWeight: 400, lineHeight: 1.2 }}>{hint}</span>
-          )}
-        </div>
-      </div>
-      {arrow && <span style={{ color: "var(--probemap-text-faint)", fontSize: 11, flexShrink: 0, alignSelf: "center" }}>›</span>}
-    </div>
+        <span className="probemap-context-menu__label-col">
+          <span className="probemap-context-menu__label-text">{label}</span>
+          {hint ? <span className="probemap-context-menu__hint-text">{hint}</span> : null}
+        </span>
+      </span>
+      {arrow ? <span className="probemap-context-menu__arrow" aria-hidden>›</span> : null}
+    </button>
   );
 }
