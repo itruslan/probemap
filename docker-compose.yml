@@ -2,13 +2,14 @@ services:
   probemap:
     build: .
     ports:
-      - "8000:8000"
+      - "${PROBEMAP_HOST_PORT:-8000}:8000"
     volumes:
       - probemap_data:/app/data
     environment:
-      - PROBEMAP_DATASOURCE_URL=${PROBEMAP_DATASOURCE_URL:-}
-      - PROBEMAP_CORS_ORIGINS=${PROBEMAP_CORS_ORIGINS:-*}
-      - PROBEMAP_LOG_LEVEL=${PROBEMAP_LOG_LEVEL:-info}
+      PROBEMAP_DATASOURCE_URL: ${PROBEMAP_DATASOURCE_URL:-}
+      PROBEMAP_CORS_ORIGINS: ${PROBEMAP_CORS_ORIGINS:-*}
+      PROBEMAP_LOG_LEVEL: ${PROBEMAP_LOG_LEVEL:-info}
+      # В образе порт приложения 8000 (см. Dockerfile); снаружи — PROBEMAP_HOST_PORT
     restart: unless-stopped
 
 volumes:

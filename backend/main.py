@@ -44,12 +44,12 @@ def health() -> dict[str, str]:
 
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
-    return cfg_mod.read_config()
+    return cfg_mod.read_config_for_api()
 
 
 @app.put("/api/config")
 def put_config(body: dict[str, Any]) -> dict[str, str]:
-    cfg_mod.write_config(body)
+    cfg_mod.write_config(cfg_mod.sanitize_config_write(body))
     return {"status": "ok"}
 
 

@@ -18,11 +18,22 @@ import {
 import "@xyflow/react/dist/style.css";
 import { createPortal } from "react-dom";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { fetchProjectLayout, saveProjectLayout, type Service, type ServicesResponse, type ServiceAction, type ServiceConfig } from "./api";
+import {
+  fetchProjectLayout,
+  normalizeLayoutEdgeData,
+  saveProjectLayout,
+  type LayoutEdgeData,
+  type Service,
+  type ServicesResponse,
+  type ServiceAction,
+  type ServiceConfig,
+} from "./api";
 import { POLL_INTERVAL_OPTIONS_SEC } from "./pollInterval";
 import { ServiceNode, type ServiceNodeData } from "./nodes/ServiceNode";
 import { GroupNode, type GroupNodeData } from "./nodes/GroupNode";
 import { DeletableEdge } from "./edges/DeletableEdge";
+import { EdgeMetadataModal } from "./edges/EdgeMetadataModal";
+import { EdgeInteractionContext } from "./edges/edgeInteractionContext";
 import { Palette } from "./Palette";
 import { MapObjectsBar } from "./MapObjectsBar";
 import { ContextMenu } from "./ContextMenu";
@@ -39,6 +50,27 @@ const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
 
 const NODE_TYPES = { service: ServiceNode, group: GroupNode };
 const EDGE_TYPES = { default: DeletableEdge };
+
+type MapEdge = Edge<LayoutEdgeData>;
+
+function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
+  const id = typeof raw.id === "string" ? raw.id : String(raw.id ?? "");
+  const source = typeof raw.source === "string" ? raw.source : String(raw.source ?? "");
+  const target = typeof raw.target === "string" ? raw.target : String(raw.target ?? "");
+  if (!id || !source || !target) return null;
+  const type = typeof raw.type === "string" ? raw.type : "default";
+  const edge: MapEdge = {
+    id,
+    source,
+    target,
+    type,
+    data: normalizeLayoutEdgeData(raw.data),
+  };
+  if (raw.style && typeof raw.style === "object" && raw.style !== null) {
+    edge.style = raw.style as MapEdge["style"];
+  }
+  return edge;
+}
 
 function serviceToNode(
   svc: Service,
@@ -202,19 +234,20 @@ export function TopologyCanvas({
   const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
   const layoutLoaded = useRef(false);
   const HISTORY_MAX = 10;
-  type Snapshot = { nodes: Node[]; edges: Edge[]; service_configs: Record<string, ServiceConfig> };
+  type Snapshot = { nodes: Node[]; edges: MapEdge[]; service_configs: Record<string, ServiceConfig> };
   const undoStack = useRef<Snapshot[]>([]);
   const redoStack = useRef<Snapshot[]>([]);
   const applyingHistory = useRef(false);
   const dragStartSnapshot = useRef<Snapshot | null>(null);
   const [historyTick, setHistoryTick] = useState(0);
   const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
-  const [edges, setEdges, onEdgesChangeBase] = useEdgesState<Edge>([]);
+  const [edges, setEdges, onEdgesChangeBase] = useEdgesState<MapEdge>([]);
+  const [edgeEditId, setEdgeEditId] = useState<string | null>(null);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const cloneSnapshot = useCallback((): Snapshot => {
     const n = JSON.parse(JSON.stringify(nodes)) as Node[];
-    const e = JSON.parse(JSON.stringify(edges)) as Edge[];
+    const e = JSON.parse(JSON.stringify(edges)) as MapEdge[];
     const sc = JSON.parse(JSON.stringify(serviceConfigs.current)) as Record<string, ServiceConfig>;
     return { nodes: n, edges: e, service_configs: sc };
   }, [nodes, edges]);
@@ -517,7 +550,8 @@ export function TopologyCanvas({
           if (ln.type === "custom") {
             return null;
           }
-          if (ln.type === "linkAnchor" || ln.type === "freeArrow") {
+          const legacyType = ln.type as string | undefined;
+          if (legacyType === "linkAnchor" || legacyType === "freeArrow") {
             return null;
           }
           if (!ln.type || ln.type === "service") {
@@ -557,7 +591,13 @@ export function TopologyCanvas({
       }
       setNodes(deduped);
       if (layout.edges?.length) {
-        setEdges(layout.edges.map((e) => e as unknown as Edge));
+        setEdges(
+          layout.edges
+            .map((row) => layoutRowToMapEdge(row as Record<string, unknown>))
+            .filter((x): x is MapEdge => x !== null),
+        );
+      } else {
+        setEdges([]);
       }
       scheduleFitAfterLayout();
     });
@@ -805,9 +845,42 @@ export function TopologyCanvas({
           }
         : {}),
     }));
-    const payload = { nodes: layoutNodes, groups: [], edges: edges.map((e) => ({ ...e })), service_configs: serviceConfigs.current };
+    const edgeRows = edges.map((e) => {
+      const d = normalizeLayoutEdgeData(e.data);
+      const row: Record<string, unknown> = {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        type: e.type ?? "default",
+      };
+      if (Object.keys(d).length > 0) row.data = d;
+      if (e.style && typeof e.style === "object" && e.style !== null && Object.keys(e.style).length > 0) {
+        row.style = e.style;
+      }
+      return row;
+    });
+    const payload = { nodes: layoutNodes, groups: [], edges: edgeRows, service_configs: serviceConfigs.current };
     saveProjectLayout(projectId, payload);
   }, [nodes, edges, projectId]);
+
+  const handleEdgeMetadataSave = useCallback(
+    (next: LayoutEdgeData) => {
+      if (!edgeEditId) return;
+      if (!applyingHistory.current) pushSnapshot();
+      setEdges((eds) => eds.map((e) => (e.id === edgeEditId ? { ...e, data: { ...next } } : e)));
+      setEdgeEditId(null);
+    },
+    [edgeEditId, pushSnapshot, setEdges],
+  );
+
+  const editingEdge = useMemo(
+    () => (edgeEditId ? (edges.find((e) => e.id === edgeEditId) ?? null) : null),
+    [edgeEditId, edges],
+  );
+
+  useEffect(() => {
+    if (edgeEditId && !edges.some((e) => e.id === edgeEditId)) setEdgeEditId(null);
+  }, [edges, edgeEditId]);
 
   useEffect(() => {
     if (layoutLoaded.current && !metricsStale) persistLayout();
@@ -889,6 +962,12 @@ export function TopologyCanvas({
             onHoverChange={setPaletteHoverId}
           />
         </div>
+        <EdgeInteractionContext.Provider
+          value={{
+            openEditor: (id) => setEdgeEditId(id),
+            editable: !metricsStale && canvasInteractive,
+          }}
+        >
         <div
           ref={wrapperRef}
           style={{ flex: 1, minHeight: 0, position: "relative" }}
@@ -1033,7 +1112,7 @@ export function TopologyCanvas({
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             connectionMode={ConnectionMode.Loose}
-            defaultEdgeOptions={{}}
+            defaultEdgeOptions={{ type: "default", data: {} }}
             nodesDraggable={!metricsStale && canvasInteractive}
             nodesConnectable={!metricsStale && canvasInteractive}
             edgesReconnectable={!metricsStale && canvasInteractive}
@@ -1072,7 +1151,15 @@ export function TopologyCanvas({
           />
         )}
       </div>
+        </EdgeInteractionContext.Provider>
     </div>
+
+    <EdgeMetadataModal
+      open={edgeEditId !== null && editingEdge !== null}
+      initial={normalizeLayoutEdgeData(editingEdge?.data)}
+      onSave={handleEdgeMetadataSave}
+      onClose={() => setEdgeEditId(null)}
+    />
 
     {confirmDelete && createPortal(
       <div

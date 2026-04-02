@@ -3,5 +3,10 @@ __pycache__/
 *.pyc
 .ruff_cache/
 .pytest_cache/
+
+# Секреты и локальные overrides (шаблон — `.env.example`)
 .env
+.env.local
+.env.*.local
+
 frontend/dist/
