@@ -15,7 +15,7 @@ import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
 import { DeleteButton } from "./DeleteButton";
-import { isMonitoringOptional } from "../nodeKinds";
+import { isMonitoringOptional, getGroupVisual } from "../nodeKinds";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -188,6 +188,8 @@ export function ServiceNode({ data, id }: NodeProps) {
   // Узел без мониторинга: kind из группы actor/network/other + нет привязки matchServiceId.
   // Для таких объектов "нет мониторинга" — нормальное состояние, а не "unknown".
   const unmonitored = offline && isMonitoringOptional(d.kind) && !d.matchServiceId;
+
+  const groupVisual = getGroupVisual(d.kind);
 
   const dotStatusKey = offline ? "unknown" : status;
 
@@ -685,15 +687,28 @@ export function ServiceNode({ data, id }: NodeProps) {
         style={{
           background: nodeTint.bg,
           border: `1.5px solid ${nodeTint.border}`,
-          borderRadius: 8,
-          padding: "8px 12px", minWidth: 140, boxShadow: "var(--probemap-node-card-shadow)",
+          borderRadius: groupVisual.borderRadius,
+          padding: groupVisual.accentColor ? "8px 12px 8px 15px" : "8px 12px",
+          minWidth: groupVisual.minWidth,
+          boxShadow: "var(--probemap-node-card-shadow)",
           position: "relative", cursor: "pointer",
           outline: !colliding && locked ? "2px solid #93c5fd" : undefined,
           opacity: colliding ? 0.5 : 1,
           transition: "opacity 0.1s, outline 0.1s",
+          overflow: "hidden",
         }}
       >
         <AllHandles />
+        {groupVisual.accentColor && (
+          <div style={{
+            position: "absolute",
+            left: 0, top: 0, bottom: 0,
+            width: 3,
+            background: groupVisual.accentColor,
+            opacity: 0.75,
+            pointerEvents: "none",
+          }} />
+        )}
 
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: ((d.ports ?? []).length > 0 || blackboxOrder.length > 0) ? 5 : 0 }}>
           <div style={{ position: "relative", flexShrink: 0 }}>

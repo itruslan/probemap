@@ -68,6 +68,34 @@ export function getKindDef(kind: string | undefined): NodeKindDef {
   return NODE_KIND_MAP.get(kind ?? "service") ?? NODE_KIND_MAP.get("custom")!;
 }
 
+// ---------------------------------------------------------------------------
+// Group visual styles
+// ---------------------------------------------------------------------------
+
+export interface GroupVisualStyle {
+  /** Left accent bar color (null = no bar). */
+  accentColor: string | null;
+  /** Card border-radius in px. */
+  borderRadius: number;
+  /** Min-width of the card. */
+  minWidth: number;
+}
+
+const GROUP_VISUAL: Record<string, GroupVisualStyle> = {
+  service: { accentColor: null,      borderRadius: 8,  minWidth: 140 },
+  managed: { accentColor: "#f59e0b", borderRadius: 8,  minWidth: 140 },
+  entry:   { accentColor: "#8b5cf6", borderRadius: 8,  minWidth: 140 },
+  cluster: { accentColor: "#6366f1", borderRadius: 8,  minWidth: 140 },
+  network: { accentColor: "#0ea5e9", borderRadius: 10, minWidth: 120 },
+  actor:   { accentColor: null,      borderRadius: 20, minWidth: 100 },
+  other:   { accentColor: null,      borderRadius: 12, minWidth: 120 },
+};
+
+export function getGroupVisual(kind: string | undefined): GroupVisualStyle {
+  const group = getKindDef(kind).group;
+  return GROUP_VISUAL[group] ?? GROUP_VISUAL.other;
+}
+
 /** Groups where monitoring is optional: no matchServiceId = normal state, not "unknown". */
 const MONITORING_OPTIONAL_GROUPS = new Set<string>(["actor", "network", "other"]);
 
