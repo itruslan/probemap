@@ -15,6 +15,7 @@ import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
 import { DeleteButton } from "./DeleteButton";
+import { isMonitoringOptional } from "../nodeKinds";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -184,9 +185,15 @@ export function ServiceNode({ data, id }: NodeProps) {
   // Это позволяет binding через `matchServiceId` показывать live-статус.
   const offline = (d.ports ?? []).length === 0;
 
+  // Узел без мониторинга: kind из группы actor/network/other + нет привязки matchServiceId.
+  // Для таких объектов "нет мониторинга" — нормальное состояние, а не "unknown".
+  const unmonitored = offline && isMonitoringOptional(d.kind) && !d.matchServiceId;
+
   const dotStatusKey = offline ? "unknown" : status;
 
-  const nodeTint = offline
+  const nodeTint = unmonitored
+    ? { border: "var(--probemap-border)", bg: "var(--probemap-bg)" }
+    : offline
     ? { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg-subtle)" }
     : status === "ok"
       ? { border: "#22c55e66", bg: "#22c55e0f" }
@@ -355,22 +362,26 @@ export function ServiceNode({ data, id }: NodeProps) {
       </div>
 
       {/* Probes */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 7 }}>
-        <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", fontSize: 10, letterSpacing: "0.06em" }}>{t("monitoringTitle")}</div>
-        {totalPresent > 0 && (
-          <div style={{
-            fontSize: 11,
-            fontWeight: 700,
-            color: status === "ok" ? "#16a34a" : status === "down" ? "#ef4444" : status === "warn" ? "#f97316" : "var(--probemap-text-faint)",
-          }}>
-            {t("monitoringSummary").replace("{ok}", String(okPresent)).replace("{total}", String(totalPresent))}
+      {!unmonitored && (
+        <>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 7 }}>
+            <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", fontSize: 10, letterSpacing: "0.06em" }}>{t("monitoringTitle")}</div>
+            {totalPresent > 0 && (
+              <div style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: status === "ok" ? "#16a34a" : status === "down" ? "#ef4444" : status === "warn" ? "#f97316" : "var(--probemap-text-faint)",
+              }}>
+                {t("monitoringSummary").replace("{ok}", String(okPresent)).replace("{total}", String(totalPresent))}
+              </div>
+            )}
           </div>
-        )}
-      </div>
-      {expectedBb > 0 && (
-        <div style={{ fontSize: 10, color: "var(--probemap-text-faint)", marginBottom: 8, marginTop: -4 }}>
-          {t("monitoringSourcesCoverage").replace("{present}", String(presentBb)).replace("{expected}", String(expectedBb))}
-        </div>
+          {expectedBb > 0 && (
+            <div style={{ fontSize: 10, color: "var(--probemap-text-faint)", marginBottom: 8, marginTop: -4 }}>
+              {t("monitoringSourcesCoverage").replace("{present}", String(presentBb)).replace("{expected}", String(expectedBb))}
+            </div>
+          )}
+        </>
       )}
 
       {/* Фаза 4: привязка компонента к каталожному сервису мониторинга */}
@@ -450,7 +461,7 @@ export function ServiceNode({ data, id }: NodeProps) {
           </div>
         </div>
       )}
-      {probeRows.length > 0 ? probeRows.map((row) => {
+      {!unmonitored && probeRows.length > 0 ? probeRows.map((row) => {
         const chips = portProbeChips(row.port, row.probe_types, d.label, row.module);
         const rowStatusColor =
           row.success === 1
@@ -526,11 +537,11 @@ export function ServiceNode({ data, id }: NodeProps) {
             </span>
           </div>
         );
-      }) : (
+      }) : (!unmonitored && (
         <div style={{ color: "var(--probemap-text-faint)", marginBottom: 4 }}>
           {t("noData")}
         </div>
-      )}
+      ))}
 
       {/* Description */}
       <div style={{ height: 1, background: "var(--probemap-bg-subtle)", margin: "10px 0 8px" }} />
@@ -694,7 +705,7 @@ export function ServiceNode({ data, id }: NodeProps) {
             >
               <IconRenderer name={d.icon ?? DEFAULT_SERVICE_ICON_NAME} size={14} />
             </button>
-            <div style={{ position: "absolute", bottom: -1, right: -1, width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[dotStatusKey] ?? STATUS_COLOR.unknown, border: "1.5px solid var(--probemap-status-dot-border)", pointerEvents: "none" }} />
+            {!unmonitored && <div style={{ position: "absolute", bottom: -1, right: -1, width: 6, height: 6, borderRadius: "50%", background: STATUS_COLOR[dotStatusKey] ?? STATUS_COLOR.unknown, border: "1.5px solid var(--probemap-status-dot-border)", pointerEvents: "none" }} />}
           </div>
           <span
             style={{

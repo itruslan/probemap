@@ -67,3 +67,14 @@ export const KIND_GROUPS = [
 export function getKindDef(kind: string | undefined): NodeKindDef {
   return NODE_KIND_MAP.get(kind ?? "service") ?? NODE_KIND_MAP.get("custom")!;
 }
+
+/** Groups where monitoring is optional: no matchServiceId = normal state, not "unknown". */
+const MONITORING_OPTIONAL_GROUPS = new Set<string>(["actor", "network", "other"]);
+
+/**
+ * Returns true if a kind belongs to a group where monitoring is optional.
+ * Nodes of these kinds without matchServiceId show no status indicator at all.
+ */
+export function isMonitoringOptional(kind: string | undefined): boolean {
+  return MONITORING_OPTIONAL_GROUPS.has(getKindDef(kind).group);
+}
