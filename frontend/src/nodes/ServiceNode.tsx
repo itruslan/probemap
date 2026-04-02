@@ -5,12 +5,11 @@ import type { Port, ServiceAction } from "../api";
 import { portProbeChips } from "../probeDisplay";
 import { IconRenderer } from "../IconRenderer";
 import { AllHandles } from "./handles";
-import { IconPicker } from "../IconPicker";
 import { useColliding } from "../CollisionContext";
 import { useIsDraggingOnCanvas } from "../DragContext";
 import { HoverTooltip } from "../Tooltip";
 import { useProbeSources, useServices } from "../ServicesContext";
-import { DEFAULT_SERVICE_ICON_NAME, SERVICE_BUILTIN_ICONS } from "../icons";
+import { DEFAULT_SERVICE_ICON_NAME, ALL_ICONS } from "../icons";
 import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
@@ -91,8 +90,7 @@ export function ServiceNode({ data, id }: NodeProps) {
   const [visible, setVisible] = useState(false);
   const [locked, setLocked] = useState(false);
 
-  const [pickerAnchor, setPickerAnchor] = useState<{ x: number; y: number } | null>(null);
-  const [actionPickerAnchor, setActionPickerAnchor] = useState<{ x: number; y: number } | null>(null);
+  const [editingIcon, setEditingIcon] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState("");
   const [addingAction, setAddingAction] = useState(false);
@@ -247,6 +245,7 @@ export function ServiceNode({ data, id }: NodeProps) {
       setVisible(false);
       setEditingDesc(false);
       setAddingAction(false);
+      setEditingIcon(false);
     } else {
       setLocked(true);
       setVisible(true);
@@ -337,31 +336,53 @@ export function ServiceNode({ data, id }: NodeProps) {
         position: "relative",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 10,
-          marginBottom: 10,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: editingIcon ? 6 : 10 }}>
+        <button
+          type="button"
+          title={t("changeIconTitle")}
+          onClick={() => { if (locked) setEditingIcon((v) => !v); }}
+          style={{
+            flexShrink: 0, background: editingIcon ? "var(--probemap-interactive-hover-bg)" : "transparent",
+            border: `1.5px solid ${editingIcon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+            borderRadius: 6, padding: 3, cursor: locked ? "pointer" : "default",
+            color: "var(--probemap-text-muted)", display: "flex", alignItems: "center", justifyContent: "center",
+          }}
+        >
+          <IconRenderer name={d.icon ?? DEFAULT_SERVICE_ICON_NAME} size={16} />
+        </button>
         <div
           style={{
-            fontSize: 13,
-            fontWeight: 700,
-            color: "var(--probemap-text)",
-            minWidth: 0,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            letterSpacing: "-0.01em",
+            fontSize: 13, fontWeight: 700, color: "var(--probemap-text)",
+            minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            letterSpacing: "-0.01em", flex: 1,
           }}
           title={d.label}
         >
           {d.label}
         </div>
       </div>
+      {editingIcon && locked && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 10 }}>
+          {ALL_ICONS.map((entry) => (
+            <button
+              key={entry.icon}
+              type="button"
+              title={entry.label}
+              onClick={() => { updateNodeData(id, { icon: entry.icon }); setEditingIcon(false); }}
+              style={{
+                width: 22, height: 22,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                borderRadius: 4, padding: 0, flexShrink: 0, cursor: "pointer",
+                border: `1.5px solid ${(d.icon ?? DEFAULT_SERVICE_ICON_NAME) === entry.icon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                background: (d.icon ?? DEFAULT_SERVICE_ICON_NAME) === entry.icon ? "var(--probemap-interactive-hover-bg)" : "transparent",
+                color: "var(--probemap-text-muted)",
+              }}
+            >
+              <IconRenderer name={entry.icon} size={11} />
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Probes */}
       {!unmonitored && (
@@ -625,23 +646,42 @@ export function ServiceNode({ data, id }: NodeProps) {
         ))}
 
         {locked && (addingAction ? (
-          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6 }}>
-            <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-              <button
-                type="button"
-                onClick={(e) => setActionPickerAnchor({ x: e.clientX + 8, y: e.clientY })}
-                className="probemap-node-action-link"
-                style={{ flexShrink: 0, cursor: "pointer", borderStyle: "solid" }}
-              >
-                <IconRenderer name={newActionIcon} size={14} />
-              </button>
-              <input placeholder={t("actionNamePlaceholder")} value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
-                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }} />
+          <div style={{ width: "100%", display: "flex", flexDirection: "column", gap: 6, paddingTop: 2 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 3 }}>
+              {ALL_ICONS.map((entry) => (
+                <button
+                  key={entry.icon}
+                  type="button"
+                  title={entry.label}
+                  onClick={() => setNewActionIcon(entry.icon)}
+                  style={{
+                    width: 22, height: 22,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    borderRadius: 4, padding: 0, flexShrink: 0, cursor: "pointer",
+                    border: `1.5px solid ${newActionIcon === entry.icon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                    background: newActionIcon === entry.icon ? "var(--probemap-interactive-hover-bg)" : "transparent",
+                    color: "var(--probemap-text-muted)",
+                  }}
+                >
+                  <IconRenderer name={entry.icon} size={11} />
+                </button>
+              ))}
             </div>
+            <input
+              placeholder={t("actionNamePlaceholder")}
+              value={newActionLabel}
+              onChange={(e) => setNewActionLabel(e.target.value)}
+              style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }}
+            />
             <div style={{ display: "flex", gap: 6 }}>
-              <input autoFocus placeholder={t("actionUrlPlaceholder")} value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
+              <input
+                autoFocus
+                placeholder={t("actionUrlPlaceholder")}
+                value={newActionUrl}
+                onChange={(e) => setNewActionUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addAction(); if (e.key === "Escape") setAddingAction(false); }}
-                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }} />
+                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }}
+              />
               <button type="button" onClick={addAction} className="probemap-btn probemap-btn--primary probemap-btn--xs">
                 {t("uiOk")}
               </button>
@@ -707,7 +747,6 @@ export function ServiceNode({ data, id }: NodeProps) {
           <div style={{ position: "relative", flexShrink: 0 }}>
             <button
               onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => { e.stopPropagation(); setPickerAnchor({ x: e.clientX + 8, y: e.clientY }); }}
               title={t("changeIconTitle")}
               style={{ background: "none", border: "none", padding: 0, cursor: "pointer", color: "var(--probemap-text-muted)", display: "flex", borderRadius: 4 }}
             >
@@ -809,24 +848,8 @@ export function ServiceNode({ data, id }: NodeProps) {
 
       {panel}
 
-      {pickerAnchor && (
-        <IconPicker
-          anchorX={pickerAnchor.x}
-          anchorY={pickerAnchor.y}
-          builtinIcons={SERVICE_BUILTIN_ICONS}
-          onSelect={(name) => { updateNodeData(id, { icon: name }); setPickerAnchor(null); }}
-          onClose={() => setPickerAnchor(null)}
-        />
-      )}
-      {actionPickerAnchor && (
-        <IconPicker
-          anchorX={actionPickerAnchor.x}
-          anchorY={actionPickerAnchor.y}
-          builtinIcons={SERVICE_BUILTIN_ICONS}
-          onSelect={(name) => { setNewActionIcon(name); setActionPickerAnchor(null); }}
-          onClose={() => setActionPickerAnchor(null)}
-        />
-      )}
+
+
       {blackboxDotTooltip && (
         <HoverTooltip label={blackboxDotTooltip.label} targetEl={blackboxDotTooltip.el} />
       )}
