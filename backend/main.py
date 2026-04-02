@@ -4,6 +4,7 @@ from typing import Any
 import config as cfg_mod
 import icons as icons_mod
 import layout
+import log
 import metrics
 import settings
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
@@ -11,7 +12,24 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+log.setup()
+_log = log.get()
+
 app = FastAPI(title="probemap")
+
+
+@app.on_event("startup")
+def _on_startup() -> None:
+    c = cfg_mod.read_config()
+    ds = c.get("datasource") or {}
+    url = settings.DATASOURCE_URL or (ds.get("url") or "").strip()
+    _log.info(
+        "probemap starting — port=%s data_dir=%s datasource=%s log_level=%s",
+        settings.PORT,
+        settings.DATA_DIR,
+        url or "(not configured)",
+        settings.LOG_LEVEL,
+    )
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +45,9 @@ def _metrics_http_exception(e: RuntimeError) -> HTTPException:
     if msg == "Datasource not configured":
         return HTTPException(status_code=424, detail=msg)
     if "VictoriaMetrics request failed" in msg:
+        _log.warning("datasource error: %s", msg)
         return HTTPException(status_code=503, detail=msg)
+    _log.error("metrics error: %s", msg, exc_info=e)
     return HTTPException(status_code=500, detail=msg)
 
 

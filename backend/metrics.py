@@ -4,7 +4,10 @@ from typing import Any
 
 import config as cfg_mod
 import httpx
+import log
 import settings
+
+_log = log.get("probemap.metrics")
 
 
 def _get_vm_url() -> str:
@@ -40,6 +43,7 @@ async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
             r.raise_for_status()
             return r.json()["data"]["result"]
     except httpx.HTTPError as e:
+        _log.warning("query failed url=%s query=%.120s error=%s", vm_url, q, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 

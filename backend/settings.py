@@ -47,3 +47,5 @@ DATASOURCE_URL: str | None = os.getenv("PROBEMAP_DATASOURCE_URL", None)
 # ---------------------------------------------------------------------------
 
 LOG_LEVEL: str = os.getenv("PROBEMAP_LOG_LEVEL", "info").lower()
+# "json" | "text" | "" (auto: text on TTY, json otherwise)
+LOG_FORMAT: str = os.getenv("PROBEMAP_LOG_FORMAT", "").lower()

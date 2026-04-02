@@ -29,6 +29,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-02 — D1. `make dev`:** уже реализован — `trap 'kill 0' INT TERM` запускает бэкенд + фронт, Ctrl+C останавливает оба; `/api` проксируется через vite на `localhost:8000`.
 - **2026-04-02 — refactor(kinds): упрощение kinds:** один `cluster` в меню создания; `managed-kubernetes/postgresql/mysql/clickhouse/mongodb/redis/opensearch/kafka` и legacy-виды скрыты (`menuHidden: true`), доступны только в kind_rules; миграция `k8s-cluster → cluster` при загрузке раскладки.
 - **2026-04-02 — C2. Трассировка пути:** `traceConnected()` — BFS в обе стороны по рёбрам; `tracedSet` (nodeIds + edgeIds) + `displayNodes`/`displayEdges` с opacity (1 / 0.15 / 0.08) без сохранения в раскладку; pill с именем узла + ×; сброс по клику на тот же узел / пустой холст / Escape / metricsStale.
 - **2026-04-02 — C1. Стиль линии по протоколу:** `protocolDash()` в `DeletableEdge.tsx` — ICMP → пунктир `"6 3"`, TCP/UDP → штрих-пунктир `"8 3 2 3"`, HTTP/прочее → сплошная; цвет стрелки берётся из `style.stroke`.
@@ -79,11 +80,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 ---
 
 ## Блок D — Инфраструктура и эксплуатация
-
-### [ ] D1. Dev-режим: `make dev`
-
-- **Что сделать:** `make dev` запускает бэкенд + фронт одной командой, Ctrl+C останавливает оба.
-- **Готово когда:** работает в одном терминале.
 
 ### [ ] D2. Логирование (structured logging)
 
