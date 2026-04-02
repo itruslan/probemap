@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { FaCircleQuestion } from "react-icons/fa6";
 
 const TOOLTIP_Z = 2147483000;
 const VIEW_PAD = 10;
@@ -63,5 +64,31 @@ export function HoverTooltip({
       {label}
     </div>,
     document.body,
+  );
+}
+
+/** Единая кнопка-подсказка (?), используется в Settings, ProjectModal и везде где нужен ? */
+export function HelpIcon({
+  aria,
+  onMouseEnter,
+  onMouseLeave,
+  onClick,
+}: {
+  aria: string;
+  onMouseEnter: (el: HTMLButtonElement) => void;
+  onMouseLeave: () => void;
+  onClick?: (el: HTMLButtonElement) => void;
+}) {
+  return (
+    <button
+      type="button"
+      className="probemap-help-btn"
+      aria-label={aria}
+      onMouseEnter={(e) => onMouseEnter(e.currentTarget)}
+      onMouseLeave={onMouseLeave}
+      onClick={onClick ? (e) => onClick(e.currentTarget) : undefined}
+    >
+      <FaCircleQuestion aria-hidden style={{ width: 11, height: 11, display: "block" }} />
+    </button>
   );
 }

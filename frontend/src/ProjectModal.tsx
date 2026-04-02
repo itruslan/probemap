@@ -12,6 +12,7 @@ import {
 } from "./api";
 import { useI18n } from "./i18n";
 import { I18N_STABLE } from "./i18nLayout";
+import { HelpIcon, HoverTooltip } from "./Tooltip";
 
 interface Props {
   project?: Project;
@@ -54,6 +55,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
   const [deleting, setDeleting] = useState(false);
+  const [modalTip, setModalTip] = useState<{ label: string; el: HTMLElement } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const loadValuesForLabel = useCallback(async (label: string, pid?: string) => {
@@ -207,9 +209,15 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
               minHeight: I18N_STABLE.modalTitleMinHeightPx,
               display: "flex",
               alignItems: "center",
+              gap: 6,
             }}
           >
             {project ? t("projectTitle") : t("projectTitleNew")}
+            <HelpIcon
+              aria={t("tooltipInfoAria")}
+              onMouseEnter={(el) => setModalTip({ label: t("projectIntro"), el })}
+              onMouseLeave={() => setModalTip(null)}
+            />
           </span>
           <button
             type="button"
@@ -220,18 +228,6 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
             ×
           </button>
         </div>
-
-        <p
-          style={{
-            margin: "0 0 16px",
-            fontSize: 12,
-            color: "var(--probemap-text-muted)",
-            lineHeight: 1.45,
-            minHeight: I18N_STABLE.projectIntroMinHeightPx,
-          }}
-        >
-          {t("projectIntro")}
-        </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <div>
@@ -249,10 +245,16 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
           </div>
 
           <div>
-            <Label>{t("projectFilterSection")}</Label>
-            <p style={{ margin: "0 0 8px", fontSize: 11, color: "var(--probemap-text-faint)" }}>
-              {t("projectFilterHint")}
-            </p>
+            <Label>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 4 }}>
+                {t("projectFilterSection")}
+                <HelpIcon
+                  aria={t("tooltipInfoAria")}
+                  onMouseEnter={(el) => setModalTip({ label: t("projectFilterHint"), el })}
+                  onMouseLeave={() => setModalTip(null)}
+                />
+              </span>
+            </Label>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {rows.map((row, i) => {
                 const lk = row.label.trim();
@@ -415,6 +417,10 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
           </div>
         </div>
       </div>
+
+      {modalTip && (
+        <HoverTooltip label={modalTip.label} targetEl={modalTip.el} multiline />
+      )}
 
       {deleteConfirmOpen && project && onDelete && createPortal(
         <div

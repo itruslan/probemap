@@ -724,14 +724,30 @@ html, body {
   user-select: none;
 }
 
-/* Заголовки секций настроек с подсказкой по наведению */
-.probemap-settings-tip-title {
-  cursor: help;
-  border-bottom: 1px dotted transparent;
+/* Единая кнопка-иконка подсказки (?) — Settings, ProjectModal и др. */
+.probemap-help-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border: none;
+  background: transparent;
+  cursor: default;
+  color: var(--probemap-text-faint);
+  border-radius: 4px;
+  line-height: 1;
+  transition: color 0.15s ease, background 0.15s ease;
 }
 
-.probemap-settings-tip-title:hover {
-  border-bottom-color: var(--probemap-text-faint);
+.probemap-help-btn:hover {
+  color: var(--probemap-text-muted);
+  background: var(--probemap-interactive-hover-bg);
+}
+
+.probemap-help-btn:focus-visible {
+  outline: 2px solid var(--probemap-focus-ring);
+  outline-offset: 1px;
 }
 
 /* -------------------------------------------------------------------------- */

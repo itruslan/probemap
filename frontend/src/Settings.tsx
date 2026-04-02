@@ -19,7 +19,7 @@ import { NODE_KINDS } from "./nodeKinds";
 import { useI18n, type I18nKey } from "./i18n";
 import { I18N_STABLE } from "./i18nLayout";
 import { TrashIcon } from "./TrashIcon";
-import { HoverTooltip } from "./Tooltip";
+import { HoverTooltip, HelpIcon } from "./Tooltip";
 
 const DEFAULT_DATASOURCE_NAME = "Prometheus";
 
@@ -639,14 +639,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         {showJobs ? (
           <Section
             title={
-              <span
-                style={{ cursor: "help" }}
-                onMouseEnter={(e) => {
-                  setSettingsHoverTip({ label: jobsSectionHelpLabel, el: e.currentTarget });
-                }}
-                onMouseLeave={() => setSettingsHoverTip(null)}
-              >
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                 {t("settingsSectionJobs")}
+                <HelpIcon
+                  aria={t("tooltipInfoAria")}
+                  onMouseEnter={(el) => setSettingsHoverTip({ label: jobsSectionHelpLabel, el })}
+                  onMouseLeave={() => setSettingsHoverTip(null)}
+                  onClick={(el) => toggleSettingsTip(jobsSectionHelpLabel, el)}
+                />
               </span>
             }
           >
@@ -718,15 +718,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           <>
             <Section
               title={
-                <span
-                  className="probemap-settings-tip-title"
-                  style={{ letterSpacing: "inherit" }}
-                  onMouseEnter={(e) => {
-                    setSettingsHoverTip({ label: t("settingsFilterIntro"), el: e.currentTarget });
-                  }}
-                  onMouseLeave={() => setSettingsHoverTip(null)}
-                >
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {t("settingsSectionFilter")}
+                  <HelpIcon
+                    aria={t("tooltipInfoAria")}
+                    onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsFilterIntro"), el })}
+                    onMouseLeave={() => setSettingsHoverTip(null)}
+                    onClick={(el) => toggleSettingsTip(t("settingsFilterIntro"), el)}
+                  />
                 </span>
               }
             >
@@ -884,24 +883,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
 
             <Section
               title={
-                <span
-                  className="probemap-settings-tip-title"
-                  style={{ letterSpacing: "inherit", cursor: "pointer" }}
-                  onMouseEnter={(e) => {
-                    setSettingsHoverTip({ label: t("settingsLabelMapIntro"), el: e.currentTarget });
-                  }}
-                  onMouseLeave={() => setSettingsHoverTip(null)}
-                  onClick={(e) => toggleSettingsTip(t("settingsLabelMapIntro"), e.currentTarget)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSettingsTip(t("settingsLabelMapIntro"), e.currentTarget as unknown as HTMLElement);
-                    }
-                  }}
-                >
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {t("settingsSectionLabelMap")}
+                  <HelpIcon
+                    aria={t("tooltipInfoAria")}
+                    onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsLabelMapIntro"), el })}
+                    onMouseLeave={() => setSettingsHoverTip(null)}
+                    onClick={(el) => toggleSettingsTip(t("settingsLabelMapIntro"), el)}
+                  />
                 </span>
               }
             >
@@ -917,19 +906,22 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   }}
                 >
                   <span
-                    className="probemap-settings-tip-title"
                     style={{
                       fontSize: 12,
                       fontWeight: 600,
                       color: "var(--probemap-text-secondary)",
                       lineHeight: 1.35,
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 4,
                     }}
-                    onMouseEnter={(e) => {
-                      setSettingsHoverTip({ label: t(hintKey), el: e.currentTarget });
-                    }}
-                    onMouseLeave={() => setSettingsHoverTip(null)}
                   >
                     {t(titleKey)}
+                    <HelpIcon
+                      aria={t("tooltipInfoAria")}
+                      onMouseEnter={(el) => setSettingsHoverTip({ label: t(hintKey), el })}
+                      onMouseLeave={() => setSettingsHoverTip(null)}
+                    />
                   </span>
                   <div style={{ minWidth: 0 }}>
                     {availableLabels.length > 0 ? (
@@ -960,24 +952,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
 
             <Section
               title={
-                <span
-                  className="probemap-settings-tip-title"
-                  style={{ letterSpacing: "inherit", cursor: "pointer" }}
-                  onMouseEnter={(e) => {
-                    setSettingsHoverTip({ label: t("settingsKindRulesIntro"), el: e.currentTarget });
-                  }}
-                  onMouseLeave={() => setSettingsHoverTip(null)}
-                  onClick={(e) => toggleSettingsTip(t("settingsKindRulesIntro"), e.currentTarget)}
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSettingsTip(t("settingsKindRulesIntro"), e.currentTarget as unknown as HTMLElement);
-                    }
-                  }}
-                >
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
                   {t("settingsSectionKindRules")}
+                  <HelpIcon
+                    aria={t("tooltipInfoAria")}
+                    onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsKindRulesIntro"), el })}
+                    onMouseLeave={() => setSettingsHoverTip(null)}
+                    onClick={(el) => toggleSettingsTip(t("settingsKindRulesIntro"), el)}
+                  />
                 </span>
               }
             >
