@@ -19,7 +19,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 |----------|---------|-------|------------------|
 | **Сервис** | API, фронтенд, бэкенд | HTTP, TCP, UDP | `service` |
 | **Ресурс** | ВМ, LB, managed DB, кеш, DNS | ICMP (+ TCP для managed) | `managed-db`, `managed-cache`, `load-balancer`, `dns`, ... |
-| **Кластер** | K8s-кластер, группа ВМ | Агрегат по лейблу | `k8s-cluster` (+ новые) |
+| **Кластер** | K8s, Managed DB, кеш, self-managed | Агрегат / ICMP | `cluster` (generic); `managed-kubernetes`, `managed-postgresql`, ... (для kind_rules) |
 | **Допобъект** | Пользователь, роутер, VPC, VPN | Нет (адрес может быть неизвестен) | `user`, `vpn-gateway`, `vpc`, `interconnect`, ... |
 | **Область** | Визуальная группировка | Нет | `type: "group"` (React Flow) |
 
@@ -29,6 +29,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-02 — refactor(kinds): упрощение kinds:** один `cluster` в меню создания; `managed-kubernetes/postgresql/mysql/clickhouse/mongodb/redis/opensearch/kafka` и legacy-виды скрыты (`menuHidden: true`), доступны только в kind_rules; миграция `k8s-cluster → cluster` при загрузке раскладки.
 - **2026-04-02 — C2. Трассировка пути:** `traceConnected()` — BFS в обе стороны по рёбрам; `tracedSet` (nodeIds + edgeIds) + `displayNodes`/`displayEdges` с opacity (1 / 0.15 / 0.08) без сохранения в раскладку; pill с именем узла + ×; сброс по клику на тот же узел / пустой холст / Escape / metricsStale.
 - **2026-04-02 — C1. Стиль линии по протоколу:** `protocolDash()` в `DeletableEdge.tsx` — ICMP → пунктир `"6 3"`, TCP/UDP → штрих-пунктир `"8 3 2 3"`, HTTP/прочее → сплошная; цвет стрелки берётся из `style.stroke`.
 - **2026-04-02 — B2. Автоматический `kind` при добавлении из каталога:** `kind_rules` в `config.json` — упорядоченный список `{label, value, kind}`, первое совпадение побеждает; `_apply_kind_rules()` в `metrics.py` применяет правила к `consensus_labels` сервиса; поле `kind` в ответе `/api/services`; интерфейсы `KindRule` + `kind_rules` в `AppConfig` (`api.ts`); секция «Маппинг компонентов» в настройках (выбор лейбла из Prometheus, ввод значения, dropdown типа узла); при добавлении сервиса из палитры / ПКМ `svc.kind` передаётся в `serviceToNode`.
@@ -55,10 +56,10 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ### [ ] A4. Кластеры — агрегация по лейблу
 
-Сейчас `k8s-cluster` — просто иконка. Нужна возможность объединять ресурсы в кластер по лейблу из метрик.
+Сейчас `cluster` — просто иконка. Нужна возможность объединять ресурсы в кластер по лейблу из метрик.
 
 - **Что сделать:**
-  - Нода `kind: k8s-cluster` (и новые: `vm-cluster`, `server-group`) может иметь поле `clusterLabel` + `clusterValue` — фильтр по лейблу из `probe_success`.
+  - Нода `kind: cluster` (и `managed-kubernetes`, `managed-postgresql`, …) может иметь поле `clusterLabel` + `clusterValue` — фильтр по лейблу из `probe_success`.
   - Агрегированный статус кластера: ok (все ресурсы ok), warn (часть down), down (все down).
   - В панели кластера — список входящих ресурсов с их статусами.
   - Ресурсы кластера могут быть и отдельными нодами на карте (двойная визуализация: внутри кластера + отдельно).
