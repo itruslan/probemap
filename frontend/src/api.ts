@@ -51,6 +51,8 @@ export interface Service {
   labels?: Record<string, string>;
   /** Классификация по типу проб для группировки в каталоге: "service" (HTTP/TCP) | "resource" (ICMP/DNS). */
   probe_kind?: "service" | "resource";
+  /** Kind из kind_rules (маппинг лейблов → тип узла на карте). */
+  kind?: string;
 }
 
 export interface ServicesResponse {
@@ -174,12 +176,21 @@ export interface MetricFilterRule {
   op: MetricFilterOp;
 }
 
+/** Правило маппинга лейбла сервиса → kind на карте (первое совпадение побеждает). */
+export interface KindRule {
+  label: string;
+  value: string;
+  kind: string;
+}
+
 export interface AppConfig {
   datasource: Datasource | null;
   probe_jobs: ProbeJob[];
   label_map: LabelMap;
   /** Правила лейбл + значение (конструктор) */
   metric_filter_rules?: MetricFilterRule[];
+  /** Маппинг лейблов сервиса → kind узла (первое совпадение) */
+  kind_rules?: KindRule[];
   /**
    * false — после сохранения URL показан только шаг выбора job; true — полные настройки.
    * В старых конфигах ключ отсутствует → считаем true (миграция).

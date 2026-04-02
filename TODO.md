@@ -29,6 +29,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-02 — B2. Автоматический `kind` при добавлении из каталога:** `kind_rules` в `config.json` — упорядоченный список `{label, value, kind}`, первое совпадение побеждает; `_apply_kind_rules()` в `metrics.py` применяет правила к `consensus_labels` сервиса; поле `kind` в ответе `/api/services`; интерфейсы `KindRule` + `kind_rules` в `AppConfig` (`api.ts`); секция «Маппинг компонентов» в настройках (выбор лейбла из Prometheus, ввод значения, dropdown типа узла); при добавлении сервиса из палитры / ПКМ `svc.kind` передаётся в `serviceToNode`.
 - **2026-04-02 — B1. Группировка каталога по kind:** `_service_probe_kind()` в `metrics.py` (http→"service", icmp/dns→"resource"); поле `probe_kind` в API и в `Service` (`api.ts`); палитра делит список на секции «Сервисы» / «Ресурсы» когда обе непустые; поиск сквозной; `palette-sidebar__section-header` CSS.
 - **2026-04-02 — A3. Допобъекты без адреса:** `isMonitoringOptional(kind)` в `nodeKinds.ts`; флаг `unmonitored` в `ServiceNode` для групп actor/network/other без `matchServiceId` — нет статус-точки, нейтральная рамка/фон, панель не показывает заголовок «МОНИТОРИНГ» и «нет данных».
 - **2026-04-02 — A1. Единый рендер-тип:** убран `type: "custom"` из `LayoutNode` (`api.ts`); при загрузке legacy-раскладок `custom → service` с сохранением `label/icon/kind/matchServiceId`; удалён orphan-cleanup блок в эффекте обновления портов.
@@ -67,17 +68,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 ## Блок B — Каталог и палитра
 
 > Цель: палитра показывает все доступные объекты, сгруппированные по типу, и позволяет быстро добавлять на карту.
-
-### [ ] B2. Автоматический `kind` при добавлении из каталога
-
-При добавлении сервиса из палитры на карту — подставлять `kind` по типу проб.
-
-- **Что сделать:**
-  - HTTP-пробы → `kind: "service"`.
-  - ICMP-пробы → `kind: "managed-db"` / `"load-balancer"` / ... (по эвристике из имени или лейблов, fallback — `"custom"`).
-  - Пользователь может поменять `kind` после добавления.
-- **Зависимость:** B1.
-- **Готово когда:** ICMP-проба `managed-postgres` добавляется с `kind: "managed-db"` и соответствующей иконкой.
 
 ---
 

@@ -169,6 +169,15 @@ const STRINGS = {
     settingsLabelNotSet: "— не задано —",
     settingsClose: "Закрыть",
 
+    settingsSectionKindRules: "МАППИНГ КОМПОНЕНТОВ",
+    settingsKindRulesIntro:
+      "Правила определяют тип (kind) узла при добавлении сервиса на карту. Первое совпадение по лейблу = значению побеждает.",
+    settingsKindRulesAddRule: "+ Добавить правило",
+    settingsKindRulesLabelPlaceholder: "лейбл",
+    settingsKindRulesValuePlaceholder: "значение",
+    settingsKindRulesKindPlaceholder: "тип",
+    settingsKindRulesArrow: "→",
+
     labelMapServiceTitle: "Имя сервиса",
     labelMapServiceHint:
       "Лейбл в probe_success, по которому таргеты собираются в одну карточку на карте. Чаще всего service (иногда instance).",
@@ -407,6 +416,15 @@ const STRINGS = {
       "Pick label names as they appear in your metrics source; they must match what blackbox / scrape exports.",
     settingsLabelNotSet: "— not set —",
     settingsClose: "Close",
+
+    settingsSectionKindRules: "COMPONENT MAPPING",
+    settingsKindRulesIntro:
+      "Rules determine the node kind when adding a service to the map. First matching label = value wins.",
+    settingsKindRulesAddRule: "+ Add rule",
+    settingsKindRulesLabelPlaceholder: "label",
+    settingsKindRulesValuePlaceholder: "value",
+    settingsKindRulesKindPlaceholder: "kind",
+    settingsKindRulesArrow: "→",
 
     labelMapServiceTitle: "Service name",
     labelMapServiceHint:

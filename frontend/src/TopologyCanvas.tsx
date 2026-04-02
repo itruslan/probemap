@@ -790,7 +790,7 @@ export function TopologyCanvas({
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
         const position = screenToFlowPosition({ x: screenX, y: screenY });
         const cfg = serviceConfigs.current[svc.id] ?? {};
-        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null)];
+        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null, svc.kind)];
       });
     },
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
@@ -805,7 +805,7 @@ export function TopologyCanvas({
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
         const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
         const cfg = serviceConfigs.current[svc.id] ?? {};
-        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null)];
+        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null, svc.kind)];
       });
     },
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]

@@ -55,6 +55,7 @@ _DEFAULT_CONFIG: dict[str, Any] = {
     "probe_jobs": [],
     "label_map": DEFAULT_LABEL_MAP,
     "metric_filter_rules": [],
+    "kind_rules": [],
 }
 
 
@@ -94,6 +95,7 @@ def read_config() -> dict[str, Any]:
         lm["probe_source"] = "instance"
     data["label_map"] = lm
     data.setdefault("metric_filter_rules", [])
+    data.setdefault("kind_rules", [])
     _miss = object()
     legacy = data.pop("metric_extra_selector", _miss)
     if legacy is not _miss:
