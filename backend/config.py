@@ -1,3 +1,4 @@
+import copy
 import json
 import os
 import re
@@ -101,6 +102,31 @@ def read_config() -> dict[str, Any]:
             _merge_legacy_metric_extra_into_rules(data, ex)
         write_config(data)
     return data
+
+
+def apply_datasource_env_overlay(c: dict[str, Any]) -> dict[str, Any]:
+    """Копия конфига для API/UI: подставляет эффективный URL, если задан PROBEMAP_DATASOURCE_URL."""
+    out = copy.deepcopy(c)
+    env_url = (settings.DATASOURCE_URL or "").strip()
+    if env_url:
+        raw_ds = out.get("datasource")
+        ds = dict(raw_ds) if isinstance(raw_ds, dict) else {}
+        ds["url"] = env_url.rstrip("/")
+        out["datasource"] = ds
+        out["datasource_url_from_env"] = True
+    else:
+        out["datasource_url_from_env"] = False
+    return out
+
+
+def read_config_for_api() -> dict[str, Any]:
+    """То же, что read_config(), но URL в ответе совпадает с тем, что использует metrics (env > файл)."""
+    return apply_datasource_env_overlay(read_config())
+
+
+def sanitize_config_write(body: dict[str, Any]) -> dict[str, Any]:
+    """Убрать поля только для ответа API перед записью в config.json."""
+    return {k: v for k, v in body.items() if k != "datasource_url_from_env"}
 
 
 def project_creation_allowed() -> tuple[bool, str]:

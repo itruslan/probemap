@@ -112,6 +112,26 @@ export interface Group {
   type: "vm" | "kubernetes";
 }
 
+/** Метаданные связи (фаза 3 — сетевой путь); хранятся в `edge.data` React Flow. */
+export interface LayoutEdgeData extends Record<string, unknown> {
+  protocol?: string;
+  port?: string;
+  description?: string;
+}
+
+export function normalizeLayoutEdgeData(data: unknown): LayoutEdgeData {
+  if (!data || typeof data !== "object") return {};
+  const o = data as Record<string, unknown>;
+  const protocol = typeof o.protocol === "string" ? o.protocol.trim() : "";
+  const port = typeof o.port === "string" ? o.port.trim() : "";
+  const description = typeof o.description === "string" ? o.description : "";
+  return {
+    protocol: protocol || undefined,
+    port: port || undefined,
+    description: description || undefined,
+  };
+}
+
 export interface Layout {
   nodes: LayoutNode[];
   groups: Group[];
@@ -163,6 +183,8 @@ export interface AppConfig {
    * В старых конфигах ключ отсутствует → считаем true (миграция).
    */
   settings_targets_saved?: boolean;
+  /** true — URL в datasource взят из PROBEMAP_DATASOURCE_URL (не только из config.json). */
+  datasource_url_from_env?: boolean;
 }
 
 export interface MetricSelectorPreview {

@@ -55,6 +55,7 @@ function normalizeConfig(c: AppConfig): AppConfig {
   return {
     ...c,
     datasource,
+    datasource_url_from_env: c.datasource_url_from_env === true,
     settings_targets_saved: c.settings_targets_saved === false ? false : true,
     label_map: normalizeLabelMap(c.label_map as AppConfig["label_map"] & { zone?: string }),
     metric_filter_rules: rules,
@@ -63,6 +64,7 @@ function normalizeConfig(c: AppConfig): AppConfig {
 
 type CommittedSnapshot = {
   ds: { name: string; url: string };
+  datasource_url_from_env: boolean;
   settings_targets_saved: boolean;
   probe_jobs: ProbeJob[];
   label_map: AppConfig["label_map"];
@@ -75,6 +77,7 @@ function snapshotFromConfig(c: AppConfig): CommittedSnapshot {
       name: (c.datasource?.name ?? DEFAULT_DATASOURCE_NAME).trim() || DEFAULT_DATASOURCE_NAME,
       url: (c.datasource?.url ?? "").trim(),
     },
+    datasource_url_from_env: c.datasource_url_from_env === true,
     settings_targets_saved: c.settings_targets_saved !== false,
     probe_jobs: JSON.parse(JSON.stringify(c.probe_jobs)) as ProbeJob[],
     label_map: JSON.parse(JSON.stringify(c.label_map)) as AppConfig["label_map"],
@@ -218,8 +221,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     url: "",
   };
 
+  const urlFromEnv = cfg.datasource_url_from_env === true;
   const urlDirty =
-    (ds.name ?? "").trim() !== committed.ds.name.trim() || (ds.url ?? "").trim() !== committed.ds.url.trim();
+    (ds.name ?? "").trim() !== committed.ds.name.trim() ||
+    (!urlFromEnv && (ds.url ?? "").trim() !== committed.ds.url.trim());
 
   const targetsSavedOnServer = committed.settings_targets_saved;
   const showJobs = committed.ds.url.length > 0;
@@ -520,6 +525,22 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           <InlineField label={t("settingsName")}>
             <input value={ds.name} onChange={(e) => setDs({ name: e.target.value })} style={inputStyle} />
           </InlineField>
+          {urlFromEnv ? (
+            <div
+              style={{
+                fontSize: 12,
+                lineHeight: 1.45,
+                color: "var(--probemap-text-muted)",
+                marginBottom: 10,
+                padding: "8px 10px",
+                borderRadius: 8,
+                border: "1px solid var(--probemap-border)",
+                background: "var(--probemap-bg-subtle)",
+              }}
+            >
+              {t("settingsUrlFromEnvHint")}
+            </div>
+          ) : null}
           <InlineField label={t("settingsUrlApi")}>
             <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
               <div
@@ -531,9 +552,16 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               >
                 <input
                   value={ds.url}
+                  readOnly={urlFromEnv}
                   onChange={(e) => setDs({ url: e.target.value })}
                   placeholder={t("settingsUrlPlaceholder")}
-                  style={inputStyle}
+                  style={{
+                    ...inputStyle,
+                    ...(urlFromEnv
+                      ? { opacity: 0.92, cursor: "not-allowed" }
+                      : {}),
+                  }}
+                  aria-readonly={urlFromEnv || undefined}
                 />
                 {urlDirty ? (
                   <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>

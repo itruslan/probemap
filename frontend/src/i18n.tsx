@@ -49,6 +49,7 @@ const STRINGS = {
     mapLockInteraction: "Заблокировать перетаскивание, связи и выделение",
     mapUnlockInteraction: "Снова разрешить перетаскивание, связи и выделение",
 
+    groupColor: "Цвет области",
     contextAddArea: "Добавить область",
     contextAddService: "Добавить сервис",
     contextAddComponent: "Добавить компонент",
@@ -60,6 +61,15 @@ const STRINGS = {
     kindGroupService: "Сервисы",
     kindGroupManaged: "Managed-ресурсы",
     kindGroupOther: "Прочее",
+
+    edgeEditTitle: "Связь между компонентами",
+    edgeProtocol: "Протокол",
+    edgeProtocolPlaceholder: "https, grpc, wireguard…",
+    edgePort: "Порт",
+    edgeDescription: "Описание",
+    edgeDescriptionPlaceholder: "Например: туннель до офиса, health-check VIP",
+    edgeNoMetadata: "Нет описания — карандаш или двойной клик",
+    edgeEditAria: "Редактировать описание связи",
 
     monitoringTitle: "МОНИТОРИНГ",
     monitoringSummary: "Пробы: {ok}/{total}",
@@ -123,6 +133,8 @@ const STRINGS = {
     settingsName: "Название",
     settingsUrlApi: "URL API",
     settingsUrlPlaceholder: "https://victoria-metrics.example:8428",
+    settingsUrlFromEnvHint:
+      "Адрес API задан переменной окружения PROBEMAP_DATASOURCE_URL и имеет приоритет над значением в config.json. Поле URL ниже только для просмотра; имя источника и остальные шаги настроек по-прежнему сохраняются в конфиг.",
 
     settingsSectionDatasource: "ИСТОЧНИК МЕТРИК",
     settingsSectionJobs: "ТАРГЕТЫ BLACKBOX (ЛЕЙБЛ JOB)",
@@ -271,6 +283,7 @@ const STRINGS = {
     mapLockInteraction: "Lock dragging, connections, and selection",
     mapUnlockInteraction: "Unlock dragging, connections, and selection",
 
+    groupColor: "Group color",
     contextAddArea: "Add area",
     contextAddService: "Add service",
     contextAddComponent: "Add component",
@@ -282,6 +295,15 @@ const STRINGS = {
     kindGroupManaged: "Managed Resources",
     kindGroupOther: "Other",
     contextAllServicesOnCanvas: "All monitored services are already on the canvas",
+
+    edgeEditTitle: "Link between components",
+    edgeProtocol: "Protocol",
+    edgeProtocolPlaceholder: "https, grpc, wireguard…",
+    edgePort: "Port",
+    edgeDescription: "Description",
+    edgeDescriptionPlaceholder: "e.g. tunnel to office, VIP health check",
+    edgeNoMetadata: "No description — pencil or double-click",
+    edgeEditAria: "Edit link details",
 
     monitoringTitle: "MONITORING",
     monitoringSummary: "Probes: {ok}/{total}",
@@ -344,6 +366,8 @@ const STRINGS = {
     settingsName: "Name",
     settingsUrlApi: "API URL",
     settingsUrlPlaceholder: "https://victoria-metrics.example:8428",
+    settingsUrlFromEnvHint:
+      "The API URL is set via PROBEMAP_DATASOURCE_URL and overrides config.json. The URL field below is read-only; the datasource name and the rest of the settings are still saved to the config file.",
 
     settingsSectionDatasource: "METRICS SOURCE",
     settingsSectionJobs: "BLACKBOX TARGETS (JOB LABEL)",
