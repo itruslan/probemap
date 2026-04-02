@@ -59,7 +59,6 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   const [showChrome, setShowChrome] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [layerHint, setLayerHint] = useState<"back" | "front" | null>(null);
-  const colorInputRef = useRef<HTMLInputElement>(null);
   const chromeLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearChromeLeaveTimer = () => {
@@ -309,7 +308,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               top: 28,
               left: 8,
               display: "flex",
-              alignItems: "center",
+              flexDirection: "column",
               gap: 6,
               padding: "6px 8px",
               borderRadius: 8,
@@ -319,103 +318,77 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               zIndex: 10,
             }}
           >
-            {/* Пресеты */}
-            {PRESETS.map((p) => (
-              <button
-                key={p.hex}
-                type="button"
-                onClick={() => applyColor(p.hex)}
-                className="probemap-btn probemap-btn--color-swatch"
-                style={{
-                  border: `2px solid ${p.hex}`,
-                  background: hexToRgba(p.hex, 0.22),
-                  outline: colorHex === p.hex ? `2px solid ${p.hex}` : "none",
-                  outlineOffset: 1,
-                }}
-                aria-label={p.hex}
-              />
-            ))}
-
-            {/* Разделитель */}
-            <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
-
-            {/* Произвольный цвет */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              <button
-                type="button"
-                onClick={() => colorInputRef.current?.click()}
-                title={t("groupColorCustom")}
-                className="probemap-btn probemap-btn--color-swatch"
-                style={{
-                  border: "2px dashed var(--probemap-border-strong)",
-                  background: colorHex && !PRESETS.some((p) => p.hex === colorHex)
-                    ? hexToRgba(colorHex, 0.22)
-                    : "var(--probemap-bg-subtle)",
-                  outline: colorHex && !PRESETS.some((p) => p.hex === colorHex)
-                    ? `2px solid ${colorHex}`
-                    : "none",
-                  outlineOffset: 1,
-                  overflow: "hidden",
-                }}
-                aria-label={t("groupColorCustom")}
-              >
-                <span style={{ fontSize: 11, color: "var(--probemap-text-faint)", lineHeight: 1 }}>+</span>
-              </button>
-              <input
-                ref={colorInputRef}
-                type="color"
-                value={colorHex && colorHex.startsWith("#") ? colorHex : "#6366f1"}
-                onChange={(e) => {
-                  setColorHex(e.target.value);
-                  d.color = e.target.value;
-                }}
-                style={{
-                  position: "absolute",
-                  opacity: 0,
-                  width: 1,
-                  height: 1,
-                  top: 0,
-                  left: 0,
-                  pointerEvents: "none",
-                }}
-                tabIndex={-1}
-              />
-            </div>
-
-            {/* Сброс цвета */}
-            {colorHex && (
-              <>
-                <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
+            {/* Пресеты + сброс */}
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {PRESETS.map((p) => (
                 <button
+                  key={p.hex}
                   type="button"
-                  onClick={() => applyColor("")}
-                  title={t("groupColorReset")}
+                  onClick={() => applyColor(p.hex)}
                   className="probemap-btn probemap-btn--color-swatch"
                   style={{
-                    border: "2px solid var(--probemap-border)",
-                    background: "transparent",
-                    position: "relative",
-                    overflow: "hidden",
+                    border: `2px solid ${p.hex}`,
+                    background: hexToRgba(p.hex, 0.22),
+                    outline: colorHex === p.hex ? `2px solid ${p.hex}` : "none",
+                    outlineOffset: 1,
                   }}
-                  aria-label={t("groupColorReset")}
-                >
-                  <span
-                    aria-hidden
+                  aria-label={p.hex}
+                />
+              ))}
+              {colorHex && (
+                <>
+                  <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
+                  <button
+                    type="button"
+                    onClick={() => applyColor("")}
+                    title={t("groupColorReset")}
+                    className="probemap-btn probemap-btn--color-swatch"
                     style={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      color: "var(--probemap-text-faint)",
+                      border: "2px solid var(--probemap-border)",
+                      background: "transparent",
+                      position: "relative",
+                      overflow: "hidden",
                     }}
+                    aria-label={t("groupColorReset")}
                   >
-                    ×
-                  </span>
-                </button>
-              </>
-            )}
+                    <span
+                      aria-hidden
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: 11,
+                        color: "var(--probemap-text-faint)",
+                      }}
+                    >
+                      ×
+                    </span>
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Произвольный цвет — inline под пресетами */}
+            <input
+              type="color"
+              value={colorHex && colorHex.startsWith("#") ? colorHex : "#6366f1"}
+              onChange={(e) => {
+                setColorHex(e.target.value);
+                d.color = e.target.value;
+              }}
+              title={t("groupColorCustom")}
+              style={{
+                width: "100%",
+                height: 22,
+                border: "1px solid var(--probemap-border)",
+                borderRadius: 4,
+                padding: 0,
+                cursor: "pointer",
+                background: "transparent",
+              }}
+            />
           </div>
         )}
 
