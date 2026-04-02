@@ -6,7 +6,11 @@ import {
   discoverJobsForUrl,
   discoverLabelsForUrl,
   previewMetricSelector,
+  fetchIcons,
+  uploadIcon,
+  deleteIcon,
   type AppConfig,
+  type CustomIcon,
   type Datasource,
   type DiscoveredJob,
   type KindRule,
@@ -15,6 +19,8 @@ import {
   type MetricSelectorPreview,
   type ProbeJob,
 } from "./api";
+
+const BASE = import.meta.env.VITE_API_URL ?? "";
 import { NODE_KINDS } from "./nodeKinds";
 import { useI18n, type I18nKey } from "./i18n";
 import { I18N_STABLE } from "./i18nLayout";
@@ -39,7 +45,7 @@ function normalizeLabelMap(
     port: lm.port ?? "port",
     probe_source,
     module: lm.module ?? "module",
-    url: lm.url ?? null,
+    endpoint_label: lm.endpoint_label ?? null,
   };
 }
 
@@ -124,7 +130,7 @@ const LABEL_FIELD_KEYS: {
   { key: "port", titleKey: "labelMapPortTitle", hintKey: "labelMapPortHint", required: true },
   { key: "probe_source", titleKey: "labelMapProbeSourceTitle", hintKey: "labelMapProbeSourceHint", required: true },
   { key: "module", titleKey: "labelMapModuleTitle", hintKey: "labelMapModuleHint", required: true },
-  { key: "url", titleKey: "labelMapUrlTitle", hintKey: "labelMapUrlHint", required: false },
+  { key: "endpoint_label", titleKey: "labelMapEndpointTitle", hintKey: "labelMapEndpointHint", required: false },
 ];
 
 export function Settings({ onClose, projectFilterPairs }: Props) {
@@ -143,10 +149,19 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const overlayRef = useRef<HTMLDivElement>(null);
   const didBootstrapDiscovery = useRef(false);
   const discoveryRequestId = useRef(0);
+  const [customIcons, setCustomIcons] = useState<CustomIcon[]>([]);
+  const [pendingIconFile, setPendingIconFile] = useState<File | null>(null);
+  const [pendingIconName, setPendingIconName] = useState("");
+  const [iconNameError, setIconNameError] = useState(false);
+  const iconFileRef = useRef<HTMLInputElement>(null);
   const [settingsHoverTip, setSettingsHoverTip] = useState<{ label: string; el: HTMLElement } | null>(null);
   const toggleSettingsTip = (label: string, el: HTMLElement) => {
     setSettingsHoverTip((prev) => (prev && prev.label === label ? null : { label, el }));
   };
+
+  useEffect(() => {
+    fetchIcons().then(setCustomIcons).catch(() => {});
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -1032,6 +1047,95 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               >
                 {t("settingsKindRulesAddRule")}
               </button>
+            </Section>
+
+            <Section title={
+              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                {t("iconSectionCustom")}
+                <HelpIcon
+                  aria={t("tooltipInfoAria")}
+                  onMouseEnter={(el) => setSettingsHoverTip({ label: t("iconSectionCustomHint"), el })}
+                  onMouseLeave={() => setSettingsHoverTip(null)}
+                />
+              </span>
+            }>
+              {/* Icon grid: existing icons + upload button as last cell */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {customIcons.map((icon) => (
+                  <div key={icon.name} style={{ position: "relative" }}
+                    onMouseEnter={(e) => { const b = e.currentTarget.querySelector<HTMLElement>(".rm-icon"); if (b) b.style.display = "flex"; }}
+                    onMouseLeave={(e) => { const b = e.currentTarget.querySelector<HTMLElement>(".rm-icon"); if (b) b.style.display = "none"; }}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 6, border: "1.5px solid var(--probemap-border)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--probemap-bg-subtle)" }} title={icon.name}>
+                      <img src={`${BASE}${icon.url}`} style={{ width: 22, height: 22, objectFit: "contain" }} alt={icon.name} />
+                    </div>
+                    <button
+                      className="rm-icon probemap-btn probemap-btn--map-delete"
+                      type="button"
+                      onClick={async () => { await deleteIcon(icon.name); setCustomIcons((p) => p.filter((i) => i.name !== icon.name)); }}
+                      style={{ display: "none", position: "absolute", top: -4, right: -4, width: 14, height: 14 }}
+                    >
+                      <TrashIcon variantOnRed size={8} />
+                    </button>
+                  </div>
+                ))}
+                {/* Upload cell */}
+                {!pendingIconFile && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => iconFileRef.current?.click()}
+                      title={t("iconUpload")}
+                      style={{
+                        width: 36, height: 36, borderRadius: 6, flexShrink: 0,
+                        border: "1.5px dashed var(--probemap-border-strong)",
+                        background: "transparent", color: "var(--probemap-text-faint)",
+                        cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+                      }}
+                    >
+                      +
+                    </button>
+                    <input ref={iconFileRef} type="file" accept=".svg,.png,.webp" style={{ display: "none" }}
+                      onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; setPendingIconFile(f); setPendingIconName(f.name.replace(/\.[^.]+$/, "")); setIconNameError(false); e.target.value = ""; }}
+                    />
+                  </>
+                )}
+              </div>
+              {/* Pending name form */}
+              {pendingIconFile && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <input
+                      autoFocus
+                      value={pendingIconName}
+                      onChange={(e) => { setPendingIconName(e.target.value); setIconNameError(false); }}
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter") {
+                          if (!pendingIconName.trim()) { setIconNameError(true); return; }
+                          const icon = await uploadIcon(pendingIconName.trim(), pendingIconFile);
+                          setCustomIcons((p) => [...p.filter((i) => i.name !== icon.name), icon]);
+                          setPendingIconFile(null); setPendingIconName(""); setIconNameError(false);
+                        }
+                        if (e.key === "Escape") { setPendingIconFile(null); setPendingIconName(""); setIconNameError(false); }
+                      }}
+                      placeholder={t("iconNamePlaceholder")}
+                      style={{ flex: 1, border: `1.5px solid ${iconNameError ? "var(--probemap-danger)" : "var(--probemap-border)"}`, borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", background: "var(--probemap-input-bg)", color: "var(--probemap-text)" }}
+                    />
+                    <button
+                      type="button"
+                      className="probemap-btn probemap-btn--primary probemap-btn--xs"
+                      onClick={async () => {
+                        if (!pendingIconName.trim()) { setIconNameError(true); return; }
+                        const icon = await uploadIcon(pendingIconName.trim(), pendingIconFile);
+                        setCustomIcons((p) => [...p.filter((i) => i.name !== icon.name), icon]);
+                        setPendingIconFile(null); setPendingIconName(""); setIconNameError(false);
+                      }}
+                    >{t("uiOk")}</button>
+                    <button type="button" className="probemap-btn probemap-btn--ghost probemap-btn--xs" onClick={() => { setPendingIconFile(null); setPendingIconName(""); setIconNameError(false); }}>✕</button>
+                  </div>
+                  {iconNameError && <div style={{ fontSize: 10, color: "var(--probemap-danger)" }}>{t("iconNameRequiredError")}</div>}
+                </div>
+              )}
             </Section>
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>

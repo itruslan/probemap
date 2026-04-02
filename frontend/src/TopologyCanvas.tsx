@@ -43,7 +43,7 @@ import { ServicesContext } from "./ServicesContext";
 import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
-import { effectiveServiceIdForNode, probeCardDown } from "./probeAlert";
+import { effectiveServiceIdForNode, probeCardDown, probeNodeStatus } from "./probeAlert";
 import type { NodeKindDef } from "./nodeKinds";
 
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
@@ -218,6 +218,7 @@ interface Props {
   /** Данные мониторинга устарели — затемнение канваса, без правок */
   metricsStale: boolean;
   datasourceStatus?: { configured: boolean; ok: boolean; name?: string | null } | null;
+  endpointLabel?: string | null;
 }
 
 export function TopologyCanvas({
@@ -229,6 +230,7 @@ export function TopologyCanvas({
   onPollIntervalSecChange,
   metricsStale,
   datasourceStatus,
+  endpointLabel,
 }: Props) {
   const { t, lang } = useI18n();
   const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom, fitView, zoomIn, zoomOut } = useReactFlow();
@@ -669,21 +671,30 @@ export function TopologyCanvas({
     return set;
   }, [data.services]);
 
+  const probeStatusMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const s of data.services) {
+      map[s.id] = probeNodeStatus(s.ports);
+    }
+    return map;
+  }, [data.services]);
+
   // Подсветка с палитры + красная пульсация при дауне мониторинга (палитра приоритетнее для этого узла)
   useEffect(() => {
     setNodes((prev) =>
       prev.map((n) => {
         let cls: string | undefined;
-        if (n.id === paletteSelectedId) cls = "palette-selected";
-        else if (paletteHoverId && n.id === paletteHoverId) cls = "palette-hover";
+        const eff = effectiveServiceIdForNode(n, data.services);
+        const status = eff ? (probeStatusMap[eff] ?? "unknown") : "unknown";
+        if (n.id === paletteSelectedId) cls = `palette-selected palette-selected--${status}`;
+        else if (paletteHoverId && n.id === paletteHoverId) cls = `palette-hover palette-hover--${status}`;
         else {
-          const eff = effectiveServiceIdForNode(n, data.services);
           if (eff && probeDownServiceIds.has(eff)) cls = "all-blackbox-down";
         }
         return { ...n, className: cls };
       }),
     );
-  }, [paletteSelectedId, paletteHoverId, probeDownServiceIds, data.services, setNodes]);
+  }, [paletteSelectedId, paletteHoverId, probeDownServiceIds, probeStatusMap, data.services, setNodes]);
 
   // Keep serviceConfigs in sync with node data changes
   useEffect(() => {
@@ -1043,7 +1054,7 @@ export function TopologyCanvas({
     <TraceContext.Provider value={{ tracedNodeId, toggleTrace }}>
     <CollisionContext.Provider value={collidingIds}>
     <DragContext.Provider value={draggingService}>
-    <ServicesContext.Provider value={{ services: data.services, probe_sources: data.probe_sources }}>
+    <ServicesContext.Provider value={{ services: data.services, probe_sources: data.probe_sources, endpoint_label: endpointLabel }}>
       <div style={{ display: "flex", height: "100%", width: "100%", minHeight: 0 }}>
         <div className="palette-sidebar-column">
           <Palette
@@ -1054,6 +1065,7 @@ export function TopologyCanvas({
             selectedId={paletteSelectedId}
             onSelect={onPaletteSelect}
             onHoverChange={setPaletteHoverId}
+            statusMap={probeStatusMap}
           />
         </div>
         <EdgeInteractionContext.Provider

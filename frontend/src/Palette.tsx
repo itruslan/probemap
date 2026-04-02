@@ -5,6 +5,13 @@ import { useI18n } from "./i18n";
 import { HoverTooltip } from "./Tooltip";
 import { useIsDraggingOnCanvas } from "./DragContext";
 
+const STATUS_COLOR: Record<string, string> = {
+  ok: "#22c55e",
+  warn: "#f97316",
+  down: "#ef4444",
+  unknown: "#9ca3af",
+};
+
 interface PaletteProps {
   services: Service[];
   onCanvas: Set<string>;
@@ -16,6 +23,8 @@ interface PaletteProps {
   onHoverChange: (id: string | null) => void;
   /** Данные устарели — без перетаскивания и добавления */
   readOnly?: boolean;
+  /** service id → status string (ok|warn|down|unknown) */
+  statusMap?: Record<string, string>;
 }
 
 export function Palette({
@@ -26,6 +35,7 @@ export function Palette({
   selectedId,
   onSelect,
   onHoverChange,
+  statusMap,
 }: PaletteProps) {
   const { t } = useI18n();
   const dragging = useIsDraggingOnCanvas();
@@ -155,6 +165,7 @@ export function Palette({
                 const active = onCanvas.has(svc.id);
                 const selected = active && selectedId === svc.id;
                 const hovered = hoveredId === svc.id;
+                const statusColor = STATUS_COLOR[statusMap?.[svc.id] ?? "unknown"] ?? STATUS_COLOR.unknown;
 
                 const rowClass = [
                   "palette-row",
@@ -173,6 +184,7 @@ export function Palette({
                     onMouseEnter={() => handleMouseEnter(svc)}
                     onMouseLeave={handleMouseLeave}
                     className={rowClass}
+                    style={(selected || hovered) ? { "--palette-row-accent": statusColor } as never : undefined}
                   >
                     <span className="palette-row__name">{svc.name}</span>
                     {!active && !readOnly && (

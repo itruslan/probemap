@@ -164,7 +164,8 @@ export interface LabelMap {
   /** Имя лейбла в метриках для различения инстансов blackbox (часто instance) */
   probe_source: string;
   module: string;
-  url: string | null;
+  /** Лейбл метрики, значение которого автоматически подставляется как endpoint узла */
+  endpoint_label?: string | null;
 }
 
 /** Оператор сравнения лейбла в PromQL */

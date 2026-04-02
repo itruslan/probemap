@@ -576,6 +576,7 @@ function AppContent() {
               onPollIntervalSecChange={setPollIntervalSecPersist}
               metricsStale={metricsStale}
               datasourceStatus={datasourceStatus}
+              endpointLabel={appConfigSnapshot?.label_map?.endpoint_label}
             />
           </ReactFlowProvider>
         )}

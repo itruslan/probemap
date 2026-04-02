@@ -4,6 +4,7 @@ import type { Service } from "./api";
 export interface ServicesContextValue {
   services: Service[];
   probe_sources: string[];
+  endpoint_label?: string | null;
 }
 
 export const ServicesContext = createContext<ServicesContextValue>({
@@ -13,4 +14,5 @@ export const ServicesContext = createContext<ServicesContextValue>({
 
 export const useServices = () => useContext(ServicesContext).services;
 export const useProbeSources = () => useContext(ServicesContext).probe_sources;
+export const useEndpointLabel = () => useContext(ServicesContext).endpoint_label ?? null;
 

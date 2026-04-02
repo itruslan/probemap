@@ -1,14 +1,14 @@
 import { useReactFlow, type NodeProps } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import type { Port, ServiceAction } from "../api";
+import { fetchIcons, type CustomIcon, type Port, type ServiceAction } from "../api";
 import { portProbeChips } from "../probeDisplay";
 import { IconRenderer } from "../IconRenderer";
 import { AllHandles } from "./handles";
 import { useColliding } from "../CollisionContext";
 import { useIsDraggingOnCanvas } from "../DragContext";
 import { HoverTooltip } from "../Tooltip";
-import { useProbeSources, useServices } from "../ServicesContext";
+import { useProbeSources, useServices, useEndpointLabel } from "../ServicesContext";
 import { DEFAULT_SERVICE_ICON_NAME, ALL_ICONS } from "../icons";
 import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
@@ -71,6 +71,8 @@ export interface ServiceNodeData {
   actions?: ServiceAction[];
   /** Не учитывать источники пробы (значение лейбла probe_source) */
   ignored_sources?: string[];
+  /** Endpoint/URL узла — ручной ввод или значение лейбла метрики */
+  endpoint?: string | null;
 }
 
 export function ServiceNode({ data, id }: NodeProps) {
@@ -78,6 +80,7 @@ export function ServiceNode({ data, id }: NodeProps) {
   const { updateNodeData } = useReactFlow();
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
+  const endpointLabel = useEndpointLabel();
   const { t } = useI18n();
   const { tracedNodeId, toggleTrace } = useTrace();
   const isTraced = tracedNodeId === id;
@@ -94,6 +97,9 @@ export function ServiceNode({ data, id }: NodeProps) {
   const [locked, setLocked] = useState(false);
 
   const [editingIcon, setEditingIcon] = useState(false);
+  const [customIcons, setCustomIcons] = useState<CustomIcon[]>([]);
+  const [editingEndpoint, setEditingEndpoint] = useState(false);
+  const [endpointDraft, setEndpointDraft] = useState("");
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState("");
   const [addingAction, setAddingAction] = useState(false);
@@ -113,6 +119,11 @@ export function ServiceNode({ data, id }: NodeProps) {
     () => services.find((s) => s.id === svcId)?.labels,
     [services, svcId],
   );
+
+  /** Endpoint из глобального лейбла (Settings → endpoint_label). Активен, если лейбл задан и у сервиса есть его значение. */
+  const autoEndpoint = endpointLabel && catalogLabels ? (catalogLabels[endpointLabel] ?? null) : null;
+  /** Итоговый endpoint: ручной ввод приоритетнее авто. */
+  const effectiveEndpoint = d.endpoint || autoEndpoint;
 
   // Строка на пару порт×зона×job×module; тип пробы для зоны без серии — из агрегата порта (не «TCP» по умолчанию)
   const ignoredSources = useMemo(() => new Set((d.ignored_sources ?? []).filter(Boolean)), [d.ignored_sources]);
@@ -247,6 +258,7 @@ export function ServiceNode({ data, id }: NodeProps) {
       setLocked(false);
       setVisible(false);
       setEditingDesc(false);
+      setEditingEndpoint(false);
       setAddingAction(false);
       setEditingIcon(false);
     } else {
@@ -262,6 +274,12 @@ export function ServiceNode({ data, id }: NodeProps) {
     },
     [],
   );
+
+  useEffect(() => {
+    if (editingIcon || addingAction) {
+      fetchIcons().then(setCustomIcons).catch(() => {});
+    }
+  }, [editingIcon, addingAction]);
 
   useEffect(() => {
     if (!locked) return;
@@ -401,6 +419,26 @@ export function ServiceNode({ data, id }: NodeProps) {
               <IconRenderer name={entry.icon} size={11} />
             </button>
           ))}
+          {customIcons.map((ci) => {
+            const name = `custom:${ci.name}`;
+            return (
+              <button
+                key={name}
+                type="button"
+                title={ci.name}
+                onClick={() => { updateNodeData(id, { icon: name }); setEditingIcon(false); }}
+                style={{
+                  width: 22, height: 22,
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  borderRadius: 4, padding: 0, flexShrink: 0, cursor: "pointer",
+                  border: `1.5px solid ${(d.icon ?? DEFAULT_SERVICE_ICON_NAME) === name ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                  background: (d.icon ?? DEFAULT_SERVICE_ICON_NAME) === name ? "var(--probemap-interactive-hover-bg)" : "transparent",
+                }}
+              >
+                <IconRenderer name={name} size={15} />
+              </button>
+            );
+          })}
         </div>
       )}
 
@@ -586,6 +624,64 @@ export function ServiceNode({ data, id }: NodeProps) {
         </div>
       ))}
 
+      {/* Endpoint */}
+      <div style={{ height: 1, background: "var(--probemap-bg-subtle)", margin: "10px 0 8px" }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
+        <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", fontSize: 10, letterSpacing: "0.06em" }}>{t("endpointTitle")}</div>
+        {autoEndpoint && !d.endpoint && (
+          <span style={{ fontSize: 9, color: "var(--probemap-text-faint)", background: "var(--probemap-bg-subtle)", border: "1px solid var(--probemap-border)", borderRadius: 4, padding: "0 4px", letterSpacing: "0.03em" }}>
+            {endpointLabel}
+          </span>
+        )}
+        {d.endpoint && autoEndpoint && (
+          <span style={{ fontSize: 9, color: "var(--probemap-text-faint)", background: "var(--probemap-bg-subtle)", border: "1px solid var(--probemap-border)", borderRadius: 4, padding: "0 4px", letterSpacing: "0.03em", cursor: "pointer" }}
+            title={autoEndpoint}
+            onClick={() => { updateNodeData(id, { endpoint: null }); }}
+          >
+            ✕ override
+          </span>
+        )}
+      </div>
+      {locked && editingEndpoint ? (
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          <input
+            autoFocus
+            value={endpointDraft}
+            onChange={(e) => setEndpointDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") { updateNodeData(id, { endpoint: endpointDraft.trim() || null }); setEditingEndpoint(false); }
+              if (e.key === "Escape") setEditingEndpoint(false);
+            }}
+            onBlur={() => { updateNodeData(id, { endpoint: endpointDraft.trim() || null }); setEditingEndpoint(false); }}
+            placeholder={autoEndpoint ?? t("endpointPlaceholder")}
+            style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid var(--probemap-interactive-hover-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }}
+          />
+          {catalogLabels && Object.keys(catalogLabels).length > 0 && (
+            <select
+              value=""
+              onChange={(e) => { if (e.target.value) setEndpointDraft(catalogLabels[e.target.value] ?? e.target.value); }}
+              style={{ border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "3px 6px", fontSize: 11, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)", cursor: "pointer" }}
+            >
+              <option value="">{t("endpointPickLabel")}</option>
+              {Object.entries(catalogLabels).map(([k, v]) => (
+                <option key={k} value={k}>{k}: {v}</option>
+              ))}
+            </select>
+          )}
+        </div>
+      ) : (
+        <div
+          onClick={locked && !autoEndpoint ? () => { setEndpointDraft(d.endpoint ?? ""); setEditingEndpoint(true); } : locked && d.endpoint ? () => { setEndpointDraft(d.endpoint ?? ""); setEditingEndpoint(true); } : undefined}
+          style={{ cursor: locked ? "text" : "default", color: effectiveEndpoint ? "var(--probemap-text)" : "var(--probemap-text-faint)", minHeight: 18, fontSize: 12, wordBreak: "break-all", padding: "2px 0" }}
+        >
+          {effectiveEndpoint ? (
+            <a href={effectiveEndpoint} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "var(--probemap-text)", textDecoration: "underline", textDecorationColor: "var(--probemap-text-faint)" }}>
+              {effectiveEndpoint}
+            </a>
+          ) : (locked ? t("endpointClickToAdd") : t("emDash"))}
+        </div>
+      )}
+
       {/* Description */}
       <div style={{ height: 1, background: "var(--probemap-bg-subtle)", margin: "10px 0 8px" }} />
       <div style={{ fontWeight: 700, color: "var(--probemap-text-faint)", marginBottom: 6, fontSize: 10, letterSpacing: "0.06em" }}>{t("descriptionTitle")}</div>
@@ -686,6 +782,26 @@ export function ServiceNode({ data, id }: NodeProps) {
                   <IconRenderer name={entry.icon} size={11} />
                 </button>
               ))}
+              {customIcons.map((ci) => {
+                const name = `custom:${ci.name}`;
+                return (
+                  <button
+                    key={name}
+                    type="button"
+                    title={ci.name}
+                    onClick={() => setNewActionIcon(name)}
+                    style={{
+                      width: 22, height: 22,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      borderRadius: 4, padding: 0, flexShrink: 0, cursor: "pointer",
+                      border: `1.5px solid ${newActionIcon === name ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                      background: newActionIcon === name ? "var(--probemap-interactive-hover-bg)" : "transparent",
+                    }}
+                  >
+                    <IconRenderer name={name} size={15} />
+                  </button>
+                );
+              })}
             </div>
             <input
               placeholder={t("actionNamePlaceholder")}
@@ -764,7 +880,7 @@ export function ServiceNode({ data, id }: NodeProps) {
           }} />
         )}
 
-        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: ((d.ports ?? []).length > 0 || blackboxOrder.length > 0) ? 5 : 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: (effectiveEndpoint || (d.ports ?? []).length > 0 || blackboxOrder.length > 0) ? 5 : 0 }}>
           <div style={{ position: "relative", flexShrink: 0 }}>
             <button
               onMouseDown={(e) => e.stopPropagation()}
@@ -792,6 +908,12 @@ export function ServiceNode({ data, id }: NodeProps) {
             {d.label}
           </span>
         </div>
+
+        {effectiveEndpoint && (
+          <div style={{ fontSize: 10, color: "var(--probemap-text-faint)", marginBottom: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 160 }} title={effectiveEndpoint}>
+            {effectiveEndpoint}
+          </div>
+        )}
 
         {((d.ports ?? []).length > 0 || blackboxOrder.length > 0) && (
           <div

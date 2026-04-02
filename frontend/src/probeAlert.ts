@@ -10,6 +10,21 @@ function aggStatusFromPorts(ports: Port[]): string {
   return "unknown";
 }
 
+/** Full probe status — mirrors the ServiceNode status computation. */
+export function probeNodeStatus(ports: Port[] | undefined): "ok" | "warn" | "down" | "unknown" {
+  const rows = (ports ?? []).flatMap((p) =>
+    Object.entries(p.sources ?? {}).map(([, s]) => ({ success: s.success })),
+  );
+  if (rows.length > 0) {
+    const hasAnyFail = rows.some((r) => r.success === 0);
+    const hasAnyOk = rows.some((r) => r.success === 1);
+    if (hasAnyFail && hasAnyOk) return "warn";
+    if (hasAnyFail) return "down";
+    if (hasAnyOk) return "ok";
+  }
+  return aggStatusFromPorts(ports ?? []) as "ok" | "warn" | "down" | "unknown";
+}
+
 /**
  * Тот же «красный» мониторинг, что и рамка карточки сервиса: rollup по `sources.*.success`,
  * иначе — как в узле, fallback на агрегат `port.status`.

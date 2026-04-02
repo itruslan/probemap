@@ -85,6 +85,10 @@ const STRINGS = {
     monitoringBindingNone: "Без мониторинга",
     monitoringBindingHelp:
       "Выберите сервис из каталога метрик: компонент получит статусы blackbox-проб по этому сервису.",
+    endpointTitle: "ENDPOINT",
+    endpointPlaceholder: "https://...",
+    endpointPickLabel: "из лейбла",
+    endpointClickToAdd: "Нажмите, чтобы добавить endpoint...",
     descriptionTitle: "ОПИСАНИЕ",
     actionsTitle: "ДЕЙСТВИЯ",
     labelsTitle: "МЕТКИ",
@@ -191,9 +195,9 @@ const STRINGS = {
     labelMapModuleTitle: "Модуль пробы",
     labelMapModuleHint:
       "Лейбл с именем модуля blackbox (http_2xx, icmp …); по нему определяется тип проверки (http / icmp / tcp).",
-    labelMapUrlTitle: "URL цели",
-    labelMapUrlHint:
-      "Если целевой URL хранится в отдельном лейбле — укажите его. Иначе оставьте «не задано».",
+    labelMapEndpointTitle: "Endpoint",
+    labelMapEndpointHint:
+      "Необязательно. Лейбл метрики, значение которого автоматически подставляется как endpoint узла на карте. Например: target, instance, url. Если у сервиса такого лейбла нет — endpoint можно задать вручную прямо на узле.",
 
     opEq: "= равно",
     opRe: "=~ regex",
@@ -235,6 +239,7 @@ const STRINGS = {
 
     iconSectionBuiltin: "ИКОНКИ",
     iconSectionCustom: "МОИ ИКОНКИ",
+    iconSectionCustomHint: "SVG, PNG или WebP. После загрузки иконки появятся в сетке выбора иконки у каждого узла и действия.",
     iconNamePlaceholder: "Название *",
     iconNameRequiredError: "Введите название",
     iconUpload: "+ Загрузить иконку",
@@ -339,6 +344,10 @@ const STRINGS = {
     monitoringBindingNone: "No monitoring",
     monitoringBindingHelp:
       "Select a service from the metrics catalog: the component will show statuses of blackbox probes for this service.",
+    endpointTitle: "ENDPOINT",
+    endpointPlaceholder: "https://...",
+    endpointPickLabel: "from label",
+    endpointClickToAdd: "Click to add endpoint...",
     descriptionTitle: "DESCRIPTION",
     actionsTitle: "ACTIONS",
     labelsTitle: "LABELS",
@@ -444,9 +453,9 @@ const STRINGS = {
     labelMapModuleTitle: "Probe module",
     labelMapModuleHint:
       "Label with the blackbox module name (http_2xx, icmp, …); used to infer http / icmp / tcp.",
-    labelMapUrlTitle: "Target URL",
-    labelMapUrlHint:
-      "If the target URL lives in its own label, choose it here. Otherwise leave “not set”.",
+    labelMapEndpointTitle: "Endpoint",
+    labelMapEndpointHint:
+      "Optional. The metric label whose value is automatically used as the node's endpoint on the map. E.g.: target, instance, url. If a service lacks this label, the endpoint can be set manually on the node.",
 
     opEq: "= equals",
     opRe: "=~ regex",
@@ -487,6 +496,7 @@ const STRINGS = {
 
     iconSectionBuiltin: "ICONS",
     iconSectionCustom: "MY ICONS",
+    iconSectionCustomHint: "SVG, PNG or WebP. Uploaded icons appear in the icon picker grid for every node and action.",
     iconNamePlaceholder: "Name *",
     iconNameRequiredError: "Enter a name",
     iconUpload: "+ Upload icon",
