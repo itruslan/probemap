@@ -256,6 +256,7 @@ const STRINGS = {
     changeIconTitle: "Сменить иконку",
 
     ellipsis: "…",
+    pathTraceClearAria: "Сбросить трассировку пути",
   },
   en: {
     probemap: "probemap",
@@ -503,6 +504,7 @@ const STRINGS = {
     changeIconTitle: "Change icon",
 
     ellipsis: "…",
+    pathTraceClearAria: "Clear path trace",
   },
 } as const;
 

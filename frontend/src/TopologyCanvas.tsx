@@ -72,6 +72,29 @@ function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
   return edge;
 }
 
+/** BFS через все рёбра (в обе стороны) от startId → множества nodeId и edgeId. */
+function traceConnected(
+  startId: string,
+  edges: MapEdge[],
+): { nodeIds: Set<string>; edgeIds: Set<string> } {
+  const nodeIds = new Set<string>([startId]);
+  const edgeIds = new Set<string>();
+  const queue = [startId];
+  while (queue.length > 0) {
+    const cur = queue.shift()!;
+    for (const e of edges) {
+      if (e.source !== cur && e.target !== cur) continue;
+      edgeIds.add(e.id);
+      const other = e.source === cur ? e.target : e.source;
+      if (!nodeIds.has(other)) {
+        nodeIds.add(other);
+        queue.push(other);
+      }
+    }
+  }
+  return { nodeIds, edgeIds };
+}
+
 function serviceToNode(
   svc: Service,
   position: { x: number; y: number },
@@ -315,6 +338,7 @@ export function TopologyCanvas({
   const [confirmText, setConfirmText] = useState("");
   const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(null);
   const [paletteHoverId, setPaletteHoverId] = useState<string | null>(null);
+  const [tracedNodeId, setTracedNodeId] = useState<string | null>(null);
   const [refreshLabelBold, setRefreshLabelBold] = useState(false);
   const refreshBoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -485,6 +509,20 @@ export function TopologyCanvas({
     return () => document.removeEventListener("keydown", onKey);
   }, [undo, redo, metricsStale, canvasInteractive]);
 
+  // Clear path trace when metrics go stale
+  useEffect(() => {
+    if (metricsStale) setTracedNodeId(null);
+  }, [metricsStale]);
+
+  // Escape clears active path trace
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setTracedNodeId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
   // Listen for delete-request events from ServiceNode trash icon
   useEffect(() => {
     const handler = (e: Event) => {
@@ -506,6 +544,7 @@ export function TopologyCanvas({
     setEdges((es) => es.filter((e) => e.source !== confirmDelete.id && e.target !== confirmDelete.id));
     setPaletteSelectedId(null);
     setPaletteHoverId(null);
+    setTracedNodeId(null);
     setConfirmDelete(null);
     setConfirmText("");
   }, [confirmDelete, getNodes, setNodes, setEdges, pushSnapshot]);
@@ -903,6 +942,48 @@ export function TopologyCanvas({
 
   const onCanvas = new Set(nodes.filter((n) => n.type === "service").map((n) => n.id));
 
+  const tracedSet = useMemo(() => {
+    if (!tracedNodeId) return null;
+    return traceConnected(tracedNodeId, edges);
+  }, [tracedNodeId, edges]);
+
+  const displayNodes = useMemo(
+    () =>
+      tracedSet
+        ? nodes.map((n) => ({
+            ...n,
+            style: { ...n.style, opacity: tracedSet.nodeIds.has(n.id) ? 1 : 0.15, transition: "opacity 0.18s" },
+          }))
+        : nodes,
+    [nodes, tracedSet],
+  );
+
+  const displayEdges = useMemo(
+    () =>
+      tracedSet
+        ? edges.map((e) => ({
+            ...e,
+            style: { ...e.style, opacity: tracedSet.edgeIds.has(e.id) ? 1 : 0.08, transition: "opacity 0.18s" },
+          }))
+        : edges,
+    [edges, tracedSet],
+  );
+
+  const tracedNodeLabel = useMemo(() => {
+    if (!tracedNodeId) return null;
+    const n = nodes.find((x) => x.id === tracedNodeId);
+    return (n?.data as { label?: string })?.label ?? tracedNodeId;
+  }, [tracedNodeId, nodes]);
+
+  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    if (node.type !== "service") return;
+    setTracedNodeId((prev) => (prev === node.id ? null : node.id));
+  }, []);
+
+  const onPaneClick = useCallback(() => {
+    setTracedNodeId(null);
+  }, []);
+
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
     if (metricsStale) {
       e.preventDefault();
@@ -1115,15 +1196,72 @@ export function TopologyCanvas({
             ["--probemap-vp-zoom" as string]: String(Math.max(0.08, viewportZoom)),
           }}
         >
+          {tracedNodeId && tracedNodeLabel && (
+            <div
+              style={{
+                position: "absolute",
+                top: 10,
+                left: "50%",
+                transform: "translateX(-50%)",
+                zIndex: 5,
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "5px 10px 5px 12px",
+                borderRadius: 999,
+                background: "var(--probemap-bg)",
+                border: "1.5px solid var(--probemap-border)",
+                boxShadow: "0 2px 8px rgba(15,23,42,0.12)",
+                fontSize: 12,
+                color: "var(--probemap-text)",
+                fontWeight: 500,
+                whiteSpace: "nowrap",
+                pointerEvents: "all",
+              }}
+            >
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: "50%",
+                  background: "#6366f1",
+                  flexShrink: 0,
+                }}
+              />
+              <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
+                {tracedNodeLabel}
+              </span>
+              <button
+                type="button"
+                aria-label={t("pathTraceClearAria")}
+                onClick={() => setTracedNodeId(null)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  color: "var(--probemap-text-faint)",
+                  fontSize: 14,
+                  lineHeight: 1,
+                  display: "flex",
+                  alignItems: "center",
+                }}
+              >
+                ×
+              </button>
+            </div>
+          )}
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={displayNodes}
+            edges={displayEdges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onReconnect={onReconnect}
             onNodeDrag={onNodeDrag}
             onNodeDragStop={onNodeDragStop}
+            onNodeClick={onNodeClick}
+            onPaneClick={onPaneClick}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             connectionMode={ConnectionMode.Loose}
