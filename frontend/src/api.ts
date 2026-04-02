@@ -79,7 +79,7 @@ export interface LayoutNode {
   id: string;
   x: number;
   y: number;
-  type?: "service" | "custom" | "group";
+  type?: "service" | "group";
   label?: string;
   kind?: string;
   /** Для service-узлов: привязка к сервису из мониторинга по id */

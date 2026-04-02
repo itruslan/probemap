@@ -547,10 +547,26 @@ export function TopologyCanvas({
               data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color } satisfies GroupNodeData,
             } as Node;
           }
-          if (ln.type === "custom") {
-            return null;
-          }
           const legacyType = ln.type as string | undefined;
+          if (legacyType === "custom") {
+            // Migrate legacy custom nodes to service type
+            const cfg = serviceConfigs.current[ln.id] ?? {};
+            return {
+              id: ln.id,
+              type: "service",
+              position: { x: ln.x, y: ln.y },
+              data: {
+                label: ln.label ?? ln.id,
+                ports: [],
+                icon: ln.icon ?? cfg.icon,
+                description: ln.description ?? cfg.description,
+                actions: ln.actions ?? cfg.actions,
+                ignored_sources: cfg.ignored_sources,
+                matchServiceId: ln.matchServiceId ?? null,
+                kind: ln.kind ?? "custom",
+              } satisfies ServiceNodeData,
+            } as Node;
+          }
           if (legacyType === "linkAnchor" || legacyType === "freeArrow") {
             return null;
           }
@@ -651,11 +667,6 @@ export function TopologyCanvas({
       const orphanIds: string[] = [];
 
       for (const n of prev) {
-        if (n.type === "custom") {
-          orphanIds.push(n.id);
-          delete serviceConfigs.current[n.id];
-          continue;
-        }
         if (n.type !== "service") {
           next.push(n);
           continue;
