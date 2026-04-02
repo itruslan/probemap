@@ -86,7 +86,9 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
   }, [project?.id, loadValuesForLabel]);
 
   useEffect(() => {
-    discoverLabels().then(setAvailableLabels).catch(() => setAvailableLabels([]));
+    discoverLabels()
+      .then((labels) => setAvailableLabels(labels.filter((l) => !l.startsWith("__"))))
+      .catch(() => setAvailableLabels([]));
   }, []);
 
   useEffect(() => {
