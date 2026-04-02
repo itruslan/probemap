@@ -232,11 +232,15 @@
 - **Готово когда:** видно, какие экспортёры участвуют в пробах сервиса (список на карте или в панели сервиса); у каждого можно пометить «не учитывать»; агрегат ok/down и счётчики исключают отключённые источники; настройка сохраняется в раскладке или `service_configs`.
 - **Статус:** начато — добавлены переключатели «игнорировать источник» в панели сервиса; состояние сохраняется в `service_configs` и исключается из агрегации (цвет / счётчики / expected). Точки blackbox на карточке тоже скрывают игнорированные источники.
 
-### [ ] Blackbox-пробы для сетевых хопов (Alloy/Prometheus)
+### [ ] Blackbox-пробы для сетевых хопов
 
 Для покрытия цепочки User → ... → Service нужно добавить probe targets на каждый хоп. Это работа **вне** кодовой базы ProbeMap, но результат видим на карте.
 
-- **Что сделать (в homelab-gitops / Alloy конфиге):**
+- **Архитектура blackbox:**
+  - Blackbox-экспортёры стоят на отдельных ВМ в разных зонах доступности.
+  - Prometheus / VictoriaMetrics ходит к ним для выполнения проб (relabel `__address__` → blackbox endpoint, `__param_target` → целевой хост).
+  - Лейбл `zone` / `instance` (probe_source в ProbeMap) различает, из какой зоны проба.
+- **Что сделать (в Alloy / Prometheus конфиге):**
   - VPN gateway: ICMP ping или TCP probe на endpoint.
   - Interconnect: ICMP через туннель до remote endpoint.
   - Load balancer: HTTP probe на VIP / health-check URL.
@@ -263,7 +267,187 @@
 
 ---
 
+## Docker и деплой
+
+### [ ] Dockerfile (multi-stage)
+
+Сейчас нет никаких Docker-файлов. Нужен один `Dockerfile` с multi-stage сборкой.
+
+- **Что сделать:**
+  - **Stage 1 — frontend build:** `node:22-alpine`, `npm ci`, `npm run build` → `frontend/dist/`.
+  - **Stage 2 — production:** `python:3.11-slim`, `uv` для установки зависимостей, копирование `backend/`, `frontend/dist/`.
+  - FastAPI раздаёт статику фронта через `StaticFiles` mount (сейчас не настроено — добавить в `main.py`).
+  - Это позволяет обойтись **без nginx** в контейнере: один процесс uvicorn обслуживает и API, и фронт.
+  - Точка входа: `uvicorn main:app --host 0.0.0.0 --port 8000 --app-dir /app/backend`.
+  - `EXPOSE 8000`.
+  - `/app/data` — том для персистентных данных.
+- **Готово когда:** `docker build -t probemap .` собирает образ; `docker run -p 8000:8000 -v probemap_data:/app/data probemap` запускает приложение; фронт доступен на `http://localhost:8000/`; API на `http://localhost:8000/api/`.
+
+### [ ] docker-compose.yml
+
+- **Что сделать:**
+  ```yaml
+  services:
+    probemap:
+      build: .
+      ports:
+        - "8000:8000"
+      volumes:
+        - probemap_data:/app/data
+      environment:
+        - PROBEMAP_DATASOURCE_URL=https://victoriametrics.example.com
+      restart: unless-stopped
+  volumes:
+    probemap_data:
+  ```
+  - Опционально: профиль `dev` с volume mount исходников и `--reload`.
+- **Готово когда:** `docker compose up` запускает рабочее приложение.
+
+### [ ] .dockerignore
+
+- Исключить: `.venv/`, `node_modules/`, `__pycache__/`, `.git/`, `.ruff_cache/`, `frontend/dist/` (собирается внутри), `data/` (том).
+- **Готово когда:** файл есть; контекст сборки минимальный.
+
+### [ ] Раздача фронта через FastAPI (StaticFiles)
+
+Сейчас `main.py` не раздаёт статику — в dev-режиме работает Vite, но в Docker нужно раздавать `dist/` через бэкенд.
+
+- **Что сделать:**
+  - Добавить в `main.py`: `app.mount("/", StaticFiles(directory="frontend/dist", html=True), name="static")` — **после** всех `/api` роутов.
+  - `html=True` обеспечивает SPA fallback (все не-API пути → `index.html`).
+  - Путь к `dist/` — через env var `PROBEMAP_STATIC_DIR` (дефолт: `frontend/dist`), чтобы в Docker можно было указать `/app/static`.
+- **Готово когда:** `uvicorn main:app` раздаёт и API, и фронт на одном порте; SPA-роутинг работает.
+
+---
+
+## Переменные окружения и конфигурация
+
+### [ ] .env.example + документация env vars
+
+Сейчас из env используется только `VM_URL` (в Makefile) и `ICONS_DIR` (в `icons.py`). Нужно привести к единой схеме.
+
+- **Текущие env vars:**
+  | Переменная | Где | Описание |
+  |-----------|-----|----------|
+  | `VM_URL` | Makefile | URL VictoriaMetrics (только для `make run`, не используется в коде) |
+  | `ICONS_DIR` | `icons.py` | Путь к директории иконок |
+
+- **Предлагаемая схема:**
+  | Переменная | Дефолт | Описание |
+  |-----------|--------|----------|
+  | `PROBEMAP_PORT` | `8000` | Порт HTTP-сервера |
+  | `PROBEMAP_DATA_DIR` | `./data` | Директория для JSON-данных (config, projects, layouts, icons) |
+  | `PROBEMAP_STATIC_DIR` | `./frontend/dist` | Директория со статикой фронта (пустая = не раздавать) |
+  | `PROBEMAP_DATASOURCE_URL` | *(из config.json)* | URL VictoriaMetrics/Prometheus; если задан — перезаписывает значение из config.json |
+  | `PROBEMAP_CORS_ORIGINS` | `*` | Разрешённые CORS origins (через запятую); `*` для dev |
+  | `PROBEMAP_LOG_LEVEL` | `info` | Уровень логирования uvicorn |
+
+- **Что сделать:**
+  - Создать `.env.example` со всеми переменными и комментариями.
+  - В `config.py` / `main.py` — читать через `os.getenv()` с дефолтами.
+  - `PROBEMAP_DATA_DIR` заменяет хардкод `DATA_DIR = os.path.join(os.path.dirname(__file__), "../data")` в `config.py` и `layout.py`.
+  - `PROBEMAP_DATASOURCE_URL` — если задан, используется как URL даже если в `config.json` другой (env > файл).
+  - `PROBEMAP_CORS_ORIGINS` — сейчас `allow_origins=["*"]` захардкожен; сделать настраиваемым.
+  - Добавить `.env.example` в `.gitignore` — нет; а `.env` — да.
+- **Готово когда:** `.env.example` есть в репо; все переменные документированы; бэкенд читает их; Docker Compose использует их.
+
+### [ ] DATA_DIR через env var (унификация путей)
+
+Сейчас `DATA_DIR` вычисляется относительно `backend/` в трёх местах:
+- `config.py`: `os.path.join(os.path.dirname(__file__), "../data")`
+- `layout.py`: `os.path.join(os.path.dirname(__file__), "../data")`
+- `icons.py`: `os.getenv("ICONS_DIR", ...)` — уже частично через env.
+
+- **Что сделать:**
+  - Одна точка: `PROBEMAP_DATA_DIR` env var → `config.py` экспортирует `DATA_DIR`.
+  - `layout.py` и `icons.py` импортируют из `config.py` (или из нового `settings.py`).
+  - Пути иконок: `{DATA_DIR}/icons/` — не отдельная переменная.
+- **Готово когда:** один env var управляет всеми путями данных; при `PROBEMAP_DATA_DIR=/app/data` все файлы читаются/пишутся туда.
+
+---
+
+## Структура проекта
+
+### [ ] Выделить `backend/settings.py` (конфигурация приложения)
+
+Сейчас `config.py` смешивает две вещи: настройки самого приложения (пути, порт, CORS) и бизнес-конфиг (datasource, projects). Стоит разделить.
+
+- **Что сделать:**
+  - Новый файл `backend/settings.py` — чтение env vars, пути к данным, CORS, log level.
+  - `config.py` — только бизнес-логика (read/write config.json, projects.json).
+  - `main.py` импортирует из `settings.py` для CORS, StaticFiles и т.д.
+- **Готово когда:** env vars читаются в одном месте; `config.py` не знает про env vars.
+
+### [ ] Перенести `frontend/dist/` в `.gitignore`
+
+Сейчас собранный фронт (`frontend/dist/`) попадает в git. Это артефакт сборки — не должен быть в репо.
+
+- **Что сделать:**
+  - Добавить `frontend/dist/` в `.gitignore`.
+  - Удалить `frontend/dist/` из git tracking (`git rm -r --cached frontend/dist/`).
+  - Сборка фронта — в Docker (stage 1) или в CI.
+- **Готово когда:** `git status` не показывает файлы из `dist/`; Docker собирает фронт внутри.
+
+### [ ] Dev-режим: `make dev` (бэкенд + фронт одной командой)
+
+Сейчас нужно запускать `make run` и `make run-frontend` в двух терминалах.
+
+- **Что сделать:**
+  - Добавить `make dev` — запуск обоих процессов (через `&` или `concurrently`/`overmind`/простой bash).
+  - Вариант без доп. зависимостей: `make dev` запускает бэкенд в фоне + фронт в foreground, с trap для cleanup.
+- **Готово когда:** `make dev` запускает всё в одном терминале; Ctrl+C останавливает оба процесса.
+
+### [ ] Логирование (structured logging)
+
+Сейчас бэкенд не логирует ничего кроме дефолтного вывода uvicorn. Нет логов запросов к VictoriaMetrics, ошибок, тайм-аутов.
+
+- **Что сделать:**
+  - `logging.getLogger("probemap")` с уровнем из `PROBEMAP_LOG_LEVEL`.
+  - Логировать: запросы к VictoriaMetrics (URL, время ответа, ошибки), ошибки чтения/записи JSON, старт приложения с конфигом.
+  - Формат: JSON (для dev — human-readable через env flag).
+- **Готово когда:** при запуске видно конфигурацию; ошибки VictoriaMetrics логируются с контекстом; уровень настраивается через env.
+
+---
+
+## CI/CD
+
+### [ ] GitHub Actions: lint + test
+
+Сейчас нет CI. Минимальный pipeline:
+
+- **Что сделать:**
+  - `.github/workflows/ci.yml`:
+    - Trigger: push + PR на main.
+    - Job 1 — backend: `uv sync`, `ruff check`, `pytest`.
+    - Job 2 — frontend: `npm ci`, `npm run lint`, `npm run build` (проверяет что TypeScript компилируется).
+  - Badges в README (опционально).
+- **Готово когда:** PR в main запускает проверки; broken lint/tests блокируют merge.
+
+### [ ] GitHub Actions: Docker build + push
+
+- **Зависимость:** Dockerfile.
+- **Что сделать:**
+  - При push тега `v*` — собрать образ и push в GHCR (`ghcr.io/{owner}/probemap`).
+  - Кеширование слоёв через `docker/build-push-action`.
+- **Готово когда:** `git tag v0.2.0 && git push --tags` → образ в registry.
+
+---
+
 ## Порядок реализации (рекомендуемый)
+
+### Блок 1 — Эксплуатация (сначала, разблокирует всё остальное)
+
+```
+.env.example + DATA_DIR ──► settings.py ──► StaticFiles ──► Dockerfile ──► docker-compose
+                                                                              │
+dist/ в .gitignore ──────────────────────────────────────────────────────────┘
+                                                                              │
+make dev ────────────────────────────────────────────────────────── (параллельно)
+logging ─────────────────────────────────────────────────────────── (параллельно)
+CI lint+test ──► CI docker build+push ──────────────────────────── (после Dockerfile)
+```
+
+### Блок 2 — Модель сетевого пути
 
 ```
 Фаза 1: kind ──► Фаза 2: каталог пресетов ──► Фаза 4: пробы к любой ноде
@@ -275,6 +459,6 @@
                                               Фаза 5: облачный API (опционально)
 ```
 
-**Быстрый результат без кода:** настроить blackbox-пробы в Alloy для сетевых хопов (см. «Мониторинг → Blackbox-пробы для сетевых хопов»). ProbeMap уже покажет их.
+**Быстрый результат без кода:** настроить blackbox-пробы для сетевых хопов (см. «Мониторинг → Blackbox-пробы для сетевых хопов»). ProbeMap уже покажет их.
 
 *Новые идеи — в нужный раздел; крупные темы сначала критерии «готово», потом код.*
