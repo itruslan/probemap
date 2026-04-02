@@ -46,6 +46,26 @@
   --probemap-interactive-hover-bg: #eff6ff;
   --probemap-interactive-hover-border: #93c5fd;
   --probemap-theme-toggle-on: #facc15;
+  /* UI accents */
+  --probemap-tooltip-bg: #1e293b;
+  --probemap-tooltip-text: #f1f5f9;
+  --probemap-trace-accent: #6366f1;
+  --probemap-edge-default: #b1b1b7;
+  /* Semantic status / danger colours */
+  --probemap-danger: #ef4444;
+  --probemap-danger-hover: #dc2626;
+  --probemap-danger-muted-bg: #fef2f2;
+  --probemap-status-ok: #22c55e;
+  --probemap-status-ok-hover: #16a34a;
+  --probemap-status-warn: #f97316;
+  --probemap-status-unknown: #9ca3af;
+  /* Status card borders/backgrounds (semi-transparent tints) */
+  --probemap-status-ok-border: rgba(34, 197, 94, 0.4);
+  --probemap-status-ok-bg: rgba(34, 197, 94, 0.06);
+  --probemap-status-warn-border: rgba(249, 115, 22, 0.4);
+  --probemap-status-warn-bg: rgba(249, 115, 22, 0.06);
+  --probemap-status-down-border: rgba(239, 68, 68, 0.4);
+  --probemap-status-down-bg: rgba(239, 68, 68, 0.06);
 }
 
 [data-theme="dark"] {
@@ -94,4 +114,24 @@
   --probemap-interactive-hover-bg: #1a2744;
   --probemap-interactive-hover-border: #3b82f6;
   --probemap-theme-toggle-on: #facc15;
+  /* UI accents */
+  --probemap-tooltip-bg: #1e293b;
+  --probemap-tooltip-text: #f1f5f9;
+  --probemap-trace-accent: #6366f1;
+  --probemap-edge-default: #b1b1b7;
+  /* Semantic status / danger colours */
+  --probemap-danger: #ef4444;
+  --probemap-danger-hover: #dc2626;
+  --probemap-danger-muted-bg: rgba(239, 68, 68, 0.08);
+  --probemap-status-ok: #22c55e;
+  --probemap-status-ok-hover: #16a34a;
+  --probemap-status-warn: #f97316;
+  --probemap-status-unknown: #9ca3af;
+  /* Status card borders/backgrounds (semi-transparent tints) */
+  --probemap-status-ok-border: rgba(34, 197, 94, 0.35);
+  --probemap-status-ok-bg: rgba(34, 197, 94, 0.07);
+  --probemap-status-warn-border: rgba(249, 115, 22, 0.35);
+  --probemap-status-warn-bg: rgba(249, 115, 22, 0.07);
+  --probemap-status-down-border: rgba(239, 68, 68, 0.35);
+  --probemap-status-down-bg: rgba(239, 68, 68, 0.07);
 }

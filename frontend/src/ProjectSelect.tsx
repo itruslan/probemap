@@ -170,7 +170,7 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
                   style={{
                     height: 1,
                     margin: "4px 0",
-                    background: "#e2e8f0",
+                    background: "var(--probemap-border)",
                   }}
                 />
                 <button

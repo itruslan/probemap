@@ -41,8 +41,8 @@ export function HoverTooltip({
   const base = {
     position: "fixed" as const,
     left: anchorX,
-    background: "#1e293b",
-    color: "#f1f5f9",
+    background: "var(--probemap-tooltip-bg)",
+    color: "var(--probemap-tooltip-text)",
     fontSize: 11,
     padding: multiline ? "8px 10px" : "3px 7px",
     borderRadius: 6,

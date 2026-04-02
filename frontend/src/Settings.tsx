@@ -472,7 +472,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       prev ? { ...prev, label_map: { ...prev.label_map, [key]: value || null } } : prev,
     );
 
-  const testColor = testState === "ok" ? "#16a34a" : testState === "fail" ? "#ef4444" : "var(--probemap-text-muted)";
+  const testColor = testState === "ok" ? "var(--probemap-status-ok-hover)" : testState === "fail" ? "var(--probemap-danger)" : "var(--probemap-text-muted)";
   const testLabel =
     testState === "testing"
       ? t("testChecking")

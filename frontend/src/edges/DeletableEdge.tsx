@@ -72,7 +72,7 @@ export function DeletableEdge({
   const summary = useMemo(() => summarizeEdge(data, t("edgeNoMetadata")), [data, t]);
 
   const dashArray = protocolDash(data?.protocol);
-  const edgeColor = (style?.stroke as string | undefined) ?? "#b1b1b7";
+  const edgeColor = (style?.stroke as string | undefined) ?? "var(--probemap-edge-default)";
   const edgeStyle = dashArray
     ? { ...style, strokeDasharray: dashArray }
     : style;

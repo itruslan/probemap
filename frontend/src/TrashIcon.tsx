@@ -1,7 +1,7 @@
 import { FaTrash } from "react-icons/fa6";
 
 /** Цвет корзины на светлом фоне (как в модалке проекта, но красный). */
-export const TRASH_COLOR = "#ef4444";
+export const TRASH_COLOR = "var(--probemap-danger)";
 
 type Props = {
   size?: number;

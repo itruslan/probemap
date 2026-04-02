@@ -1168,8 +1168,8 @@ export function TopologyCanvas({
                   background: !datasourceStatus.configured
                     ? "var(--probemap-border-strong)"
                     : datasourceStatus.ok
-                      ? "#22c55e"
-                      : "#ef4444",
+                      ? "var(--probemap-status-ok)"
+                      : "var(--probemap-danger)",
                   boxShadow: "0 0 0 1px rgba(15,23,42,0.08)",
                 }}
               />
@@ -1225,7 +1225,7 @@ export function TopologyCanvas({
                   width: 8,
                   height: 8,
                   borderRadius: "50%",
-                  background: "#6366f1",
+                  background: "var(--probemap-trace-accent)",
                   flexShrink: 0,
                 }}
               />
@@ -1236,17 +1236,8 @@ export function TopologyCanvas({
                 type="button"
                 aria-label={t("pathTraceClearAria")}
                 onClick={() => setTracedNodeId(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  padding: 0,
-                  cursor: "pointer",
-                  color: "var(--probemap-text-faint)",
-                  fontSize: 14,
-                  lineHeight: 1,
-                  display: "flex",
-                  alignItems: "center",
-                }}
+                className="probemap-btn probemap-btn--close"
+                style={{ fontSize: 14 }}
               >
                 ×
               </button>
@@ -1350,17 +1341,19 @@ export function TopologyCanvas({
             }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button onClick={() => { setConfirmDelete(null); setConfirmText(""); }}
-              style={{ padding: "6px 16px", borderRadius: 6, border: "1.5px solid var(--probemap-border)", background: "var(--probemap-modal-bg)", fontSize: 13, cursor: "pointer", color: "var(--probemap-text-muted)" }}>
+            <button
+              type="button"
+              onClick={() => { setConfirmDelete(null); setConfirmText(""); }}
+              className="probemap-btn probemap-btn--ghost probemap-btn--sm"
+            >
               {t("cancel")}
             </button>
-            <button onClick={doConfirmDelete} disabled={confirmText !== confirmDelete.label}
-              style={{
-                padding: "6px 16px", borderRadius: 6, border: "none", fontSize: 13, cursor: "pointer",
-                background: confirmText === confirmDelete.label ? "#ef4444" : "var(--probemap-bg-subtle)",
-                color: confirmText === confirmDelete.label ? "var(--probemap-on-accent)" : "var(--probemap-text-faint)",
-                transition: "background 0.15s, color 0.15s",
-              }}>
+            <button
+              type="button"
+              onClick={doConfirmDelete}
+              disabled={confirmText !== confirmDelete.label}
+              className="probemap-btn probemap-btn--danger probemap-btn--sm"
+            >
               {t("delete")}
             </button>
           </div>

@@ -214,15 +214,8 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
           <button
             type="button"
             onClick={onClose}
-            style={{
-              background: "none",
-              border: "none",
-              fontSize: 18,
-              color: "var(--probemap-text-faint)",
-              cursor: "pointer",
-              padding: 0,
-              flexShrink: 0,
-            }}
+            className="probemap-btn probemap-btn--close"
+            style={{ flexShrink: 0 }}
           >
             ×
           </button>
@@ -473,6 +466,7 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
                 border: "1.5px solid var(--probemap-border)",
                 outline: "none",
                 color: "var(--probemap-text)",
+                background: "var(--probemap-input-bg)",
                 marginBottom: 16,
               }}
             />
@@ -517,4 +511,5 @@ const inputStyle: React.CSSProperties = {
   border: "1.5px solid var(--probemap-border)",
   outline: "none",
   color: "var(--probemap-text)",
+  background: "var(--probemap-input-bg)",
 };

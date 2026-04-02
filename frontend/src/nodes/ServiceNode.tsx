@@ -18,10 +18,10 @@ import { DeleteButton } from "./DeleteButton";
 import { isMonitoringOptional, getGroupVisual } from "../nodeKinds";
 
 const STATUS_COLOR: Record<string, string> = {
-  ok: "#22c55e",
-  warn: "#f97316",
-  down: "#ef4444",
-  unknown: "#9ca3af",
+  ok: "var(--probemap-status-ok)",
+  warn: "var(--probemap-status-warn)",
+  down: "var(--probemap-danger)",
+  unknown: "var(--probemap-status-unknown)",
 };
 
 function aggStatus(ports: Port[]): string {
@@ -198,11 +198,11 @@ export function ServiceNode({ data, id }: NodeProps) {
     : offline
     ? { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg-subtle)" }
     : status === "ok"
-      ? { border: "#22c55e66", bg: "#22c55e0f" }
+      ? { border: "var(--probemap-status-ok-border)", bg: "var(--probemap-status-ok-bg)" }
       : status === "warn"
-        ? { border: "#f9731666", bg: "#f973160f" }
+        ? { border: "var(--probemap-status-warn-border)", bg: "var(--probemap-status-warn-bg)" }
         : status === "down"
-          ? { border: "#ef444466", bg: "#ef44440f" }
+          ? { border: "var(--probemap-status-down-border)", bg: "var(--probemap-status-down-bg)" }
           : { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg)" };
 
   const clearShowPanelTimer = () => {
@@ -329,7 +329,7 @@ export function ServiceNode({ data, id }: NodeProps) {
         ...panelStyle,
         zIndex: 3000,
         background: "var(--probemap-modal-bg)",
-        border: `1.5px solid ${locked ? "#93c5fd" : "var(--probemap-border)"}`,
+        border: `1.5px solid ${locked ? "var(--probemap-interactive-hover-border)" : "var(--probemap-border)"}`,
         borderRadius: 10,
         boxShadow: locked ? "0 6px 24px rgba(59,130,246,.18)" : "0 4px 16px rgba(0,0,0,.1)",
         padding: "12px 14px",
@@ -372,7 +372,7 @@ export function ServiceNode({ data, id }: NodeProps) {
               <div style={{
                 fontSize: 11,
                 fontWeight: 700,
-                color: status === "ok" ? "#16a34a" : status === "down" ? "#ef4444" : status === "warn" ? "#f97316" : "var(--probemap-text-faint)",
+                color: STATUS_COLOR[status] ?? "var(--probemap-text-faint)",
               }}>
                 {t("monitoringSummary").replace("{ok}", String(okPresent)).replace("{total}", String(totalPresent))}
               </div>
@@ -561,12 +561,12 @@ export function ServiceNode({ data, id }: NodeProps) {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
             <span style={{ fontSize: 10, color: "var(--probemap-text-faint)" }}>
               {t("descriptionSaveHintBefore")}
-              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "#3b82f622", color: "#3b82f6", border: "1px solid #3b82f644", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span>
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "var(--probemap-interactive-hover-bg)", color: "var(--probemap-blue)", border: "1px solid var(--probemap-interactive-hover-border)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span>
               {t("descriptionSaveHintAfter")}
             </span>
             <span style={{
               fontSize: 10,
-              color: descDraft.length >= 110 ? "#ef4444" : descDraft.length >= 100 ? "#f97316" : "var(--probemap-text-faint)",
+              color: descDraft.length >= 110 ? "var(--probemap-danger)" : descDraft.length >= 100 ? "var(--probemap-status-warn)" : "var(--probemap-text-faint)",
               fontWeight: descDraft.length >= 100 ? 600 : 400,
             }}>
               {descDraft.length}/120
@@ -606,7 +606,7 @@ export function ServiceNode({ data, id }: NodeProps) {
             </a>
             {locked && (
               <button
-                className="rm-act"
+                className="rm-act probemap-btn probemap-btn--map-delete"
                 type="button"
                 onClick={() => removeAction(i)}
                 style={{
@@ -616,13 +616,6 @@ export function ServiceNode({ data, id }: NodeProps) {
                   right: -4,
                   width: 14,
                   height: 14,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "#ef4444",
-                  cursor: "pointer",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 0,
                 }}
               >
                 <TrashIcon variantOnRed size={8} />
@@ -786,10 +779,10 @@ export function ServiceNode({ data, id }: NodeProps) {
                 {blackboxOrder.filter((src) => !ignoredSources.has(src)).map((src) => {
                   const st = sourceAgg.get(src);
                   const dotBg =
-                    !st ? "#9ca3af"
-                      : st.hasFail ? "#ef4444"
-                        : st.hasOk ? "#22c55e"
-                          : "#9ca3af";
+                    !st ? "var(--probemap-status-unknown)"
+                      : st.hasFail ? "var(--probemap-danger)"
+                        : st.hasOk ? "var(--probemap-status-ok)"
+                          : "var(--probemap-status-unknown)";
                   return (
                     <div
                       key={src}

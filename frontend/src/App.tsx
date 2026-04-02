@@ -494,32 +494,15 @@ function AppContent() {
             }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <span
-                style={{ display: "inline-flex" }}
-                onMouseEnter={(e) => {
-                  setEmptyCtaHint({ label: datasourceCtaHelpLabel, el: e.currentTarget });
-                }}
-                onMouseLeave={() => setEmptyCtaHint(null)}
-              >
-                <button
-                  type="button"
-                  onClick={() => setSettingsOpen(true)}
-                  className="probemap-btn probemap-btn--primary probemap-btn--lg"
-                  style={{ minWidth: I18N_STABLE.settingsOpenMinWidthPx }}
-                >
-                  {t("datasourceSetupTitle")}
-                </button>
-              </span>
               <button
                 type="button"
-                aria-label={t("tooltipInfoAria")}
-                onClick={(e) => toggleEmptyCtaHint(datasourceCtaHelpLabel, e.currentTarget)}
+                onClick={(e) => { setSettingsOpen(true); toggleEmptyCtaHint(datasourceCtaHelpLabel, e.currentTarget); }}
                 onMouseEnter={(e) => setEmptyCtaHint({ label: datasourceCtaHelpLabel, el: e.currentTarget })}
                 onMouseLeave={() => setEmptyCtaHint(null)}
-                className="probemap-btn probemap-btn--ghost probemap-btn--md"
-                style={{ width: 34, minWidth: 34, paddingLeft: 0, paddingRight: 0 }}
+                className="probemap-btn probemap-btn--primary probemap-btn--lg"
+                style={{ minWidth: I18N_STABLE.settingsOpenMinWidthPx }}
               >
-                i
+                {t("datasourceSetupTitle")}
               </button>
             </div>
           </div>
@@ -555,44 +538,28 @@ function AppContent() {
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span
-                  style={{ display: "inline-flex" }}
-                  onMouseEnter={(e) => {
-                    setEmptyCtaHint({ label: onboardingCtaHelpLabel, el: e.currentTarget });
-                  }}
-                  onMouseLeave={() => setEmptyCtaHint(null)}
-                >
-                  <button
-                    type="button"
-                    disabled={onboardingChecking}
-                    onClick={() => {
-                      if (onboardingReady) setProjectModal({});
-                      else setSettingsOpen(true);
-                    }}
-                    className={`probemap-btn probemap-btn--lg${onboardingReady ? " probemap-btn--slate" : " probemap-btn--primary"}${onboardingChecking ? " probemap-btn--busy" : ""}`}
-                    style={{
-                      minWidth: onboardingReady ? I18N_STABLE.ctaMinWidthPx : I18N_STABLE.settingsOpenMinWidthPx,
-                    }}
-                  >
-                    {onboardingChecking
-                      ? t("loading")
-                      : onboardingReady
-                        ? t("projectAdd")
-                        : showDatasourceSetupHead
-                          ? t("datasourceSetupTitle")
-                          : t("settingsOpen")}
-                  </button>
-                </span>
                 <button
                   type="button"
-                  aria-label={t("tooltipInfoAria")}
-                  onClick={(e) => toggleEmptyCtaHint(onboardingCtaHelpLabel, e.currentTarget)}
+                  disabled={onboardingChecking}
+                  onClick={(e) => {
+                    toggleEmptyCtaHint(onboardingCtaHelpLabel, e.currentTarget);
+                    if (onboardingReady) setProjectModal({});
+                    else setSettingsOpen(true);
+                  }}
                   onMouseEnter={(e) => setEmptyCtaHint({ label: onboardingCtaHelpLabel, el: e.currentTarget })}
                   onMouseLeave={() => setEmptyCtaHint(null)}
-                  className="probemap-btn probemap-btn--ghost probemap-btn--md"
-                  style={{ width: 34, minWidth: 34, paddingLeft: 0, paddingRight: 0 }}
+                  className={`probemap-btn probemap-btn--lg${onboardingReady ? " probemap-btn--slate" : " probemap-btn--primary"}${onboardingChecking ? " probemap-btn--busy" : ""}`}
+                  style={{
+                    minWidth: onboardingReady ? I18N_STABLE.ctaMinWidthPx : I18N_STABLE.settingsOpenMinWidthPx,
+                  }}
                 >
-                  i
+                  {onboardingChecking
+                    ? t("loading")
+                    : onboardingReady
+                      ? t("projectAdd")
+                      : showDatasourceSetupHead
+                        ? t("datasourceSetupTitle")
+                        : t("settingsOpen")}
                 </button>
               </div>
             </div>

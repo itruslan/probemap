@@ -83,7 +83,7 @@ export function MapObjectsBar({
   return (
     <div className="map-objects-floating">
       <div className="map-objects-stack">
-        <section className="map-objects-toolbar__panel" aria-label={t("mapObjectsTitle")}>
+        <section className="map-objects-toolbar__panel" aria-label={t("mapCanvasActions")}>
           <div className="map-objects-toolbar__inner" role="toolbar" aria-orientation="vertical">
             <Btn
               label={t("contextAddArea")}
@@ -93,11 +93,6 @@ export function MapObjectsBar({
             >
               <FaObjectGroup className="map-objects-toolbar__icon" aria-hidden />
             </Btn>
-          </div>
-        </section>
-
-        <section className="map-objects-toolbar__panel" aria-label={t("mapCanvasActions")}>
-          <div className="map-objects-toolbar__inner" role="toolbar" aria-orientation="vertical">
             <Btn
               label={t("mapUndo")}
               title={`${t("mapCanvasActions")}: ${t("mapUndo")}`}
@@ -156,3 +151,4 @@ export function MapObjectsBar({
     </div>
   );
 }
+

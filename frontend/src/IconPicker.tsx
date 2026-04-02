@@ -146,7 +146,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
             >
               <img src={`${BASE}${icon.url}`} style={{ width: 22, height: 22, objectFit: "contain" }} alt="" />
               <button
-                className="probemap-icon-tile__del"
+                className="probemap-icon-tile__del probemap-btn probemap-btn--map-delete"
                 type="button"
                 onClick={(e) => handleDelete(e, icon.name)}
                 style={{
@@ -156,13 +156,6 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
                   right: -5,
                   width: 14,
                   height: 14,
-                  borderRadius: "50%",
-                  border: "none",
-                  background: "#ef4444",
-                  cursor: "pointer",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  padding: 0,
                 }}
               >
                 <TrashIcon variantOnRed size={8} />
@@ -187,7 +180,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
                   style={{
                     width: "100%", boxSizing: "border-box",
                     padding: "4px 6px", borderRadius: 5, fontSize: 12, outline: "none",
-                    border: `1.5px solid ${nameError ? "#ef4444" : "var(--probemap-border)"}`,
+                    border: `1.5px solid ${nameError ? "var(--probemap-danger)" : "var(--probemap-border)"}`,
                   }}
                 />
               </div>
@@ -201,7 +194,7 @@ export function IconPicker({ anchorX, anchorY, onSelect, onClose, builtinIcons }
               </button>
             </div>
             {nameError && (
-              <div style={{ fontSize: 10, color: "#ef4444", paddingLeft: 2 }}>{t("iconNameRequiredError")}</div>
+              <div style={{ fontSize: 10, color: "var(--probemap-danger)", paddingLeft: 2 }}>{t("iconNameRequiredError")}</div>
             )}
           </div>
         ) : (
