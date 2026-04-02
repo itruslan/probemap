@@ -610,10 +610,11 @@ export function TopologyCanvas({
             return null;
           }
           if (!ln.type || ln.type === "service") {
+            const migratedKind = ln.kind === "k8s-cluster" ? "cluster" : ln.kind;
             const svc = data.services.find((s) => s.id === ln.id) ?? null;
             const cfg = serviceConfigs.current[ln.id] ?? {};
             if (svc) {
-              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, ln.matchServiceId ?? null, ln.kind);
+              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, ln.matchServiceId ?? null, migratedKind);
             }
             // Узел service без метрик: сервис мог исчезнуть во время сохранения
             return {
@@ -628,7 +629,7 @@ export function TopologyCanvas({
                 actions: cfg.actions,
                 ignored_sources: cfg.ignored_sources,
                 matchServiceId: ln.matchServiceId ?? null,
-                kind: ln.kind ?? "service",
+                kind: migratedKind ?? "service",
               } satisfies ServiceNodeData,
             } as Node;
           }

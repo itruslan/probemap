@@ -15,6 +15,8 @@ export interface NodeKindDef {
   icon: string;
   /** Default accent color (CSS value) */
   color?: string;
+  /** Hidden from the «Add component» context menu (still available in kind_rules). */
+  menuHidden?: boolean;
 }
 
 export const NODE_KINDS: NodeKindDef[] = [
@@ -35,17 +37,26 @@ export const NODE_KINDS: NodeKindDef[] = [
   { kind: "waf", label: { en: "WAF", ru: "WAF" }, group: "entry", icon: "Shield" },
   { kind: "api-gateway", label: { en: "API Gateway", ru: "API Gateway" }, group: "entry", icon: "Router" },
 
-  // Cluster
-  { kind: "k8s-cluster", label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes" }, group: "cluster", icon: "Container" },
+  // Generic cluster — shown in context menu (self-managed or any cluster/resource)
+  { kind: "cluster", label: { en: "Cluster", ru: "Кластер" }, group: "cluster", icon: "Container" },
 
   // Service (default for nodes from metrics)
   { kind: "service", label: { en: "Service", ru: "Сервис" }, group: "service", icon: "Globe" },
 
-  // Managed resources
-  { kind: "managed-db", label: { en: "Managed Database", ru: "Managed БД" }, group: "managed", icon: "Database" },
-  { kind: "managed-cache", label: { en: "Managed Cache", ru: "Managed кеш" }, group: "managed", icon: "MemoryStick" },
-  { kind: "object-storage", label: { en: "Object Storage", ru: "Объектное хранилище" }, group: "managed", icon: "HardDrive" },
-  { kind: "dns", label: { en: "DNS", ru: "DNS" }, group: "managed", icon: "Globe" },
+  // Managed & specific cluster kinds — available for kind_rules, hidden from creation menu
+  { kind: "managed-kubernetes", label: { en: "Managed Kubernetes", ru: "Managed Kubernetes" }, group: "cluster", icon: "Container", menuHidden: true },
+  { kind: "k8s-cluster", label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes" }, group: "cluster", icon: "Container", menuHidden: true },
+  { kind: "managed-postgresql", label: { en: "Managed PostgreSQL", ru: "Managed PostgreSQL" }, group: "managed", icon: "Database", menuHidden: true },
+  { kind: "managed-mysql", label: { en: "Managed MySQL", ru: "Managed MySQL" }, group: "managed", icon: "Database", menuHidden: true },
+  { kind: "managed-clickhouse", label: { en: "Managed ClickHouse", ru: "Managed ClickHouse" }, group: "managed", icon: "Database", menuHidden: true },
+  { kind: "managed-mongodb", label: { en: "Managed MongoDB", ru: "Managed MongoDB" }, group: "managed", icon: "Database", menuHidden: true },
+  { kind: "managed-redis", label: { en: "Managed Redis", ru: "Managed Redis" }, group: "managed", icon: "MemoryStick", menuHidden: true },
+  { kind: "managed-opensearch", label: { en: "Managed OpenSearch", ru: "Managed OpenSearch" }, group: "managed", icon: "Database", menuHidden: true },
+  { kind: "managed-kafka", label: { en: "Managed Kafka", ru: "Managed Kafka" }, group: "managed", icon: "Radio", menuHidden: true },
+  { kind: "managed-db", label: { en: "Managed Database", ru: "Managed БД" }, group: "managed", icon: "Database", menuHidden: true },
+  { kind: "managed-cache", label: { en: "Managed Cache", ru: "Managed кеш" }, group: "managed", icon: "MemoryStick", menuHidden: true },
+  { kind: "object-storage", label: { en: "Object Storage", ru: "Object Storage" }, group: "managed", icon: "HardDrive", menuHidden: true },
+  { kind: "dns", label: { en: "DNS", ru: "DNS" }, group: "managed", icon: "Globe", menuHidden: true },
 
   // Fallback
   { kind: "custom", label: { en: "Custom", ru: "Произвольный" }, group: "other", icon: "Box" },

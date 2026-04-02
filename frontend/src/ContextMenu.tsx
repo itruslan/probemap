@@ -126,7 +126,7 @@ export function ContextMenu({ x, y, services, onAddArea, onAddService, onAddComp
           }}
         >
           {KIND_GROUPS.filter((g) => g.key !== "service").map((group) => {
-            const items = NODE_KINDS.filter((k) => k.group === group.key);
+            const items = NODE_KINDS.filter((k) => k.group === group.key && !k.menuHidden);
             if (!items.length) return null;
             return (
               <div key={group.key}>
