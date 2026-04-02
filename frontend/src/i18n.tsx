@@ -259,6 +259,8 @@ const STRINGS = {
 
     ellipsis: "…",
     pathTraceClearAria: "Сбросить трассировку пути",
+    pathTraceAria: "Показать связанные узлы",
+    pathTraceLabel: "путь",
   },
   en: {
     probemap: "probemap",
@@ -509,6 +511,8 @@ const STRINGS = {
 
     ellipsis: "…",
     pathTraceClearAria: "Clear path trace",
+    pathTraceAria: "Show connected nodes",
+    pathTraceLabel: "trace",
   },
 } as const;
 

@@ -15,6 +15,7 @@ import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
 import { DeleteButton } from "./DeleteButton";
 import { isMonitoringOptional, getGroupVisual } from "../nodeKinds";
+import { useTrace } from "../TraceContext";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "var(--probemap-status-ok)",
@@ -78,6 +79,8 @@ export function ServiceNode({ data, id }: NodeProps) {
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
   const { t } = useI18n();
+  const { tracedNodeId, toggleTrace } = useTrace();
+  const isTraced = tracedNodeId === id;
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -360,6 +363,23 @@ export function ServiceNode({ data, id }: NodeProps) {
         >
           {d.label}
         </div>
+        {locked && (
+          <button
+            type="button"
+            title={isTraced ? t("pathTraceClearAria") : t("pathTraceAria")}
+            onClick={() => toggleTrace(id)}
+            style={{
+              flexShrink: 0, padding: "2px 6px", borderRadius: 999, fontSize: 10, fontWeight: 600,
+              border: `1.5px solid ${isTraced ? "var(--probemap-trace-accent)" : "var(--probemap-border)"}`,
+              background: isTraced ? "var(--probemap-trace-accent)" : "transparent",
+              color: isTraced ? "#fff" : "var(--probemap-text-faint)",
+              cursor: "pointer", letterSpacing: "0.02em",
+              transition: "all 0.15s ease",
+            }}
+          >
+            {t("pathTraceLabel")}
+          </button>
+        )}
       </div>
       {editingIcon && locked && (
         <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 10 }}>

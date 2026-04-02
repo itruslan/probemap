@@ -40,6 +40,7 @@ import { ContextMenu } from "./ContextMenu";
 import { CollisionContext } from "./CollisionContext";
 import { DragContext } from "./DragContext";
 import { ServicesContext } from "./ServicesContext";
+import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 import { effectiveServiceIdForNode, probeCardDown } from "./probeAlert";
@@ -976,13 +977,8 @@ export function TopologyCanvas({
     return (n?.data as { label?: string })?.label ?? tracedNodeId;
   }, [tracedNodeId, nodes]);
 
-  const onNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    if (node.type !== "service") return;
-    setTracedNodeId((prev) => (prev === node.id ? null : node.id));
-  }, []);
-
-  const onPaneClick = useCallback(() => {
-    setTracedNodeId(null);
+  const toggleTrace = useCallback((nodeId: string) => {
+    setTracedNodeId((prev) => (prev === nodeId ? null : nodeId));
   }, []);
 
   const handleContextMenu = useCallback((e: React.MouseEvent) => {
@@ -1044,6 +1040,7 @@ export function TopologyCanvas({
   }, [store, metricsStale]);
 
   return (
+    <TraceContext.Provider value={{ tracedNodeId, toggleTrace }}>
     <CollisionContext.Provider value={collidingIds}>
     <DragContext.Provider value={draggingService}>
     <ServicesContext.Provider value={{ services: data.services, probe_sources: data.probe_sources }}>
@@ -1252,8 +1249,6 @@ export function TopologyCanvas({
             onReconnect={onReconnect}
             onNodeDrag={onNodeDrag}
             onNodeDragStop={onNodeDragStop}
-            onNodeClick={onNodeClick}
-            onPaneClick={onPaneClick}
             nodeTypes={NODE_TYPES}
             edgeTypes={EDGE_TYPES}
             connectionMode={ConnectionMode.Loose}
@@ -1365,5 +1360,6 @@ export function TopologyCanvas({
     </ServicesContext.Provider>
     </DragContext.Provider>
     </CollisionContext.Provider>
+    </TraceContext.Provider>
   );
 }
