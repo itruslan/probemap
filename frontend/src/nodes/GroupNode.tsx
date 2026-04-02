@@ -60,6 +60,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [layerHint, setLayerHint] = useState<"back" | "front" | null>(null);
   const chromeLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const colorBtnRef = useRef<HTMLButtonElement>(null);
+  const paletteRef = useRef<HTMLDivElement>(null);
 
   const clearChromeLeaveTimer = () => {
     if (chromeLeaveTimerRef.current) {
@@ -69,6 +71,20 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   };
 
   useEffect(() => () => clearChromeLeaveTimer(), []);
+
+  // Закрывать палитру по клику вне неё
+  useEffect(() => {
+    if (!paletteOpen) return;
+    const handleMouseDown = (e: MouseEvent) => {
+      if (
+        paletteRef.current?.contains(e.target as Node) ||
+        colorBtnRef.current?.contains(e.target as Node)
+      ) return;
+      setPaletteOpen(false);
+    };
+    document.addEventListener("mousedown", handleMouseDown);
+    return () => document.removeEventListener("mousedown", handleMouseDown);
+  }, [paletteOpen]);
 
   const color = colorHex
     ? colorFromHex(colorHex)
@@ -153,7 +169,6 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           clearChromeLeaveTimer();
           chromeLeaveTimerRef.current = setTimeout(() => {
             setShowChrome(false);
-            setPaletteOpen(false);
             setLayerHint(null);
             chromeLeaveTimerRef.current = null;
           }, 220);
@@ -173,6 +188,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         >
           {/* Кнопка открытия палитры цветов */}
           <button
+            ref={colorBtnRef}
             type="button"
             onClick={() => setPaletteOpen((v) => !v)}
             onPointerDown={stopFlowPointer}
@@ -297,21 +313,9 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         {/* Палитра цветов */}
         {paletteOpen && (
           <div
+            ref={paletteRef}
             onPointerDown={stopFlowPointer}
             onMouseDown={stopFlowPointer}
-            onMouseEnter={() => {
-              clearChromeLeaveTimer();
-              setShowChrome(true);
-            }}
-            onMouseLeave={() => {
-              clearChromeLeaveTimer();
-              chromeLeaveTimerRef.current = setTimeout(() => {
-                setShowChrome(false);
-                setPaletteOpen(false);
-                setLayerHint(null);
-                chromeLeaveTimerRef.current = null;
-              }, 220);
-            }}
             style={{
               position: "absolute",
               top: 28,
