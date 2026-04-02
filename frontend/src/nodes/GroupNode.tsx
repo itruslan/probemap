@@ -147,8 +147,14 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         isVisible={selected}
         minWidth={120}
         minHeight={80}
-        lineStyle={{ borderColor: color.border }}
-        handleStyle={{ width: 8, height: 8, borderRadius: 2, background: color.border }}
+        lineStyle={{ borderColor: color.border, borderWidth: 1 }}
+        handleStyle={{
+          width: 6,
+          height: 6,
+          borderRadius: 999,
+          background: colorHex ? hexToRgba(colorHex, 0.5) : "rgba(148,163,184,0.5)",
+          border: "1px solid rgba(255,255,255,0.8)",
+        }}
       />
       <div
         style={{
