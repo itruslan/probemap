@@ -29,6 +29,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-02 — B1. Группировка каталога по kind:** `_service_probe_kind()` в `metrics.py` (http→"service", icmp/dns→"resource"); поле `probe_kind` в API и в `Service` (`api.ts`); палитра делит список на секции «Сервисы» / «Ресурсы» когда обе непустые; поиск сквозной; `palette-sidebar__section-header` CSS.
 - **2026-04-02 — A3. Допобъекты без адреса:** `isMonitoringOptional(kind)` в `nodeKinds.ts`; флаг `unmonitored` в `ServiceNode` для групп actor/network/other без `matchServiceId` — нет статус-точки, нейтральная рамка/фон, панель не показывает заголовок «МОНИТОРИНГ» и «нет данных».
 - **2026-04-02 — A1. Единый рендер-тип:** убран `type: "custom"` из `LayoutNode` (`api.ts`); при загрузке legacy-раскладок `custom → service` с сохранением `label/icon/kind/matchServiceId`; удалён orphan-cleanup блок в эффекте обновления портов.
 - **2026-04-02 — A2. Визуальное разделение по группе:** `GroupVisualStyle` + `getGroupVisual(kind)` в `nodeKinds.ts`; левая цветная полоска (3px) и `border-radius` по группе: managed=amber, entry=violet, cluster=indigo, network=sky, actor=20px без полоски, other=12px без полоски.
@@ -66,16 +67,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 ## Блок B — Каталог и палитра
 
 > Цель: палитра показывает все доступные объекты, сгруппированные по типу, и позволяет быстро добавлять на карту.
-
-### [ ] B1. Группировка каталога по kind
-
-Сейчас палитра — плоский список сервисов из `probe_success`. Нужно группировать по типу пробы/модулю.
-
-- **Что сделать:**
-  - Бэкенд: в ответе `/api/projects/{id}/services` для каждого сервиса добавить поле `probe_kind` — автоопределение по `module` лейблу: `http*` → service, `icmp*` → resource, `tcp*`/`udp*` → resource или service (по эвристике или маппингу).
-  - Фронт: палитра группирует по `probe_kind` (или по `kind` если нода уже на карте).
-  - Поиск по палитре ищет по всем группам.
-- **Готово когда:** палитра показывает «Сервисы (HTTP)», «Ресурсы (ICMP)» как секции; поиск работает сквозь секции.
 
 ### [ ] B2. Автоматический `kind` при добавлении из каталога
 
