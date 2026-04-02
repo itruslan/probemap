@@ -74,7 +74,7 @@
     },
     {
       "id": "github-api",
-      "x": -1207.0327848006339,
+      "x": -1201.024626720808,
       "y": -412.9885611479265,
       "type": "service",
       "label": "github-api",
@@ -130,30 +130,9 @@
   "groups": [],
   "edges": [
     {
-      "id": "xy-edge__cloudflare-wwwright-pypileft",
-      "source": "cloudflare-www",
-      "target": "pypi",
-      "type": "default",
-      "data": {}
-    },
-    {
       "id": "xy-edge__grafana-fhbottom-argocdleft",
       "source": "grafana-fh",
       "target": "argocd",
-      "type": "default",
-      "data": {}
-    },
-    {
-      "id": "xy-edge__effright-github-apiright",
-      "source": "eff",
-      "target": "github-api",
-      "type": "default",
-      "data": {}
-    },
-    {
-      "id": "xy-edge__effright-pypileft",
-      "source": "eff",
-      "target": "pypi",
       "type": "default",
       "data": {}
     },
@@ -168,6 +147,20 @@
       "id": "xy-edge__grafana-fhright-argocdright",
       "source": "grafana-fh",
       "target": "argocd",
+      "type": "default",
+      "data": {}
+    },
+    {
+      "id": "xy-edge__cloudflare-wwwright-pypileft",
+      "source": "cloudflare-www",
+      "target": "pypi",
+      "type": "default",
+      "data": {}
+    },
+    {
+      "id": "xy-edge__effright-grafana-fhleft",
+      "source": "eff",
+      "target": "grafana-fh",
       "type": "default",
       "data": {}
     }
