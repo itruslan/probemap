@@ -180,9 +180,9 @@ export function ServiceNode({ data, id }: NodeProps) {
     return Array.from(sourceAgg.keys()).sort((a, b) => a.localeCompare(b, "ru"));
   })();
 
-  const inCatalog = services.some((s) => s.id === id);
-  const offline =
-    (d.ports ?? []).length === 0 || (services.length > 0 && !inCatalog);
+  // Для компонентов статус "offline" определяем по наличию портов/проб, а не по id узла.
+  // Это позволяет binding через `matchServiceId` показывать live-статус.
+  const offline = (d.ports ?? []).length === 0;
 
   const dotStatusKey = offline ? "unknown" : status;
 
@@ -372,6 +372,49 @@ export function ServiceNode({ data, id }: NodeProps) {
           {t("monitoringSourcesCoverage").replace("{present}", String(presentBb)).replace("{expected}", String(expectedBb))}
         </div>
       )}
+
+      {/* Фаза 4: привязка компонента к каталожному сервису мониторинга */}
+      {locked && (d.kind ?? "service") !== "service" && services.length > 0 && (
+        <div style={{ marginBottom: 10 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, color: "var(--probemap-text-faint)", marginBottom: 6, letterSpacing: "0.06em" }}>
+            {t("monitoringBindingTitle")}
+          </div>
+          <select
+            value={d.matchServiceId ?? ""}
+            onChange={(e) => {
+              const next = e.target.value || null;
+              const svc = next ? services.find((s) => s.id === next) ?? null : null;
+              updateNodeData(id, {
+                matchServiceId: next,
+                // Проставляем порты сразу, чтобы UI показывал статусы без ожидания следующего refresh-цикла.
+                ports: svc ? svc.ports : [],
+              });
+            }}
+            style={{
+              width: "100%",
+              boxSizing: "border-box",
+              padding: "7px 10px",
+              borderRadius: 6,
+              fontSize: 13,
+              border: "1.5px solid var(--probemap-border)",
+              outline: "none",
+              color: "var(--probemap-text)",
+              background: "var(--probemap-input-bg)",
+            }}
+          >
+            <option value="">{t("monitoringBindingNone")}</option>
+            {services.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name}
+              </option>
+            ))}
+          </select>
+          <div style={{ marginTop: 6, fontSize: 11, color: "var(--probemap-text-faint)", lineHeight: 1.35 }}>
+            {t("monitoringBindingHelp")}
+          </div>
+        </div>
+      )}
+
       {blackboxOrder.length > 0 && locked && (
         <div style={{ marginBottom: 8, marginTop: -2 }}>
           <div style={{ fontSize: 10, color: "var(--probemap-text-faint)", marginBottom: 6 }}>
