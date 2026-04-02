@@ -16,6 +16,15 @@ import { useEdgeInteraction } from "./edgeInteractionContext";
 
 const ARROW = 7;
 
+/** Maps protocol string → SVG strokeDasharray (undefined = solid). */
+function protocolDash(protocol: string | undefined): string | undefined {
+  if (!protocol) return undefined;
+  const p = protocol.toLowerCase();
+  if (p === "icmp" || p === "ping") return "6 3";
+  if (p === "tcp" || p === "udp") return "8 3 2 3";
+  return undefined; // http, https, dns, grpc, etc. — solid
+}
+
 function arrowPoints(x: number, y: number, pos?: Position): string {
   switch (pos) {
     case Position.Top:
@@ -62,6 +71,12 @@ export function DeletableEdge({
 
   const summary = useMemo(() => summarizeEdge(data, t("edgeNoMetadata")), [data, t]);
 
+  const dashArray = protocolDash(data?.protocol);
+  const edgeColor = (style?.stroke as string | undefined) ?? "#b1b1b7";
+  const edgeStyle = dashArray
+    ? { ...style, strokeDasharray: dashArray }
+    : style;
+
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
     sourceY,
@@ -91,9 +106,9 @@ export function DeletableEdge({
           openEdit();
         }}
       />
-      <BaseEdge path={edgePath} style={style} />
+      <BaseEdge path={edgePath} style={edgeStyle} />
       {/* Arrowhead drawn as polygon — always 90° to node */}
-      <polygon points={arrowPoints(targetX, targetY, targetPosition)} fill="#b1b1b7" />
+      <polygon points={arrowPoints(targetX, targetY, targetPosition)} fill={edgeColor} />
       <EdgeLabelRenderer>
         {hover && (
           <div
