@@ -1,7 +1,7 @@
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
+  getSmoothStepPath,
   Position,
   useReactFlow,
   type Edge,
@@ -77,13 +77,14 @@ export function DeletableEdge({
     ? { ...style, strokeDasharray: dashArray }
     : style;
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 12,
   });
 
   const openEdit = () => {
