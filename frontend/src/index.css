@@ -25,6 +25,22 @@ html, body {
 }
 
 /* Connection handle states */
+.react-flow__handle-visibility {
+  border-radius: 2px !important;
+}
+.react-flow__handle-visibility.react-flow__handle-top {
+  transform: translate(-50%, -50%) rotate(45deg) !important;
+}
+.react-flow__handle-visibility.react-flow__handle-right {
+  transform: translate(50%, -50%) rotate(45deg) !important;
+}
+.react-flow__handle-visibility.react-flow__handle-bottom {
+  transform: translate(-50%, 50%) rotate(45deg) !important;
+}
+.react-flow__handle-visibility.react-flow__handle-left {
+  transform: translate(-50%, -50%) rotate(45deg) !important;
+}
+
 .react-flow__node:hover .react-flow__handle-visibility,
 .react-flow__node.selected .react-flow__handle-visibility {
   opacity: 1 !important;
@@ -32,28 +48,28 @@ html, body {
 
 .react-flow__handle-visibility:hover {
   opacity: 1 !important;
-  background: #3b82f6 !important;
-  width: 12px !important;
-  height: 12px !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  background: #f59e0b !important;
+  width: 10px !important;
+  height: 10px !important;
+  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35) !important;
 }
 
 .react-flow__handle.connecting,
 .react-flow__handle-visibility.connecting {
   opacity: 1 !important;
-  background: #3b82f6 !important;
-  width: 12px !important;
-  height: 12px !important;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3);
+  background: var(--probemap-blue) !important;
+  width: 10px !important;
+  height: 10px !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.3) !important;
 }
 
 .react-flow__handle.valid,
 .react-flow__handle-visibility.valid {
   opacity: 1 !important;
-  background: #22c55e !important;
-  width: 12px !important;
-  height: 12px !important;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
+  background: var(--probemap-status-ok) !important;
+  width: 10px !important;
+  height: 10px !important;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3) !important;
 }
 
 /* Подсветка с палитры: первый внутренний div — карточка узла.

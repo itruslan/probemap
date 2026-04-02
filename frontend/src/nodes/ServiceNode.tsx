@@ -748,7 +748,6 @@ export function ServiceNode({ data, id }: NodeProps) {
           outline: !colliding && locked ? "2px solid var(--probemap-interactive-hover-border)" : undefined,
           opacity: colliding ? 0.5 : 1,
           transition: "opacity 0.1s, outline 0.1s",
-          overflow: "hidden",
         }}
       >
         <AllHandles />
@@ -760,6 +759,8 @@ export function ServiceNode({ data, id }: NodeProps) {
             background: groupVisual.accentColor,
             opacity: 0.75,
             pointerEvents: "none",
+            borderTopLeftRadius: groupVisual.borderRadius,
+            borderBottomLeftRadius: groupVisual.borderRadius,
           }} />
         )}
 

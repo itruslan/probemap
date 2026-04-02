@@ -1,12 +1,12 @@
 import { Handle, Position } from "@xyflow/react";
 
 const STYLE: React.CSSProperties = {
-  width: 10,
-  height: 10,
+  width: 8,
+  height: 8,
   background: "var(--probemap-text-faint)",
-  border: "2px solid var(--probemap-bg)",
+  border: "1.5px solid var(--probemap-bg)",
   opacity: 0,
-  transition: "opacity 0.15s",
+  transition: "opacity 0.15s, background 0.15s",
 };
 
 export function AllHandles() {
