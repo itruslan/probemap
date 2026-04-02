@@ -29,6 +29,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-02 — F2. Произвольный цвет области:** `d.color` теперь хранит hex; `hexToRgba()` выводит bg/border; 6 пресетов + нативный `<input type="color">` + кнопка сброса; миграция старых rgba-строк.
 - **2026-04-02 — F3–F6 + единый цвет/кнопки.** Убраны `i`-кнопки рядом с CTA; `ProjectModal` тёмная тема (`--probemap-input-bg`); `ProjectSelect` разделитель → CSS-переменная; `MapObjectsBar` единая секция. Единый паттерн кнопок: CSS-переменные `--probemap-danger`, `--probemap-status-ok/warn/unknown`, `--probemap-tooltip-bg`, `--probemap-trace-accent`, `--probemap-edge-default`, `--probemap-status-*-border/bg`; все хардкодные `#ef4444`/`#22c55e`/`#f97316` в TSX заменены на переменные; `TrashIcon`, кнопки удаления (`--map-delete`), confirm-delete modal, trace-clear pill — все используют CSS-классы.
 - **2026-04-02 — F3–F6. UI-рефреш:** убраны `i`-кнопки рядом с CTA (подсказка на hover/click самой кнопки); `inputStyle` в `ProjectModal` получил `background: var(--probemap-input-bg)` для тёмной темы; разделитель в `ProjectSelect` → CSS-переменная; `MapObjectsBar` — «Добавить область» перенесена в единую секцию (убрана одиночная секция).
 - **2026-04-02 — D1. `make dev`:** уже реализован — `trap 'kill 0' INT TERM` запускает бэкенд + фронт, Ctrl+C останавливает оба; `/api` проксируется через vite на `localhost:8000`.
@@ -127,7 +128,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 - **Готово когда:** на карте можно добавить свободную стрелку/аннотацию, не привязанную к нодам; сохраняется в раскладке.
 
-### [ ] F2. Область (group): произвольный цвет
+### [x] F2. Область (group): произвольный цвет
 
 - **Готово когда:** color picker (не только пресеты), кастомный цвет сохраняется в данных узла.
 

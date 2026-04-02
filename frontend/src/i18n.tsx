@@ -52,6 +52,8 @@ const STRINGS = {
     mapUnlockInteraction: "Снова разрешить перетаскивание, связи и выделение",
 
     groupColor: "Цвет области",
+    groupColorCustom: "Свой цвет",
+    groupColorReset: "Без цвета",
     contextAddArea: "Добавить область",
     contextAddService: "Добавить сервис",
     contextAddComponent: "Добавить компонент",
@@ -302,6 +304,8 @@ const STRINGS = {
     mapUnlockInteraction: "Unlock dragging, connections, and selection",
 
     groupColor: "Group color",
+    groupColorCustom: "Custom color",
+    groupColorReset: "No color",
     contextAddArea: "Add area",
     contextAddService: "Add service",
     contextAddComponent: "Add component",

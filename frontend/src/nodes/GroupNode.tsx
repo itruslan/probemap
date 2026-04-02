@@ -1,21 +1,48 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useI18n } from "../i18n";
 
 export interface GroupNodeData {
   label: string;
-  color?: string;
+  color?: string; // hex (#rrggbb) or empty/undefined = no color
 }
 
-// Полупрозрачные цвета — акцент на рамке, не на заливке
-const COLORS = [
-  { bg: "rgba(241,245,249,0.22)", border: "#cbd5e1" }, // серый
-  { bg: "rgba(219,234,254,0.22)", border: "#93c5fd" }, // синий
-  { bg: "rgba(220,252,231,0.22)", border: "#86efac" }, // зелёный
-  { bg: "rgba(254,243,199,0.22)", border: "#fcd34d" }, // жёлтый
-  { bg: "rgba(252,231,243,0.22)", border: "#f9a8d4" }, // розовый
-  { bg: "rgba(237,233,254,0.22)", border: "#c4b5fd" }, // фиолетовый
+// Пресеты: храним hex — bg/border выводятся динамически
+const PRESETS = [
+  { hex: "#cbd5e1" }, // серый
+  { hex: "#93c5fd" }, // синий
+  { hex: "#86efac" }, // зелёный
+  { hex: "#fcd34d" }, // жёлтый
+  { hex: "#f9a8d4" }, // розовый
+  { hex: "#c4b5fd" }, // фиолетовый
 ];
+
+// Легаси: старые раскладки хранили rgba-строку bg — мигрируем обратно в hex
+const LEGACY_BG_TO_HEX: Record<string, string> = {
+  "rgba(241,245,249,0.22)": "#cbd5e1",
+  "rgba(219,234,254,0.22)": "#93c5fd",
+  "rgba(220,252,231,0.22)": "#86efac",
+  "rgba(254,243,199,0.22)": "#fcd34d",
+  "rgba(252,231,243,0.22)": "#f9a8d4",
+  "rgba(237,233,254,0.22)": "#c4b5fd",
+};
+
+function hexToRgba(hex: string, alpha: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function resolveHex(raw: string | undefined): string {
+  if (!raw) return "";
+  if (raw.startsWith("#")) return raw;
+  return LEGACY_BG_TO_HEX[raw] ?? "";
+}
+
+function colorFromHex(hex: string): { bg: string; border: string } {
+  return { bg: hexToRgba(hex, 0.22), border: hex };
+}
 
 export function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
@@ -23,23 +50,22 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   const { t } = useI18n();
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
-  const [colorIdx, setColorIdx] = useState(() => {
-    if (!d.color) return 0;
-    const i = COLORS.findIndex((c) => c.bg === d.color);
-    return i >= 0 ? i : 0;
-  });
+  const [colorHex, setColorHex] = useState(() => resolveHex(d.color));
   const [showChrome, setShowChrome] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [layerHint, setLayerHint] = useState<"back" | "front" | null>(null);
+  const colorInputRef = useRef<HTMLInputElement>(null);
 
-  const hasColor = !!d.color;
-  const color = hasColor
-    ? COLORS[colorIdx]
-    : {
-        bg: "transparent",
-        border: "var(--probemap-border-strong)",
-      };
-  const labelColor = hasColor ? "var(--probemap-text)" : "var(--probemap-text-muted)";
+  const color = colorHex
+    ? colorFromHex(colorHex)
+    : { bg: "transparent", border: "var(--probemap-border-strong)" };
+  const labelColor = colorHex ? "var(--probemap-text)" : "var(--probemap-text-muted)";
+
+  const applyColor = (hex: string) => {
+    setColorHex(hex);
+    d.color = hex || undefined;
+    setPaletteOpen(false);
+  };
 
   const shiftZ = (delta: number) => {
     const allNodes = getNodes();
@@ -122,7 +148,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             maxWidth: "calc(100% - 160px)",
           }}
         >
-          {/* Общая кнопка выбора цвета области */}
+          {/* Кнопка открытия палитры цветов */}
           <button
             type="button"
             onClick={() => setPaletteOpen((v) => !v)}
@@ -136,8 +162,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
                 width: 10,
                 height: 10,
                 borderRadius: 999,
-                background: hasColor ? color.bg : "transparent",
-                border: hasColor ? `1px solid ${color.border}` : "1px solid var(--probemap-border-strong)",
+                background: colorHex ? color.bg : "transparent",
+                border: colorHex ? `1px solid ${color.border}` : "1px solid var(--probemap-border-strong)",
               }}
             />
           </button>
@@ -194,7 +220,6 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               alignItems: "center",
             }}
           >
-            {/* Кнопки изменения слоя */}
             <button
               type="button"
               onClick={() => shiftZ(-1)}
@@ -238,7 +263,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           </div>
         )}
 
-        {/* Палитра цветов, открывается из общей кнопки в левом верхнем углу */}
+        {/* Палитра цветов */}
         {paletteOpen && (
           <div
             style={{
@@ -246,8 +271,9 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               top: 28,
               left: 8,
               display: "flex",
+              alignItems: "center",
               gap: 6,
-              padding: "4px 6px",
+              padding: "6px 8px",
               borderRadius: 8,
               background: "var(--probemap-bg)",
               boxShadow: "0 4px 18px rgba(15,23,42,0.24)",
@@ -255,29 +281,106 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               zIndex: 10,
             }}
           >
-            {COLORS.map((c, i) => (
+            {/* Пресеты */}
+            {PRESETS.map((p) => (
               <button
-                key={i}
+                key={p.hex}
                 type="button"
-                onClick={() => {
-                  setColorIdx(i);
-                  d.color = c.bg;
-                  setPaletteOpen(false);
-                }}
+                onClick={() => applyColor(p.hex)}
                 className="probemap-btn probemap-btn--color-swatch"
                 style={{
-                  border: `2px solid ${c.border}`,
-                  background: c.bg,
-                  outline: i === colorIdx ? `2px solid ${c.border}` : "none",
+                  border: `2px solid ${p.hex}`,
+                  background: hexToRgba(p.hex, 0.22),
+                  outline: colorHex === p.hex ? `2px solid ${p.hex}` : "none",
                   outlineOffset: 1,
                 }}
-                aria-label={t("groupColor")}
+                aria-label={p.hex}
               />
             ))}
+
+            {/* Разделитель */}
+            <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
+
+            {/* Произвольный цвет */}
+            <div style={{ position: "relative", flexShrink: 0 }}>
+              <button
+                type="button"
+                onClick={() => colorInputRef.current?.click()}
+                title={t("groupColorCustom")}
+                className="probemap-btn probemap-btn--color-swatch"
+                style={{
+                  border: "2px dashed var(--probemap-border-strong)",
+                  background: colorHex && !PRESETS.some((p) => p.hex === colorHex)
+                    ? hexToRgba(colorHex, 0.22)
+                    : "var(--probemap-bg-subtle)",
+                  outline: colorHex && !PRESETS.some((p) => p.hex === colorHex)
+                    ? `2px solid ${colorHex}`
+                    : "none",
+                  outlineOffset: 1,
+                  overflow: "hidden",
+                }}
+                aria-label={t("groupColorCustom")}
+              >
+                <span style={{ fontSize: 11, color: "var(--probemap-text-faint)", lineHeight: 1 }}>+</span>
+              </button>
+              <input
+                ref={colorInputRef}
+                type="color"
+                value={colorHex && colorHex.startsWith("#") ? colorHex : "#6366f1"}
+                onChange={(e) => {
+                  setColorHex(e.target.value);
+                  d.color = e.target.value;
+                }}
+                style={{
+                  position: "absolute",
+                  opacity: 0,
+                  width: 1,
+                  height: 1,
+                  top: 0,
+                  left: 0,
+                  pointerEvents: "none",
+                }}
+                tabIndex={-1}
+              />
+            </div>
+
+            {/* Сброс цвета */}
+            {colorHex && (
+              <>
+                <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
+                <button
+                  type="button"
+                  onClick={() => applyColor("")}
+                  title={t("groupColorReset")}
+                  className="probemap-btn probemap-btn--color-swatch"
+                  style={{
+                    border: "2px solid var(--probemap-border)",
+                    background: "transparent",
+                    position: "relative",
+                    overflow: "hidden",
+                  }}
+                  aria-label={t("groupColorReset")}
+                >
+                  <span
+                    aria-hidden
+                    style={{
+                      position: "absolute",
+                      inset: 0,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 11,
+                      color: "var(--probemap-text-faint)",
+                    }}
+                  >
+                    ×
+                  </span>
+                </button>
+              </>
+            )}
           </div>
         )}
 
-        {/* Подпись к кнопкам слоёв — текст из i18n, в зависимости от языка */}
         {layerHint === "back" && (
           <div
             style={{
