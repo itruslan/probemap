@@ -1,9 +1,8 @@
-import os
 import pathlib
 
-ICONS_DIR = pathlib.Path(
-    os.getenv("ICONS_DIR", os.path.join(os.path.dirname(__file__), "../data/icons"))
-)
+import settings
+
+ICONS_DIR = settings.ICONS_DIR
 
 _EXTS = [".svg", ".png", ".webp"]
 _MIME = {".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp"}

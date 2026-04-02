@@ -1,14 +1,19 @@
-VM_URL ?= https://victoriametrics.itruslan.ru
-
-.PHONY: run run-frontend test lint fmt help
+.PHONY: run run-frontend dev test lint fmt help
 
 ## Start backend in dev mode
 run:
-	VM_URL=$(VM_URL) .venv/bin/python -m uvicorn main:app --reload --app-dir backend
+	uv run uvicorn main:app --reload --app-dir backend
 
 ## Start frontend in dev mode (proxies /api to localhost:8000)
 run-frontend:
 	cd frontend && npm run dev
+
+## Start backend + frontend together
+dev:
+	@trap 'kill 0' INT TERM; \
+	$(MAKE) run & \
+	$(MAKE) run-frontend & \
+	wait
 
 ## Run tests
 test:

@@ -2,9 +2,10 @@ import json
 import os
 from typing import Any
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "../data")
-LAYOUTS_DIR = os.path.join(DATA_DIR, "layouts")
-_LEGACY_PATH = os.path.join(DATA_DIR, "layout.json")
+import settings
+
+LAYOUTS_DIR = settings.LAYOUTS_DIR
+_LEGACY_PATH = os.path.join(settings.DATA_DIR, "layout.json")
 
 _EMPTY: dict[str, Any] = {"nodes": [], "groups": [], "edges": []}
 

@@ -4,13 +4,15 @@ import re
 import uuid
 from typing import Any
 
+import settings
+
 _LEGACY_EXTRA_SELECTOR_RE = re.compile(
     r'([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"',
 )
 
 
 def _unescape_promql_double_quoted(s: str) -> str:
-    return s.replace("\\\"", '"').replace("\\\\", "\\")
+    return s.replace('\\"', '"').replace("\\\\", "\\")
 
 
 def _merge_legacy_metric_extra_into_rules(data: dict[str, Any], extra: str) -> None:
@@ -34,9 +36,10 @@ def _merge_legacy_metric_extra_into_rules(data: dict[str, Any], extra: str) -> N
             seen.add(key)
     data["metric_filter_rules"] = rules
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "../data")
-CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
-PROJECTS_PATH = os.path.join(DATA_DIR, "projects.json")
+
+DATA_DIR = settings.DATA_DIR
+CONFIG_PATH = settings.CONFIG_PATH
+PROJECTS_PATH = settings.PROJECTS_PATH
 
 DEFAULT_LABEL_MAP: dict[str, Any] = {
     "service": "service",

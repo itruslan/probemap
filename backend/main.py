@@ -1,21 +1,21 @@
+import os
 from typing import Any
-
-from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
-
-import httpx
 
 import config as cfg_mod
 import icons as icons_mod
 import layout
 import metrics
+import settings
+from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 app = FastAPI(title="probemap")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -40,6 +40,7 @@ def health() -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Global config
 # ---------------------------------------------------------------------------
+
 
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
@@ -136,6 +137,7 @@ async def discover_labels_for_url(body: dict[str, Any]) -> list[str]:
 # Projects
 # ---------------------------------------------------------------------------
 
+
 @app.get("/api/projects")
 def get_projects() -> list[dict[str, Any]]:
     return cfg_mod.read_projects()
@@ -226,6 +228,7 @@ def project_put_layout(project_id: str, body: dict[str, Any]) -> dict[str, str]:
 # Legacy endpoints (alias → "default" project, no filter)
 # ---------------------------------------------------------------------------
 
+
 @app.get("/api/services")
 async def get_services() -> dict[str, Any]:
     try:
@@ -248,6 +251,7 @@ def put_layout(body: dict[str, Any]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Icons
 # ---------------------------------------------------------------------------
+
 
 @app.get("/api/icons")
 def get_icons() -> dict[str, Any]:
@@ -275,3 +279,12 @@ def delete_icon(name: str) -> dict[str, str]:
     if not icons_mod.delete_icon(name):
         raise HTTPException(status_code=404, detail="Icon not found")
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Static frontend (production: serves built frontend from PROBEMAP_STATIC_DIR)
+# Must be last — catches all non-API routes for SPA fallback.
+# ---------------------------------------------------------------------------
+
+if settings.STATIC_DIR and os.path.isdir(settings.STATIC_DIR):
+    app.mount("/", StaticFiles(directory=settings.STATIC_DIR, html=True), name="static")

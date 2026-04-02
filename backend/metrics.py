@@ -2,12 +2,14 @@ import asyncio
 from collections import defaultdict
 from typing import Any
 
-import httpx
-
 import config as cfg_mod
+import httpx
+import settings
 
 
 def _get_vm_url() -> str:
+    if settings.DATASOURCE_URL:
+        return settings.DATASOURCE_URL.rstrip("/")
     c = cfg_mod.read_config()
     ds = c.get("datasource") or {}
     url = ds.get("url", "").rstrip("/")
@@ -265,7 +267,9 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 
 
-async def discover_jobs_for(vm_url: str, label_map: dict[str, Any] | None = None) -> list[dict[str, Any]]:
+async def discover_jobs_for(
+    vm_url: str, label_map: dict[str, Any] | None = None
+) -> list[dict[str, Any]]:
     url = vm_url.strip().rstrip("/")
     if not url:
         raise RuntimeError("Datasource not configured")
