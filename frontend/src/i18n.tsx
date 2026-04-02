@@ -77,6 +77,10 @@ const STRINGS = {
     monitoringSourcesToggleHint: "Источники: тапните, чтобы учитывать / не учитывать",
     monitoringIgnoreSourceOn: "Не учитывать",
     monitoringIgnoreSourceOff: "Учитывать",
+    monitoringBindingTitle: "Привязка к мониторингу",
+    monitoringBindingNone: "Без мониторинга",
+    monitoringBindingHelp:
+      "Выберите сервис из каталога метрик: компонент получит статусы blackbox-проб по этому сервису.",
     descriptionTitle: "ОПИСАНИЕ",
     actionsTitle: "ДЕЙСТВИЯ",
     labelsTitle: "МЕТКИ",
@@ -311,6 +315,10 @@ const STRINGS = {
     monitoringSourcesToggleHint: "Sources: tap to include / ignore",
     monitoringIgnoreSourceOn: "Ignore",
     monitoringIgnoreSourceOff: "Include",
+    monitoringBindingTitle: "Bind to monitoring",
+    monitoringBindingNone: "No monitoring",
+    monitoringBindingHelp:
+      "Select a service from the metrics catalog: the component will show statuses of blackbox probes for this service.",
     descriptionTitle: "DESCRIPTION",
     actionsTitle: "ACTIONS",
     labelsTitle: "LABELS",

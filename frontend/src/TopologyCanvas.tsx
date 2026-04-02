@@ -678,11 +678,15 @@ export function TopologyCanvas({
         }
 
         const nextMatch = d.matchServiceId ?? byNameSvc?.id ?? null;
+        const nextLabel =
+          d.kind && d.kind !== "service"
+            ? d.label ?? svc.name
+            : svc.name;
         next.push({
           ...n,
           data: {
             ...d,
-            label: svc.name,
+            label: nextLabel,
             ports: svc.ports,
             matchServiceId: nextMatch,
             icon: d.icon,
