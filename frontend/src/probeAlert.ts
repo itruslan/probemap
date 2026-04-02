@@ -25,31 +25,6 @@ export function probeNodeStatus(ports: Port[] | undefined): "ok" | "warn" | "dow
   return aggStatusFromPorts(ports ?? []) as "ok" | "warn" | "down" | "unknown";
 }
 
-/**
- * Тот же «красный» мониторинг, что и рамка карточки сервиса: rollup по `sources.*.success`,
- * иначе — как в узле, fallback на агрегат `port.status`.
- * Совпадает с `status === "down"` в ServiceNode.
- */
-export function probeCardDown(ports: Port[] | undefined): boolean {
-  const rows = (ports ?? []).flatMap((p) =>
-    Object.entries(p.sources ?? {}).map(([, s]) => ({ success: s.success })),
-  );
-
-  let probeRollupStatus: "ok" | "warn" | "down" | "unknown" = "unknown";
-  if (rows.length > 0) {
-    const hasAnyFail = rows.some((r) => r.success === 0);
-    const hasAnyOk = rows.some((r) => r.success === 1);
-    probeRollupStatus =
-      hasAnyFail && hasAnyOk ? "warn"
-        : hasAnyFail ? "down"
-        : hasAnyOk ? "ok"
-          : "unknown";
-  }
-
-  const portAgg = aggStatusFromPorts(ports ?? []);
-  const status = probeRollupStatus !== "unknown" ? probeRollupStatus : portAgg;
-  return status === "down";
-}
 
 /** Id сервиса в каталоге для подсветки: service-узел → id в каталоге или matchServiceId. */
 export function effectiveServiceIdForNode(n: Node, services: Service[]): string | null {

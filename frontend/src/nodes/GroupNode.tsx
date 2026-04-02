@@ -1,6 +1,11 @@
 import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
+
+/** Иначе React Flow перехватывает mousedown — начинается drag/selection, срабатывает mouseleave и палитра схлопывается. */
+function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
+  e.stopPropagation();
+}
 
 export interface GroupNodeData {
   label: string;
@@ -55,6 +60,16 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [layerHint, setLayerHint] = useState<"back" | "front" | null>(null);
   const colorInputRef = useRef<HTMLInputElement>(null);
+  const chromeLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearChromeLeaveTimer = () => {
+    if (chromeLeaveTimerRef.current) {
+      clearTimeout(chromeLeaveTimerRef.current);
+      chromeLeaveTimerRef.current = null;
+    }
+  };
+
+  useEffect(() => () => clearChromeLeaveTimer(), []);
 
   const color = colorHex
     ? colorFromHex(colorHex)
@@ -131,14 +146,23 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           boxSizing: "border-box",
           position: "relative",
         }}
-        onMouseEnter={() => setShowChrome(true)}
+        onMouseEnter={() => {
+          clearChromeLeaveTimer();
+          setShowChrome(true);
+        }}
         onMouseLeave={() => {
-          setShowChrome(false);
-          setPaletteOpen(false);
-          setLayerHint(null);
+          clearChromeLeaveTimer();
+          chromeLeaveTimerRef.current = setTimeout(() => {
+            setShowChrome(false);
+            setPaletteOpen(false);
+            setLayerHint(null);
+            chromeLeaveTimerRef.current = null;
+          }, 220);
         }}
       >
         <div
+          onPointerDown={stopFlowPointer}
+          onMouseDown={stopFlowPointer}
           style={{
             position: "absolute",
             top: 4,
@@ -152,6 +176,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           <button
             type="button"
             onClick={() => setPaletteOpen((v) => !v)}
+            onPointerDown={stopFlowPointer}
+            onMouseDown={stopFlowPointer}
             title={t("groupColor")}
             className="probemap-btn probemap-btn--icon-tiny"
             style={{ marginRight: 6 }}
@@ -211,6 +237,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
 
         {showChrome && (
           <div
+            onPointerDown={stopFlowPointer}
+            onMouseDown={stopFlowPointer}
             style={{
               position: "absolute",
               top: 4,
@@ -224,6 +252,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               type="button"
               onClick={() => shiftZ(-1)}
               title={t("layerBack")}
+              onPointerDown={stopFlowPointer}
+              onMouseDown={stopFlowPointer}
               onMouseEnter={() => setLayerHint("back")}
               onMouseLeave={() => setLayerHint(null)}
               className="probemap-btn probemap-btn--icon-tiny"
@@ -244,6 +274,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               type="button"
               onClick={() => shiftZ(1)}
               title={t("layerForward")}
+              onPointerDown={stopFlowPointer}
+              onMouseDown={stopFlowPointer}
               onMouseEnter={() => setLayerHint("front")}
               onMouseLeave={() => setLayerHint(null)}
               className="probemap-btn probemap-btn--icon-tiny"
@@ -266,6 +298,12 @@ export function GroupNode({ id, data, selected }: NodeProps) {
         {/* Палитра цветов */}
         {paletteOpen && (
           <div
+            onPointerDown={stopFlowPointer}
+            onMouseDown={stopFlowPointer}
+            onMouseEnter={() => {
+              clearChromeLeaveTimer();
+              setShowChrome(true);
+            }}
             style={{
               position: "absolute",
               top: 28,

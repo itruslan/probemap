@@ -6,6 +6,7 @@
       "y": -333.8766655469586,
       "type": "service",
       "label": "anylink-vpn",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -14,6 +15,7 @@
       "y": -155.65688208182405,
       "type": "service",
       "label": "argocd",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -22,6 +24,7 @@
       "y": -450.0259345688834,
       "type": "service",
       "label": "debian",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -30,6 +33,7 @@
       "y": -607.6877059064225,
       "type": "service",
       "label": "grafana-fh",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -38,6 +42,7 @@
       "y": -772.9885611479265,
       "type": "service",
       "label": "authentik",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -46,6 +51,7 @@
       "y": -682.9885611479265,
       "type": "service",
       "label": "cloudflare-speed",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -54,6 +60,7 @@
       "y": -592.9885611479265,
       "type": "service",
       "label": "cloudflare-www",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -62,6 +69,7 @@
       "y": -502.9885611479265,
       "type": "service",
       "label": "eff",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -70,6 +78,7 @@
       "y": -412.9885611479265,
       "type": "service",
       "label": "github-api",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -78,6 +87,7 @@
       "y": -322.9885611479265,
       "type": "service",
       "label": "grafana",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -86,6 +96,7 @@
       "y": -232.98856114792648,
       "type": "service",
       "label": "iana",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -94,6 +105,7 @@
       "y": -52.988561147926475,
       "type": "service",
       "label": "rust-lang",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -102,6 +114,7 @@
       "y": 37.011438852073525,
       "type": "service",
       "label": "wikipedia",
+      "kind": "service",
       "matchServiceId": null
     },
     {
@@ -110,55 +123,53 @@
       "y": -418.6461182885033,
       "type": "service",
       "label": "pypi",
+      "kind": "service",
       "matchServiceId": null
     }
   ],
   "groups": [],
   "edges": [
     {
-      "source": "cloudflare-www",
-      "sourceHandle": "right",
-      "target": "pypi",
-      "targetHandle": "left",
       "id": "xy-edge__cloudflare-wwwright-pypileft",
-      "selected": true
-    },
-    {
-      "source": "grafana-fh",
-      "sourceHandle": "bottom",
-      "target": "argocd",
-      "targetHandle": "left",
-      "id": "xy-edge__grafana-fhbottom-argocdleft"
-    },
-    {
-      "source": "eff",
-      "sourceHandle": "right",
-      "target": "github-api",
-      "targetHandle": "right",
-      "id": "xy-edge__effright-github-apiright",
-      "selected": false
-    },
-    {
-      "source": "eff",
-      "sourceHandle": "right",
+      "source": "cloudflare-www",
       "target": "pypi",
-      "targetHandle": "left",
-      "id": "xy-edge__effright-pypileft",
-      "selected": false
+      "type": "default",
+      "data": {}
     },
     {
+      "id": "xy-edge__grafana-fhbottom-argocdleft",
       "source": "grafana-fh",
-      "sourceHandle": "right",
-      "target": "debian",
-      "targetHandle": "left",
-      "id": "xy-edge__grafana-fhright-debianleft"
-    },
-    {
-      "source": "grafana-fh",
-      "sourceHandle": "right",
       "target": "argocd",
-      "targetHandle": "right",
-      "id": "xy-edge__grafana-fhright-argocdright"
+      "type": "default",
+      "data": {}
+    },
+    {
+      "id": "xy-edge__effright-github-apiright",
+      "source": "eff",
+      "target": "github-api",
+      "type": "default",
+      "data": {}
+    },
+    {
+      "id": "xy-edge__effright-pypileft",
+      "source": "eff",
+      "target": "pypi",
+      "type": "default",
+      "data": {}
+    },
+    {
+      "id": "xy-edge__grafana-fhright-debianleft",
+      "source": "grafana-fh",
+      "target": "debian",
+      "type": "default",
+      "data": {}
+    },
+    {
+      "id": "xy-edge__grafana-fhright-argocdright",
+      "source": "grafana-fh",
+      "target": "argocd",
+      "type": "default",
+      "data": {}
     }
   ],
   "service_configs": {

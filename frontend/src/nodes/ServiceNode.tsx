@@ -87,6 +87,8 @@ export function ServiceNode({ data, id }: NodeProps) {
 
   const nodeRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+  /** Режим правки endpoint: blur с поля ввода не должен закрывать блок при переносе фокуса на выпадающий список лейблов. */
+  const endpointEditBoxRef = useRef<HTMLDivElement>(null);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showPanelTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -206,16 +208,16 @@ export function ServiceNode({ data, id }: NodeProps) {
   const dotStatusKey = offline ? "unknown" : status;
 
   const nodeTint = unmonitored
-    ? { border: "var(--probemap-border)", bg: "var(--probemap-bg)" }
+    ? { border: "var(--probemap-border)", ring: "var(--probemap-border-strong)", bg: "var(--probemap-bg)" }
     : offline
-    ? { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg-subtle)" }
+    ? { border: "var(--probemap-border-strong)", ring: "var(--probemap-text-muted)", bg: "var(--probemap-bg-subtle)" }
     : status === "ok"
-      ? { border: "var(--probemap-status-ok-border)", bg: "var(--probemap-status-ok-bg)" }
+      ? { border: "var(--probemap-status-ok-border)", ring: "var(--probemap-status-ok-ring)", bg: "var(--probemap-status-ok-bg)" }
       : status === "warn"
-        ? { border: "var(--probemap-status-warn-border)", bg: "var(--probemap-status-warn-bg)" }
+        ? { border: "var(--probemap-status-warn-border)", ring: "var(--probemap-status-warn-ring)", bg: "var(--probemap-status-warn-bg)" }
         : status === "down"
-          ? { border: "var(--probemap-status-down-border)", bg: "var(--probemap-status-down-bg)" }
-          : { border: "var(--probemap-border-strong)", bg: "var(--probemap-bg)" };
+          ? { border: "var(--probemap-status-down-border)", ring: "var(--probemap-status-down-ring)", bg: "var(--probemap-status-down-bg)" }
+          : { border: "var(--probemap-border-strong)", ring: "var(--probemap-text-muted)", bg: "var(--probemap-bg)" };
 
   const clearShowPanelTimer = () => {
     if (showPanelTimer.current) {
@@ -305,6 +307,20 @@ export function ServiceNode({ data, id }: NodeProps) {
     setEditingDesc(false);
   };
 
+  const commitEndpointEdit = () => {
+    updateNodeData(id, { endpoint: endpointDraft.trim() || null });
+    setEditingEndpoint(false);
+  };
+
+  /** Без отложенной проверки клик по списку снимает фокус с input и мгновенный onBlur закрывает весь блок. */
+  const onEndpointInputBlur = () => {
+    setTimeout(() => {
+      const active = document.activeElement;
+      if (endpointEditBoxRef.current && active && endpointEditBoxRef.current.contains(active)) return;
+      commitEndpointEdit();
+    }, 0);
+  };
+
   const addAction = () => {
     if (!newActionUrl.trim()) return;
     const actions: ServiceAction[] = [
@@ -349,9 +365,9 @@ export function ServiceNode({ data, id }: NodeProps) {
         ...panelStyle,
         zIndex: 3000,
         background: "var(--probemap-modal-bg)",
-        border: `1.5px solid ${locked ? "var(--probemap-interactive-hover-border)" : "var(--probemap-border)"}`,
+        border: `1.5px solid ${locked ? nodeTint.ring : "var(--probemap-border)"}`,
         borderRadius: 10,
-        boxShadow: locked ? "0 6px 24px rgba(59,130,246,.18)" : "0 4px 16px rgba(0,0,0,.1)",
+        boxShadow: locked ? "0 6px 24px rgba(15,23,42,.12)" : "0 4px 16px rgba(0,0,0,.1)",
         padding: "12px 14px",
         fontSize: 12,
         position: "relative",
@@ -643,16 +659,16 @@ export function ServiceNode({ data, id }: NodeProps) {
         )}
       </div>
       {locked && editingEndpoint ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div ref={endpointEditBoxRef} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <input
             autoFocus
             value={endpointDraft}
             onChange={(e) => setEndpointDraft(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") { updateNodeData(id, { endpoint: endpointDraft.trim() || null }); setEditingEndpoint(false); }
+              if (e.key === "Enter") { commitEndpointEdit(); }
               if (e.key === "Escape") setEditingEndpoint(false);
             }}
-            onBlur={() => { updateNodeData(id, { endpoint: endpointDraft.trim() || null }); setEditingEndpoint(false); }}
+            onBlur={onEndpointInputBlur}
             placeholder={autoEndpoint ?? t("endpointPlaceholder")}
             style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid var(--probemap-interactive-hover-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }}
           />
@@ -668,16 +684,54 @@ export function ServiceNode({ data, id }: NodeProps) {
               ))}
             </select>
           )}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
+            <span style={{ fontSize: 10, color: "var(--probemap-text-faint)" }}>
+              {t("descriptionSaveHintBefore")}
+              <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 4px", borderRadius: 3, background: "var(--probemap-interactive-hover-bg)", color: "var(--probemap-blue)", border: "1px solid var(--probemap-interactive-hover-border)", textTransform: "uppercase", letterSpacing: "0.04em" }}>Enter</span>
+              {t("descriptionSaveHintAfter")}
+            </span>
+          </div>
         </div>
       ) : (
         <div
-          onClick={locked && !autoEndpoint ? () => { setEndpointDraft(d.endpoint ?? ""); setEditingEndpoint(true); } : locked && d.endpoint ? () => { setEndpointDraft(d.endpoint ?? ""); setEditingEndpoint(true); } : undefined}
-          style={{ cursor: locked ? "text" : "default", color: effectiveEndpoint ? "var(--probemap-text)" : "var(--probemap-text-faint)", minHeight: 18, fontSize: 12, wordBreak: "break-all", padding: "2px 0" }}
+          onClick={locked ? () => { setEndpointDraft(d.endpoint ?? ""); setEditingEndpoint(true); } : undefined}
+          style={{ cursor: locked ? "pointer" : "default", color: effectiveEndpoint ? "var(--probemap-text)" : "var(--probemap-text-faint)", minHeight: 18, fontSize: 12, wordBreak: "break-all", padding: "2px 0" }}
         >
           {effectiveEndpoint ? (
-            <a href={effectiveEndpoint} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "var(--probemap-text)", textDecoration: "underline", textDecorationColor: "var(--probemap-text-faint)" }}>
-              {effectiveEndpoint}
-            </a>
+            locked ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span style={{ color: "var(--probemap-text)", textDecoration: "underline", textDecorationColor: "var(--probemap-text-faint)", wordBreak: "break-all" }}>
+                  {effectiveEndpoint}
+                </span>
+                <button
+                  type="button"
+                  title={t("endpointOpenInNewTab")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const u = effectiveEndpoint.trim();
+                    const href = /^https?:\/\//i.test(u) ? u : `https://${u}`;
+                    window.open(href, "_blank", "noopener,noreferrer");
+                  }}
+                  style={{
+                    flexShrink: 0,
+                    border: "1px solid var(--probemap-border)",
+                    background: "var(--probemap-bg-subtle)",
+                    borderRadius: 4,
+                    padding: "0 5px",
+                    fontSize: 11,
+                    cursor: "pointer",
+                    color: "var(--probemap-text-muted)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  ↗
+                </button>
+              </div>
+            ) : (
+              <a href={effectiveEndpoint} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: "var(--probemap-text)", textDecoration: "underline", textDecorationColor: "var(--probemap-text-faint)" }}>
+                {effectiveEndpoint}
+              </a>
+            )
           ) : (locked ? t("endpointClickToAdd") : t("emDash"))}
         </div>
       )}
@@ -861,7 +915,7 @@ export function ServiceNode({ data, id }: NodeProps) {
           minWidth: groupVisual.minWidth,
           boxShadow: "var(--probemap-node-card-shadow)",
           position: "relative", cursor: "pointer",
-          outline: !colliding && locked ? "2px solid var(--probemap-interactive-hover-border)" : undefined,
+          outline: !colliding && locked ? `2px solid ${nodeTint.ring}` : undefined,
           opacity: colliding ? 0.5 : 1,
           transition: "opacity 0.1s, outline 0.1s",
         }}

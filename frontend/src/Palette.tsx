@@ -184,7 +184,7 @@ export function Palette({
                     onMouseEnter={() => handleMouseEnter(svc)}
                     onMouseLeave={handleMouseLeave}
                     className={rowClass}
-                    style={(selected || hovered) ? { "--palette-row-accent": statusColor } as never : undefined}
+                    style={selected ? { "--palette-row-accent": statusColor } as never : undefined}
                   >
                     <span className="palette-row__name">{svc.name}</span>
                     {!active && !readOnly && (

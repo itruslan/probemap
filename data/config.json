@@ -15,8 +15,9 @@
     "port": "port",
     "probe_source": "zone",
     "module": "module",
-    "url": null
+    "endpoint_label": "service"
   },
   "metric_filter_rules": [],
-  "settings_targets_saved": true
+  "settings_targets_saved": true,
+  "kind_rules": []
 }

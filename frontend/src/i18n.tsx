@@ -85,10 +85,11 @@ const STRINGS = {
     monitoringBindingNone: "Без мониторинга",
     monitoringBindingHelp:
       "Выберите сервис из каталога метрик: компонент получит статусы blackbox-проб по этому сервису.",
-    endpointTitle: "ENDPOINT",
+    endpointTitle: "КОНЕЧНАЯ ТОЧКА",
     endpointPlaceholder: "https://...",
     endpointPickLabel: "из лейбла",
-    endpointClickToAdd: "Нажмите, чтобы добавить endpoint...",
+    endpointClickToAdd: "Нажмите, чтобы указать адрес (URL)…",
+    endpointOpenInNewTab: "Открыть в новой вкладке",
     descriptionTitle: "ОПИСАНИЕ",
     actionsTitle: "ДЕЙСТВИЯ",
     labelsTitle: "МЕТКИ",
@@ -188,16 +189,17 @@ const STRINGS = {
     labelMapServiceHint:
       "Лейбл в probe_success, по которому таргеты собираются в одну карточку на карте. Чаще всего service (иногда instance).",
     labelMapPortTitle: "Порт",
-    labelMapPortHint: "Лейбл с портом или иным идентификатором проверяемого endpoint.",
+    labelMapPortHint:
+      "Лейбл с портом или иным идентификатором проверяемой цели (конечной точки).",
     labelMapProbeSourceTitle: "Источник пробы",
     labelMapProbeSourceHint:
       "Лейбл, различающий инстансы blackbox (экспортёра). Обычно instance — адрес:порт процесса blackbox; при необходимости pod, hostname и т.п.",
     labelMapModuleTitle: "Модуль пробы",
     labelMapModuleHint:
       "Лейбл с именем модуля blackbox (http_2xx, icmp …); по нему определяется тип проверки (http / icmp / tcp).",
-    labelMapEndpointTitle: "Endpoint",
+    labelMapEndpointTitle: "Конечная точка",
     labelMapEndpointHint:
-      "Необязательно. Лейбл метрики, значение которого автоматически подставляется как endpoint узла на карте. Например: target, instance, url. Если у сервиса такого лейбла нет — endpoint можно задать вручную прямо на узле.",
+      "Необязательно. Лейбл метрики, значение которого автоматически подставляется как адрес конечной точки на карте. Например: target, instance, url. Если у сервиса такого лейбла нет — адрес можно задать вручную на узле.",
 
     opEq: "= равно",
     opRe: "=~ regex",
@@ -348,6 +350,7 @@ const STRINGS = {
     endpointPlaceholder: "https://...",
     endpointPickLabel: "from label",
     endpointClickToAdd: "Click to add endpoint...",
+    endpointOpenInNewTab: "Open in new tab",
     descriptionTitle: "DESCRIPTION",
     actionsTitle: "ACTIONS",
     labelsTitle: "LABELS",

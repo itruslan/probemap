@@ -43,7 +43,7 @@ import { ServicesContext } from "./ServicesContext";
 import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
-import { effectiveServiceIdForNode, probeCardDown, probeNodeStatus } from "./probeAlert";
+import { effectiveServiceIdForNode, probeNodeStatus } from "./probeAlert";
 import type { NodeKindDef } from "./nodeKinds";
 
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
@@ -662,15 +662,6 @@ export function TopologyCanvas({
     });
   }, [projectId, scheduleFitAfterLayout]);
 
-  /** Совпадает с красной рамкой карточки (`probeCardDown` в probeAlert.ts). */
-  const probeDownServiceIds = useMemo(() => {
-    const set = new Set<string>();
-    for (const s of data.services) {
-      if (probeCardDown(s.ports)) set.add(s.id);
-    }
-    return set;
-  }, [data.services]);
-
   const probeStatusMap = useMemo(() => {
     const map: Record<string, string> = {};
     for (const s of data.services) {
@@ -679,7 +670,7 @@ export function TopologyCanvas({
     return map;
   }, [data.services]);
 
-  // Подсветка с палитры + красная пульсация при дауне мониторинга (палитра приоритетнее для этого узла)
+  // Подсветка с палитры (selected / hover)
   useEffect(() => {
     setNodes((prev) =>
       prev.map((n) => {
@@ -688,13 +679,10 @@ export function TopologyCanvas({
         const status = eff ? (probeStatusMap[eff] ?? "unknown") : "unknown";
         if (n.id === paletteSelectedId) cls = `palette-selected palette-selected--${status}`;
         else if (paletteHoverId && n.id === paletteHoverId) cls = `palette-hover palette-hover--${status}`;
-        else {
-          if (eff && probeDownServiceIds.has(eff)) cls = "all-blackbox-down";
-        }
         return { ...n, className: cls };
       }),
     );
-  }, [paletteSelectedId, paletteHoverId, probeDownServiceIds, probeStatusMap, data.services, setNodes]);
+  }, [paletteSelectedId, paletteHoverId, probeStatusMap, data.services, setNodes]);
 
   // Keep serviceConfigs in sync with node data changes
   useEffect(() => {
