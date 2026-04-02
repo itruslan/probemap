@@ -49,6 +49,8 @@ export interface Service {
   ports: Port[];
   /** Лейблы из метрик: только согласованные между сериями (без расхождений между blackbox). */
   labels?: Record<string, string>;
+  /** Классификация по типу проб для группировки в каталоге: "service" (HTTP/TCP) | "resource" (ICMP/DNS). */
+  probe_kind?: "service" | "resource";
 }
 
 export interface ServicesResponse {

@@ -62,14 +62,22 @@ export function Palette({
     setServicesHelpTarget(null);
   }, [dragging]);
 
-  const filtered = services
-    .filter((s) => s.name.toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => {
-      const aOn = onCanvas.has(a.id);
-      const bOn = onCanvas.has(b.id);
-      if (aOn !== bOn) return aOn ? -1 : 1;
-      return a.name.localeCompare(b.name, "ru");
-    });
+  const sortSvc = (a: Service, b: Service) => {
+    const aOn = onCanvas.has(a.id);
+    const bOn = onCanvas.has(b.id);
+    if (aOn !== bOn) return aOn ? -1 : 1;
+    return a.name.localeCompare(b.name, "ru");
+  };
+
+  const filtered = services.filter((s) =>
+    s.name.toLowerCase().includes(search.toLowerCase()),
+  );
+
+  const grouped = {
+    service: filtered.filter((s) => (s.probe_kind ?? "service") === "service").sort(sortSvc),
+    resource: filtered.filter((s) => s.probe_kind === "resource").sort(sortSvc),
+  };
+  const hasMultipleGroups = grouped.service.length > 0 && grouped.resource.length > 0;
 
   const handleMouseEnter = (svc: Service) => {
     setHoveredId(svc.id);
@@ -130,50 +138,63 @@ export function Palette({
       />
 
       <div className="palette-sidebar__list">
-        {filtered.map((svc) => {
-          const active = onCanvas.has(svc.id);
-          const selected = active && selectedId === svc.id;
-          const hovered = hoveredId === svc.id;
-
-          const rowClass = [
-            "palette-row",
-            !active && "palette-row--missing",
-            active && "palette-row--on-canvas",
-            active && hovered && "palette-row--hover",
-            active && selected && "palette-row--selected",
-          ]
-            .filter(Boolean)
-            .join(" ");
-
-          return (
-            <div
-              key={svc.id}
-              onClick={() => handleClick(svc)}
-              onMouseEnter={() => handleMouseEnter(svc)}
-              onMouseLeave={handleMouseLeave}
-              className={rowClass}
-            >
-              <span className="palette-row__name">{svc.name}</span>
-              {!active && !readOnly && (
-                <button
-                  type="button"
-                  className="probemap-btn palette-row__add"
-                  aria-label={t("paletteAdd")}
-                  title={t("paletteAdd")}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onAddService(svc);
-                  }}
-                >
-                  <FaPlus size={11} aria-hidden />
-                </button>
-              )}
-            </div>
-          );
-        })}
         {filtered.length === 0 && (
           <div className="palette-sidebar__empty">{t("nothingFound")}</div>
         )}
+        {(["service", "resource"] as const).map((kind) => {
+          const group = grouped[kind];
+          if (group.length === 0) return null;
+          return (
+            <div key={kind}>
+              {hasMultipleGroups && (
+                <div className="palette-sidebar__section-header">
+                  {kind === "service" ? t("paletteSectionServices") : t("paletteSectionResources")}
+                </div>
+              )}
+              {group.map((svc) => {
+                const active = onCanvas.has(svc.id);
+                const selected = active && selectedId === svc.id;
+                const hovered = hoveredId === svc.id;
+
+                const rowClass = [
+                  "palette-row",
+                  !active && "palette-row--missing",
+                  active && "palette-row--on-canvas",
+                  active && hovered && "palette-row--hover",
+                  active && selected && "palette-row--selected",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                return (
+                  <div
+                    key={svc.id}
+                    onClick={() => handleClick(svc)}
+                    onMouseEnter={() => handleMouseEnter(svc)}
+                    onMouseLeave={handleMouseLeave}
+                    className={rowClass}
+                  >
+                    <span className="palette-row__name">{svc.name}</span>
+                    {!active && !readOnly && (
+                      <button
+                        type="button"
+                        className="probemap-btn palette-row__add"
+                        aria-label={t("paletteAdd")}
+                        title={t("paletteAdd")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddService(svc);
+                        }}
+                      >
+                        <FaPlus size={11} aria-hidden />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
 
       {servicesHelpTarget && !dragging && (

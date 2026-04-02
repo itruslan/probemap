@@ -43,6 +43,23 @@ async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 
+def _service_probe_kind(ports: list[dict[str, Any]]) -> str:
+    """Classify a service for catalog grouping based on its probe types.
+
+    "service" — HTTP/TCP/UDP (application endpoints)
+    "resource" — ICMP/DNS (infrastructure hosts)
+    HTTP wins over ICMP if a service has both.
+    """
+    types: set[str] = set()
+    for port in ports:
+        types.update(port.get("probe_types") or [])
+    if "http" in types:
+        return "service"
+    if "icmp" in types or "dns" in types:
+        return "resource"
+    return "service"  # tcp/udp → service by default
+
+
 def _module_to_type(module: str) -> str:
     m = module.lower()
     if "http" in m or "https" in m:
@@ -263,6 +280,7 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         lbls = _consensus_labels(by_svc.get(svc_name, []), deny)
         if lbls:
             row["labels"] = lbls
+        row["probe_kind"] = _service_probe_kind(row["ports"])
 
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 
