@@ -1,0 +1,15 @@
+services:
+  probemap:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - probemap_data:/app/data
+    environment:
+      - PROBEMAP_DATASOURCE_URL=${PROBEMAP_DATASOURCE_URL:-}
+      - PROBEMAP_CORS_ORIGINS=${PROBEMAP_CORS_ORIGINS:-*}
+      - PROBEMAP_LOG_LEVEL=${PROBEMAP_LOG_LEVEL:-info}
+    restart: unless-stopped
+
+volumes:
+  probemap_data:
