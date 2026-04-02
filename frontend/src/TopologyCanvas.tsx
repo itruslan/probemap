@@ -47,12 +47,13 @@ function serviceToNode(
   actions?: ServiceAction[],
   ignored_sources?: string[],
   matchServiceId?: string | null,
+  kind?: string,
 ): Node {
   return {
     id: svc.id,
     type: "service",
     position,
-    data: { label: svc.name, ports: svc.ports, icon, description, actions, ignored_sources, matchServiceId: matchServiceId ?? null } satisfies ServiceNodeData,
+    data: { label: svc.name, ports: svc.ports, icon, description, actions, ignored_sources, matchServiceId: matchServiceId ?? null, kind: kind ?? "service" } satisfies ServiceNodeData,
   };
 }
 
@@ -522,7 +523,7 @@ export function TopologyCanvas({
             const svc = data.services.find((s) => s.id === ln.id) ?? null;
             const cfg = serviceConfigs.current[ln.id] ?? {};
             if (svc) {
-              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, ln.matchServiceId ?? null);
+              return serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, ln.matchServiceId ?? null, ln.kind);
             }
             // Узел service без метрик: сервис мог исчезнуть во время сохранения
             return {
@@ -537,6 +538,7 @@ export function TopologyCanvas({
                 actions: cfg.actions,
                 ignored_sources: cfg.ignored_sources,
                 matchServiceId: ln.matchServiceId ?? null,
+                kind: ln.kind ?? "service",
               } satisfies ServiceNodeData,
             } as Node;
           }
@@ -771,6 +773,7 @@ export function TopologyCanvas({
       ...(n.type === "service"
         ? {
             label: (n.data as unknown as ServiceNodeData).label,
+            kind: (n.data as unknown as ServiceNodeData).kind,
             icon: (n.data as unknown as ServiceNodeData).icon,
             description: (n.data as unknown as ServiceNodeData).description,
             actions: (n.data as unknown as ServiceNodeData).actions,

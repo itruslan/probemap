@@ -63,6 +63,8 @@ export interface ServiceNodeData {
   ports: Port[];
   /** Резерв: привязка к id в каталоге, если id узла не совпадает с каталогом */
   matchServiceId?: string | null;
+  /** Semantic type: "service", "vpn-gateway", "managed-db", etc. */
+  kind?: string;
   icon?: string;
   description?: string;
   actions?: ServiceAction[];
