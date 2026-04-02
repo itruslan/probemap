@@ -110,10 +110,10 @@ def project_creation_allowed() -> tuple[bool, str]:
     """
     c = read_config()
     ds = c.get("datasource") or {}
-    url = (ds.get("url") or "").strip()
+    url = settings.DATASOURCE_URL or (ds.get("url") or "").strip()
     if not url:
         return False, "datasource_not_configured"
-    if c.get("settings_targets_saved") is False:
+    if c.get("settings_targets_saved") is False and not settings.DATASOURCE_URL:
         return False, "settings_targets_unsaved"
     return True, ""
 

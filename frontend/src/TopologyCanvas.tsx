@@ -32,6 +32,7 @@ import { ServicesContext } from "./ServicesContext";
 import { useI18n } from "./i18n";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 import { effectiveServiceIdForNode, probeCardDown } from "./probeAlert";
+import type { NodeKindDef } from "./nodeKinds";
 
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
 const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
@@ -173,7 +174,7 @@ export function TopologyCanvas({
   metricsStale,
   datasourceStatus,
 }: Props) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom, fitView, zoomIn, zoomOut } = useReactFlow();
   /** Стабильный вызов fitView: иначе при смене языка меняется identity fitView → scheduleFitAfterLayout → повторный fetch layout и «центрирование». */
   const fitViewRef = useRef(fitView);
@@ -755,6 +756,29 @@ export function TopologyCanvas({
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
   );
 
+  const addComponentAtScreen = useCallback(
+    (kindDef: NodeKindDef, screenX: number, screenY: number) => {
+      if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
+      const position = screenToFlowPosition({ x: screenX, y: screenY });
+      const id = `${kindDef.kind}-${Date.now()}`;
+      setNodes((ns) => [
+        ...ns,
+        {
+          id,
+          type: "service",
+          position,
+          data: {
+            label: kindDef.label[lang as "ru" | "en"],
+            ports: [],
+            kind: kindDef.kind,
+          } satisfies ServiceNodeData,
+        } as Node,
+      ]);
+    },
+    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot, lang]
+  );
+
   const persistLayout = useCallback(() => {
     const layoutNodes = nodes.map((n) => ({
       id: n.id,
@@ -1043,6 +1067,7 @@ export function TopologyCanvas({
             services={data.services.filter((s) => !onCanvas.has(s.id))}
             onAddArea={() => addArea(contextMenu.screenX, contextMenu.screenY)}
             onAddService={(svc) => addServiceAtScreen(svc, contextMenu.screenX, contextMenu.screenY)}
+            onAddComponent={(kindDef) => addComponentAtScreen(kindDef, contextMenu.screenX, contextMenu.screenY)}
             onClose={() => setContextMenu(null)}
           />
         )}

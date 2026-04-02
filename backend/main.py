@@ -82,11 +82,11 @@ async def test_config(body: dict[str, Any]) -> dict[str, Any]:
 
 @app.get("/api/datasource/status")
 async def datasource_status() -> dict[str, Any]:
-    """Живой доступ к VictoriaMetrics (по URL из сохранённого конфига)."""
+    """Живой доступ к VictoriaMetrics (env override или сохранённый конфиг)."""
     c = cfg_mod.read_config()
     ds = c.get("datasource") or {}
     name = (ds.get("name") or "").strip() or None
-    url = (ds.get("url") or "").strip()
+    url = settings.DATASOURCE_URL or (ds.get("url") or "").strip()
     if not url:
         return {"configured": False, "ok": False, "name": name}
     ok = await metrics.test_datasource(url)

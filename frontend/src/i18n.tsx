@@ -51,7 +51,15 @@ const STRINGS = {
 
     contextAddArea: "Добавить область",
     contextAddService: "Добавить сервис",
+    contextAddComponent: "Добавить компонент",
     contextAllServicesOnCanvas: "Все сервисы из мониторинга уже на карте",
+    kindGroupActor: "Акторы",
+    kindGroupNetwork: "Сеть",
+    kindGroupEntry: "Точки входа",
+    kindGroupCluster: "Кластер",
+    kindGroupService: "Сервисы",
+    kindGroupManaged: "Managed-ресурсы",
+    kindGroupOther: "Прочее",
 
     monitoringTitle: "МОНИТОРИНГ",
     monitoringSummary: "Пробы: {ok}/{total}",
@@ -265,6 +273,14 @@ const STRINGS = {
 
     contextAddArea: "Add area",
     contextAddService: "Add service",
+    contextAddComponent: "Add component",
+    kindGroupActor: "Actors",
+    kindGroupNetwork: "Network",
+    kindGroupEntry: "Entry Points",
+    kindGroupCluster: "Cluster",
+    kindGroupService: "Services",
+    kindGroupManaged: "Managed Resources",
+    kindGroupOther: "Other",
     contextAllServicesOnCanvas: "All monitored services are already on the canvas",
 
     monitoringTitle: "MONITORING",

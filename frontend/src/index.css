@@ -705,6 +705,16 @@ html, body {
   line-height: 1.35;
 }
 
+.probemap-context-menu__group-label {
+  padding: 6px 14px 2px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--probemap-text-faint);
+  user-select: none;
+}
+
 /* Заголовки секций настроек с подсказкой по наведению */
 .probemap-settings-tip-title {
   cursor: help;

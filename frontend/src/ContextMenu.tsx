@@ -1,14 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaGlobe, FaObjectGroup } from "react-icons/fa6";
+import { LuPlus } from "react-icons/lu";
 import type { Service } from "./api";
-import { useI18n } from "./i18n";
-
-export interface CatalogItem {
-  kind: string;
-  label: string;
-  icon: string;
-}
+import { useI18n, type Lang } from "./i18n";
+import { NODE_KINDS, KIND_GROUPS, type NodeKindDef } from "./nodeKinds";
 
 interface Props {
   x: number;
@@ -16,24 +12,37 @@ interface Props {
   services: Service[];
   onAddArea: () => void;
   onAddService: (svc: Service) => void;
+  onAddComponent: (kindDef: NodeKindDef) => void;
   onClose: () => void;
 }
 
 const MENU_W = 188;
 const SUB_W = 200;
 
-export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }: Props) {
-  const { t } = useI18n();
+const KIND_GROUP_I18N: Record<string, string> = {
+  actor: "kindGroupActor",
+  network: "kindGroupNetwork",
+  entry: "kindGroupEntry",
+  cluster: "kindGroupCluster",
+  service: "kindGroupService",
+  managed: "kindGroupManaged",
+  other: "kindGroupOther",
+};
+
+export function ContextMenu({ x, y, services, onAddArea, onAddService, onAddComponent, onClose }: Props) {
+  const { t, lang } = useI18n();
   const mainRef = useRef<HTMLDivElement>(null);
   const subRef = useRef<HTMLDivElement>(null);
+  const compRef = useRef<HTMLDivElement>(null);
   const [subY, setSubY] = useState(0);
-  const [showSub, setShowSub] = useState(false);
+  const [showSub, setShowSub] = useState<"service" | "component" | false>(false);
 
   useEffect(() => {
     const onMouse = (e: MouseEvent) => {
       const inMain = mainRef.current?.contains(e.target as Node);
       const inSub = subRef.current?.contains(e.target as Node);
-      if (!inMain && !inSub) onClose();
+      const inComp = compRef.current?.contains(e.target as Node);
+      if (!inMain && !inSub && !inComp) onClose();
     };
     const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("mousedown", onMouse, true);
@@ -68,12 +77,19 @@ export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }
           icon={<FaGlobe size={13} />}
           label={t("contextAddService")}
           arrow
-          active={showSub}
-          onMouseEnter={(e) => { setSubY(e.currentTarget.getBoundingClientRect().top); setShowSub(true); }}
+          active={showSub === "service"}
+          onMouseEnter={(e) => { setSubY(e.currentTarget.getBoundingClientRect().top); setShowSub("service"); }}
+        />
+        <Row
+          icon={<LuPlus size={13} />}
+          label={t("contextAddComponent")}
+          arrow
+          active={showSub === "component"}
+          onMouseEnter={(e) => { setSubY(e.currentTarget.getBoundingClientRect().top); setShowSub("component"); }}
         />
       </div>
 
-      {showSub && (
+      {showSub === "service" && (
         <div
           ref={subRef}
           className="probemap-context-menu probemap-context-menu--sub"
@@ -94,6 +110,39 @@ export function ContextMenu({ x, y, services, onAddArea, onAddService, onClose }
           {services.length === 0 && (
             <div className="probemap-context-menu__empty">{t("contextAllServicesOnCanvas")}</div>
           )}
+        </div>
+      )}
+
+      {showSub === "component" && (
+        <div
+          ref={compRef}
+          className="probemap-context-menu probemap-context-menu--sub"
+          style={{
+            top: Math.min(subY, window.innerHeight - 400),
+            left: subLeft,
+            width: SUB_W,
+            maxHeight: 400,
+            overflowY: "auto",
+          }}
+        >
+          {KIND_GROUPS.filter((g) => g.key !== "service").map((group) => {
+            const items = NODE_KINDS.filter((k) => k.group === group.key);
+            if (!items.length) return null;
+            return (
+              <div key={group.key}>
+                <div className="probemap-context-menu__group-label">
+                  {t(KIND_GROUP_I18N[group.key] as never)}
+                </div>
+                {items.map((kindDef) => (
+                  <Row
+                    key={kindDef.kind}
+                    label={kindDef.label[lang as Lang]}
+                    onClick={() => { onAddComponent(kindDef); onClose(); }}
+                  />
+                ))}
+              </div>
+            );
+          })}
         </div>
       )}
     </>,
