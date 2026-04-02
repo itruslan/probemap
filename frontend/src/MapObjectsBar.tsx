@@ -4,15 +4,22 @@ import {
   FaMagnifyingGlassMinus,
   FaMagnifyingGlassPlus,
   FaObjectGroup,
+  FaRotateLeft,
+  FaRotateRight,
   FaUnlock,
 } from "react-icons/fa6";
 import { useI18n } from "./i18n";
+import type { ReactNode } from "react";
 
 type Props = {
   onAddArea: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
+  onUndo: () => void;
+  onRedo: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
   /** Как у стандартных Controls: переключение «замка» — перетаскивание, связи, выделение */
   canvasInteractive: boolean;
   onToggleCanvasInteraction: () => void;
@@ -26,10 +33,13 @@ type Props = {
 
 export function MapObjectsBar({
   onAddArea,
-  onAddCustom,
   onZoomIn,
   onZoomOut,
   onFitView,
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
   canvasInteractive,
   onToggleCanvasInteraction,
   readOnly,
@@ -40,70 +50,106 @@ export function MapObjectsBar({
   const cannotAdd = Boolean(readOnly || addBlocked);
   const toolbarDead = Boolean(readOnly || freezeToolbar);
 
+  const Btn = ({
+    label,
+    title,
+    disabled,
+    onClick,
+    children,
+  }: {
+    label: string;
+    title: string;
+    disabled?: boolean;
+    onClick: () => void;
+    children: ReactNode;
+  }) => (
+    <div className="map-objects-toolbar__btnwrap">
+      <button
+        type="button"
+        className="map-objects-toolbar__btn"
+        disabled={disabled}
+        onClick={onClick}
+        title={title}
+        aria-label={label}
+      >
+        {children}
+      </button>
+      <div className="map-objects-toolbar__label" aria-hidden>
+        {label}
+      </div>
+    </div>
+  );
+
   return (
     <div className="map-objects-floating">
       <div className="map-objects-stack">
         <section className="map-objects-toolbar__panel" aria-label={t("mapObjectsTitle")}>
           <div className="map-objects-toolbar__inner" role="toolbar" aria-orientation="vertical">
-            <button
-              type="button"
-              className="map-objects-toolbar__btn"
+            <Btn
+              label={t("contextAddArea")}
+              title={`${t("mapObjectsTitle")}: ${t("contextAddArea")}`}
               disabled={cannotAdd}
               onClick={onAddArea}
-              title={`${t("mapObjectsTitle")}: ${t("contextAddArea")}`}
-              aria-label={t("contextAddArea")}
             >
               <FaObjectGroup className="map-objects-toolbar__icon" aria-hidden />
-            </button>
+            </Btn>
           </div>
         </section>
 
         <section className="map-objects-toolbar__panel" aria-label={t("mapCanvasActions")}>
           <div className="map-objects-toolbar__inner" role="toolbar" aria-orientation="vertical">
-            <button
-              type="button"
-              className="map-objects-toolbar__btn"
+            <Btn
+              label={t("mapUndo")}
+              title={`${t("mapCanvasActions")}: ${t("mapUndo")}`}
+              disabled={toolbarDead || !canUndo}
+              onClick={onUndo}
+            >
+              <FaRotateLeft className="map-objects-toolbar__icon" aria-hidden />
+            </Btn>
+            <Btn
+              label={t("mapRedo")}
+              title={`${t("mapCanvasActions")}: ${t("mapRedo")}`}
+              disabled={toolbarDead || !canRedo}
+              onClick={onRedo}
+            >
+              <FaRotateRight className="map-objects-toolbar__icon" aria-hidden />
+            </Btn>
+            <Btn
+              label={t("mapZoomIn")}
+              title={`${t("mapCanvasActions")}: ${t("mapZoomIn")}`}
               disabled={toolbarDead}
               onClick={onZoomIn}
-              title={`${t("mapCanvasActions")}: ${t("mapZoomIn")}`}
-              aria-label={t("mapZoomIn")}
             >
               <FaMagnifyingGlassPlus className="map-objects-toolbar__icon" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="map-objects-toolbar__btn"
+            </Btn>
+            <Btn
+              label={t("mapZoomOut")}
+              title={`${t("mapCanvasActions")}: ${t("mapZoomOut")}`}
               disabled={toolbarDead}
               onClick={onZoomOut}
-              title={`${t("mapCanvasActions")}: ${t("mapZoomOut")}`}
-              aria-label={t("mapZoomOut")}
             >
               <FaMagnifyingGlassMinus className="map-objects-toolbar__icon" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="map-objects-toolbar__btn"
+            </Btn>
+            <Btn
+              label={t("mapFitView")}
+              title={`${t("mapCanvasActions")}: ${t("mapFitView")}`}
               disabled={toolbarDead}
               onClick={onFitView}
-              title={`${t("mapCanvasActions")}: ${t("mapFitView")}`}
-              aria-label={t("mapFitView")}
             >
               <FaExpand className="map-objects-toolbar__icon" aria-hidden />
-            </button>
-            <button
-              type="button"
-              className="map-objects-toolbar__btn"
+            </Btn>
+            <Btn
+              label={canvasInteractive ? t("mapUnlockInteraction") : t("mapLockInteraction")}
+              title={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
               disabled={readOnly || freezeToolbar}
               onClick={onToggleCanvasInteraction}
-              title={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
-              aria-label={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
             >
               {canvasInteractive ? (
                 <FaUnlock className="map-objects-toolbar__icon" aria-hidden />
               ) : (
                 <FaLock className="map-objects-toolbar__icon map-objects-toolbar__icon--lock-active" aria-hidden />
               )}
-            </button>
+            </Btn>
           </div>
         </section>
       </div>

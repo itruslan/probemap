@@ -174,6 +174,9 @@ export function TopologyCanvas({
 }: Props) {
   const { t } = useI18n();
   const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom, fitView, zoomIn, zoomOut } = useReactFlow();
+  /** Стабильный вызов fitView: иначе при смене языка меняется identity fitView → scheduleFitAfterLayout → повторный fetch layout и «центрирование». */
+  const fitViewRef = useRef(fitView);
+  fitViewRef.current = fitView;
   const store = useStoreApi();
   const canvasInteractive = useStore(
     (s) => s.nodesDraggable || s.nodesConnectable || s.elementsSelectable,
@@ -196,19 +199,79 @@ export function TopologyCanvas({
   const removedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
   const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
   const layoutLoaded = useRef(false);
+  const HISTORY_MAX = 10;
+  type Snapshot = { nodes: Node[]; edges: Edge[]; service_configs: Record<string, ServiceConfig> };
+  const undoStack = useRef<Snapshot[]>([]);
+  const redoStack = useRef<Snapshot[]>([]);
+  const applyingHistory = useRef(false);
+  const dragStartSnapshot = useRef<Snapshot | null>(null);
+  const [historyTick, setHistoryTick] = useState(0);
   const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<Edge>([]);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  const cloneSnapshot = useCallback((): Snapshot => {
+    const n = JSON.parse(JSON.stringify(nodes)) as Node[];
+    const e = JSON.parse(JSON.stringify(edges)) as Edge[];
+    const sc = JSON.parse(JSON.stringify(serviceConfigs.current)) as Record<string, ServiceConfig>;
+    return { nodes: n, edges: e, service_configs: sc };
+  }, [nodes, edges]);
+
+  const pushSnapshot = useCallback(() => {
+    if (!layoutLoaded.current) return;
+    if (applyingHistory.current) return;
+    undoStack.current.push(cloneSnapshot());
+    if (undoStack.current.length > HISTORY_MAX) undoStack.current.shift();
+    redoStack.current = [];
+    setHistoryTick((x) => x + 1);
+  }, [cloneSnapshot]);
+
+  const applySnapshot = useCallback((snap: Snapshot) => {
+    applyingHistory.current = true;
+    try {
+      serviceConfigs.current = snap.service_configs;
+      setNodes(snap.nodes);
+      setEdges(snap.edges);
+      setPaletteSelectedId(null);
+      setPaletteHoverId(null);
+      setContextMenu(null);
+    } finally {
+      applyingHistory.current = false;
+      setHistoryTick((x) => x + 1);
+    }
+  }, [setEdges, setNodes]);
+
+  const undo = useCallback(() => {
+    if (metricsStale || !canvasInteractive) return;
+    const prev = undoStack.current.pop();
+    if (!prev) return;
+    redoStack.current.push(cloneSnapshot());
+    if (redoStack.current.length > HISTORY_MAX) redoStack.current.shift();
+    applySnapshot(prev);
+  }, [applySnapshot, cloneSnapshot, metricsStale, canvasInteractive]);
+
+  const redo = useCallback(() => {
+    if (metricsStale || !canvasInteractive) return;
+    const next = redoStack.current.pop();
+    if (!next) return;
+    undoStack.current.push(cloneSnapshot());
+    if (undoStack.current.length > HISTORY_MAX) undoStack.current.shift();
+    applySnapshot(next);
+  }, [applySnapshot, cloneSnapshot, metricsStale, canvasInteractive]);
+
   const onEdgesChange = useCallback(
     (changes: EdgeChange[]) => {
       if (metricsStale || !canvasInteractive) {
         onEdgesChangeBase(changes.filter((c) => c.type !== "remove"));
         return;
       }
+      if (!applyingHistory.current && changes.some((c) => c.type === "remove")) {
+        pushSnapshot();
+      }
       onEdgesChangeBase(changes);
     },
-    [metricsStale, canvasInteractive, onEdgesChangeBase],
+    [metricsStale, canvasInteractive, onEdgesChangeBase, pushSnapshot],
   );
-  const wrapperRef = useRef<HTMLDivElement>(null);
 
   const [contextMenu, setContextMenu] = useState<{ screenX: number; screenY: number } | null>(null);
   const [collidingIds, setCollidingIds] = useState<Set<string>>(new Set());
@@ -265,18 +328,28 @@ export function TopologyCanvas({
 
   const onNodeDrag = useCallback((_: React.MouseEvent, dragged: Node) => {
     if (!COLLIDABLE.includes(dragged.type ?? "")) return;
+    if (!dragStartSnapshot.current && !applyingHistory.current && layoutLoaded.current) {
+      dragStartSnapshot.current = cloneSnapshot();
+    }
     setDraggingService(true);
     const db = getBounds(dragged);
     const hasOverlap = getNodes()
       .filter((n) => n.id !== dragged.id && COLLIDABLE.includes(n.type ?? ""))
       .some((n) => overlaps(db, getBounds(n)));
     setCollidingIds(hasOverlap ? new Set([dragged.id]) : new Set());
-  }, [getNodes]);
+  }, [getNodes, cloneSnapshot]);
 
   const onNodeDragStop = useCallback((_: React.MouseEvent, dragged: Node) => {
     setCollidingIds(new Set());
     setDraggingService(false);
     if (!COLLIDABLE.includes(dragged.type ?? "")) return;
+    if (!applyingHistory.current && dragStartSnapshot.current) {
+      undoStack.current.push(dragStartSnapshot.current);
+      if (undoStack.current.length > HISTORY_MAX) undoStack.current.shift();
+      redoStack.current = [];
+      setHistoryTick((x) => x + 1);
+    }
+    dragStartSnapshot.current = null;
     const others = getNodes().filter(n => n.id !== dragged.id && COLLIDABLE.includes(n.type ?? ""));
     const db = getBounds(dragged);
     if (!others.some(n => overlaps(db, getBounds(n)))) return;
@@ -323,9 +396,12 @@ export function TopologyCanvas({
         }
         return true;
       });
+      if (!applyingHistory.current && allowed.some((c) => c.type === "remove" || c.type === "add")) {
+        pushSnapshot();
+      }
       onNodesChangeRaw(allowed);
     },
-    [onNodesChangeRaw, getNodes, metricsStale, canvasInteractive]
+    [onNodesChangeRaw, getNodes, metricsStale, canvasInteractive, pushSnapshot]
   );
 
   // Handle Backspace/Delete on selected node (canvas selection or palette selection)
@@ -356,6 +432,24 @@ export function TopologyCanvas({
     return () => document.removeEventListener("keydown", onKey);
   }, [getNodes, confirmDelete, paletteSelectedId, metricsStale, canvasInteractive]);
 
+  // Undo/redo hotkeys (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (metricsStale || !canvasInteractive) return;
+      const el = e.target as HTMLElement | null;
+      const tag = el?.tagName?.toUpperCase();
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() !== "z") return;
+      e.preventDefault();
+      if (e.shiftKey) redo();
+      else undo();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [undo, redo, metricsStale, canvasInteractive]);
+
   // Listen for delete-request events from ServiceNode trash icon
   useEffect(() => {
     const handler = (e: Event) => {
@@ -370,6 +464,7 @@ export function TopologyCanvas({
 
   const doConfirmDelete = useCallback(() => {
     if (!confirmDelete) return;
+    if (!applyingHistory.current) pushSnapshot();
     const node = getNodes().find((n) => n.id === confirmDelete.id);
     if (node) removedPositions.current.set(confirmDelete.id, { x: node.position.x, y: node.position.y });
     setNodes((ns) => ns.filter((n) => n.id !== confirmDelete.id));
@@ -378,16 +473,16 @@ export function TopologyCanvas({
     setPaletteHoverId(null);
     setConfirmDelete(null);
     setConfirmText("");
-  }, [confirmDelete, getNodes, setNodes, setEdges]);
+  }, [confirmDelete, getNodes, setNodes, setEdges, pushSnapshot]);
 
   /** Один раз после загрузки раскладки — не при смене языка (иначе fitView на каждом ререндере) */
   const scheduleFitAfterLayout = useCallback(() => {
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        fitView({ padding: 0.15 });
+        fitViewRef.current({ padding: 0.15 });
       });
     });
-  }, [fitView]);
+  }, []);
 
   // Load saved layout on mount (отдельный файл раскладки на проект)
   useEffect(() => {
@@ -397,6 +492,11 @@ export function TopologyCanvas({
         serviceConfigs.current = layout.service_configs;
       }
       layoutLoaded.current = true;
+      // Reset history on project load
+      undoStack.current = [];
+      redoStack.current = [];
+      dragStartSnapshot.current = null;
+      setHistoryTick((x) => x + 1);
       if (!layout.nodes.length) {
         scheduleFitAfterLayout();
         return;
@@ -413,6 +513,9 @@ export function TopologyCanvas({
             } as Node;
           }
           if (ln.type === "custom") {
+            return null;
+          }
+          if (ln.type === "linkAnchor" || ln.type === "freeArrow") {
             return null;
           }
           if (!ln.type || ln.type === "service") {
@@ -562,22 +665,25 @@ export function TopologyCanvas({
   const onConnect: OnConnect = useCallback(
     (conn) => {
       if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
       setEdges((eds) => addEdge(conn, eds));
     },
-    [metricsStale, canvasInteractive, setEdges]
+    [metricsStale, canvasInteractive, setEdges, pushSnapshot]
   );
 
   const onReconnect: OnReconnect = useCallback(
     (oldEdge, newConn) => {
       if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
       setEdges((eds) => reconnectEdge(oldEdge, newConn, eds));
     },
-    [metricsStale, canvasInteractive, setEdges]
+    [metricsStale, canvasInteractive, setEdges, pushSnapshot]
   );
 
   const addArea = useCallback(
     (screenX: number, screenY: number) => {
       if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
       const position = screenToFlowPosition({ x: screenX, y: screenY });
       setNodes((ns) => {
         const groupCount = ns.filter((n) => n.type === "group").length;
@@ -593,12 +699,13 @@ export function TopologyCanvas({
         ];
       });
     },
-    [setNodes, screenToFlowPosition, t, metricsStale, canvasInteractive]
+    [setNodes, screenToFlowPosition, t, metricsStale, canvasInteractive, pushSnapshot]
   );
 
   /** Как из палитры: свободная позиция в видимой области холста. */
   const addAreaFromSidebar = useCallback(() => {
     if (metricsStale || !canvasInteractive) return;
+    if (!applyingHistory.current) pushSnapshot();
     const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
     setNodes((ns) => {
       const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
@@ -614,12 +721,13 @@ export function TopologyCanvas({
         ...ns,
       ];
     });
-  }, [metricsStale, canvasInteractive, setNodes, screenToFlowPosition, t]);
+  }, [metricsStale, canvasInteractive, setNodes, screenToFlowPosition, t, pushSnapshot]);
 
   /** Тот же путь, что пункт «сервис из мониторинга» в ПКМ (позиция — экранные координаты). */
   const addServiceAtScreen = useCallback(
     (svc: Service, screenX: number, screenY: number) => {
       if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
       setNodes((ns) => {
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
         const position = screenToFlowPosition({ x: screenX, y: screenY });
@@ -627,12 +735,13 @@ export function TopologyCanvas({
         return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null)];
       });
     },
-    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive]
+    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
   );
 
   const addServiceFromPalette = useCallback(
     (svc: Service) => {
       if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
       const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
       setNodes((ns) => {
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
@@ -641,7 +750,7 @@ export function TopologyCanvas({
         return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null)];
       });
     },
-    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive]
+    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
   );
 
   const persistLayout = useCallback(() => {
@@ -913,6 +1022,10 @@ export function TopologyCanvas({
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onFitView={handleFitView}
+          onUndo={undo}
+          onRedo={redo}
+          canUndo={(historyTick >= 0) && undoStack.current.length > 0}
+          canRedo={(historyTick >= 0) && redoStack.current.length > 0}
           canvasInteractive={!metricsStale && canvasInteractive}
           onToggleCanvasInteraction={handleToggleCanvasInteraction}
           readOnly={metricsStale}

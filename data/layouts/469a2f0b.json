@@ -18,16 +18,16 @@
     },
     {
       "id": "debian",
-      "x": -428.54082354290557,
-      "y": -321.64617041771015,
+      "x": -80.61638009469873,
+      "y": -450.0259345688834,
       "type": "service",
       "label": "debian",
       "matchServiceId": null
     },
     {
       "id": "grafana-fh",
-      "x": -185.62659579324594,
-      "y": -572.4036368556792,
+      "x": -563.5075933689483,
+      "y": -607.6877059064225,
       "type": "service",
       "label": "grafana-fh",
       "matchServiceId": null
@@ -106,8 +106,8 @@
     },
     {
       "id": "pypi",
-      "x": -623.8498390663259,
-      "y": -549.5386325090026,
+      "x": -706.9381307019472,
+      "y": -418.6461182885033,
       "type": "service",
       "label": "pypi",
       "matchServiceId": null
@@ -120,7 +120,45 @@
       "sourceHandle": "right",
       "target": "pypi",
       "targetHandle": "left",
-      "id": "xy-edge__cloudflare-wwwright-pypileft"
+      "id": "xy-edge__cloudflare-wwwright-pypileft",
+      "selected": true
+    },
+    {
+      "source": "grafana-fh",
+      "sourceHandle": "bottom",
+      "target": "argocd",
+      "targetHandle": "left",
+      "id": "xy-edge__grafana-fhbottom-argocdleft"
+    },
+    {
+      "source": "eff",
+      "sourceHandle": "right",
+      "target": "github-api",
+      "targetHandle": "right",
+      "id": "xy-edge__effright-github-apiright",
+      "selected": false
+    },
+    {
+      "source": "eff",
+      "sourceHandle": "right",
+      "target": "pypi",
+      "targetHandle": "left",
+      "id": "xy-edge__effright-pypileft",
+      "selected": false
+    },
+    {
+      "source": "grafana-fh",
+      "sourceHandle": "right",
+      "target": "debian",
+      "targetHandle": "left",
+      "id": "xy-edge__grafana-fhright-debianleft"
+    },
+    {
+      "source": "grafana-fh",
+      "sourceHandle": "right",
+      "target": "argocd",
+      "targetHandle": "right",
+      "id": "xy-edge__grafana-fhright-argocdright"
     }
   ],
   "service_configs": {

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { IconType } from "react-icons";
 import { FaGear, FaMoon, FaSun } from "react-icons/fa6";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -157,6 +157,9 @@ export default function App() {
 
 function AppContent() {
   const { t } = useI18n();
+  /** Не включать t в deps у refresh — иначе смена языка пересоздаёт refresh → эффект опроса сбрасывает data и размонтирует карту (fitView). */
+  const tRef = useRef(t);
+  tRef.current = t;
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
   const [data, setData] = useState<ServicesResponse | null>(null);
@@ -226,22 +229,22 @@ function AppContent() {
           setLoadFailed(true);
           setMetricsStale(true);
           if (e.status === 503) {
-            setError(t("apiErrorDatasourceUnavailable"));
+            setError(tRef.current("apiErrorDatasourceUnavailable"));
           } else {
-            setError(t("apiErrorHttp").replace("{status}", String(e.status)));
+            setError(tRef.current("apiErrorHttp").replace("{status}", String(e.status)));
           }
           return;
         }
         setNeedsSetup(false);
         setLoadFailed(true);
         setMetricsStale(true);
-        setError(t("apiErrorNetwork"));
+        setError(tRef.current("apiErrorNetwork"));
       })
       .finally(() => {
         setFetching(false);
         if (opts?.fromToolbar) setToolbarRefreshPending(false);
       });
-  }, [activeProject, t]);
+  }, [activeProject]);
 
   useEffect(() => {
     if (!projectsLoaded) return;

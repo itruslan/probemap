@@ -497,10 +497,12 @@ html, body {
 }
 
 .map-objects-toolbar__panel {
-  background: var(--probemap-bg);
+  background: color-mix(in srgb, var(--probemap-bg) 88%, transparent);
   border-radius: 12px;
   padding: 6px;
   box-shadow: var(--probemap-shadow), var(--probemap-shadow-ring);
+  border: 1px solid color-mix(in srgb, var(--probemap-border) 65%, transparent);
+  backdrop-filter: blur(6px);
 }
 
 .map-objects-toolbar__inner {
@@ -508,6 +510,37 @@ html, body {
   flex-direction: column;
   gap: 4px;
   align-items: center;
+}
+
+.map-objects-toolbar__btnwrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.map-objects-toolbar__label {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--probemap-bg) 92%, transparent);
+  border: 1px solid color-mix(in srgb, var(--probemap-border) 70%, transparent);
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(6px);
+  color: var(--probemap-text);
+  font-size: 12px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.12s ease;
+}
+
+.map-objects-toolbar__btnwrap:hover .map-objects-toolbar__label,
+.map-objects-toolbar__btnwrap:focus-within .map-objects-toolbar__label {
+  opacity: 1;
 }
 
 .map-objects-toolbar__btn {

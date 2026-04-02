@@ -44,6 +44,8 @@ const STRINGS = {
     mapZoomIn: "Увеличить",
     mapZoomOut: "Уменьшить",
     mapFitView: "Показать всё на экране",
+    mapUndo: "Отменить",
+    mapRedo: "Повторить",
     mapLockInteraction: "Заблокировать перетаскивание, связи и выделение",
     mapUnlockInteraction: "Снова разрешить перетаскивание, связи и выделение",
 
@@ -256,6 +258,8 @@ const STRINGS = {
     mapZoomIn: "Zoom in",
     mapZoomOut: "Zoom out",
     mapFitView: "Fit to screen",
+    mapUndo: "Undo",
+    mapRedo: "Redo",
     mapLockInteraction: "Lock dragging, connections, and selection",
     mapUnlockInteraction: "Unlock dragging, connections, and selection",
 

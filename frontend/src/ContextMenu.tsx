@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { FaObjectGroup, FaGlobe } from "react-icons/fa6";
+import { FaGlobe, FaObjectGroup } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";
 
