@@ -556,7 +556,7 @@ export function ServiceNode({ data, id }: NodeProps) {
             onBlur={() => commitDesc(descDraft)}
             placeholder={t("descriptionPlaceholder")}
             rows={2}
-            style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid #93c5fd", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
+            style={{ width: "100%", boxSizing: "border-box", border: "1.5px solid var(--probemap-interactive-hover-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)", resize: "vertical", lineHeight: 1.4, fontFamily: "inherit" }}
           />
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2 }}>
             <span style={{ fontSize: 10, color: "var(--probemap-text-faint)" }}>
@@ -636,12 +636,12 @@ export function ServiceNode({ data, id }: NodeProps) {
                 <IconRenderer name={newActionIcon} size={14} />
               </button>
               <input placeholder={t("actionNamePlaceholder")} value={newActionLabel} onChange={(e) => setNewActionLabel(e.target.value)}
-                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)" }} />
+                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }} />
             </div>
             <div style={{ display: "flex", gap: 6 }}>
               <input autoFocus placeholder={t("actionUrlPlaceholder")} value={newActionUrl} onChange={(e) => setNewActionUrl(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") addAction(); if (e.key === "Escape") setAddingAction(false); }}
-                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)" }} />
+                style={{ flex: 1, border: "1.5px solid var(--probemap-border)", borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", color: "var(--probemap-text)", background: "var(--probemap-input-bg)" }} />
               <button type="button" onClick={addAction} className="probemap-btn probemap-btn--primary probemap-btn--xs">
                 {t("uiOk")}
               </button>
@@ -685,7 +685,7 @@ export function ServiceNode({ data, id }: NodeProps) {
           minWidth: groupVisual.minWidth,
           boxShadow: "var(--probemap-node-card-shadow)",
           position: "relative", cursor: "pointer",
-          outline: !colliding && locked ? "2px solid #93c5fd" : undefined,
+          outline: !colliding && locked ? "2px solid var(--probemap-interactive-hover-border)" : undefined,
           opacity: colliding ? 0.5 : 1,
           transition: "opacity 0.1s, outline 0.1s",
           overflow: "hidden",
