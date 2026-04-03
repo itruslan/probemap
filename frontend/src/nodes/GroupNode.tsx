@@ -162,8 +162,8 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
         minHeight={80}
         lineStyle={{ borderWidth: 8, borderColor: "transparent" }}
         handleStyle={{
-          width: 12,
-          height: 12,
+          width: 20,
+          height: 20,
           background: "transparent",
           border: "none",
         }}
