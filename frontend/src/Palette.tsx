@@ -1,8 +1,7 @@
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
-import { useI18n, type I18nKey } from "./i18n";
-import { KIND_GROUPS, NODE_KINDS, GROUP_KINDS, type NodeKindDef, type GroupKindDef } from "./nodeKinds";
+import { useI18n } from "./i18n";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -11,46 +10,30 @@ const STATUS_COLOR: Record<string, string> = {
   unknown: "#9ca3af",
 };
 
-// i18n key for each group key
-const KIND_GROUP_I18N: Record<string, string> = {
-  actor: "kindGroupActor",
-  network: "kindGroupNetwork",
-  entry: "kindGroupEntry",
-  cluster: "kindGroupCluster",
-  service: "kindGroupService",
-  managed: "kindGroupManaged",
-  other: "kindGroupOther",
-};
-
 interface PaletteProps {
   services: Service[];
   onCanvas: Set<string>;
-  /** Добавить сервис на карту (тот же путь, что выбор сервиса в ПКМ) */
+  /** Добавить сервис из мониторинга на карту */
   onAddService: (service: Service) => void;
-  /** Добавить произвольный компонент на карту */
-  onAddComponent: (kindDef: NodeKindDef) => void;
-  /** Добавить типизированную группу на карту */
-  onAddGroup: (groupKindDef: GroupKindDef) => void;
+  /** Добавить пустой кастомный объект на карту */
+  onAddObject: () => void;
   /** Добавить generic-область на карту */
   onAddArea: () => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
-  /** Подсветка сервиса на карте при наведении (только если сервис из мониторинга уже на карте) */
+  /** Подсветка сервиса на карте при наведении */
   onHoverChange: (id: string | null) => void;
-  /** Данные устарели — без перетаскивания и добавления */
+  /** Данные устарели — без добавления */
   readOnly?: boolean;
   /** service id → status string (ok|warn|down|unknown) */
   statusMap?: Record<string, string>;
 }
 
-type Tab = "monitoring" | "objects";
-
 export const Palette = memo(function Palette({
   services,
   onCanvas,
   onAddService,
-  onAddComponent,
-  onAddGroup,
+  onAddObject,
   onAddArea,
   readOnly = false,
   selectedId,
@@ -58,15 +41,9 @@ export const Palette = memo(function Palette({
   onHoverChange,
   statusMap,
 }: PaletteProps) {
-  const { t, lang } = useI18n();
-  const [tab, setTab] = useState<Tab>("monitoring");
+  const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-
-  // Reset search when switching tabs
-  useEffect(() => {
-    setSearch("");
-  }, [tab]);
 
   const sortSvc = (a: Service, b: Service) => {
     const aOn = onCanvas.has(a.id);
@@ -96,14 +73,10 @@ export const Palette = memo(function Palette({
     onHoverChange(null);
   };
 
-  // Клик фиксирует выделение на карте; повторный клик по той же строке снимает
   const handleClick = (svc: Service) => {
     if (!onCanvas.has(svc.id)) return;
-    if (selectedId === svc.id) {
-      onSelect(null);
-    } else {
-      onSelect(svc.id);
-    }
+    if (selectedId === svc.id) onSelect(null);
+    else onSelect(svc.id);
   };
 
   const handlePaletteLeave = () => {
@@ -111,213 +84,113 @@ export const Palette = memo(function Palette({
     onHoverChange(null);
   };
 
-  // Objects tab: kinds visible in context menu, excluding "service" group
-  const visibleKinds = NODE_KINDS.filter((k) => !k.menuHidden && k.group !== "service");
-  const visibleGroups = KIND_GROUPS.filter(
-    (g) => g.key !== "service" && g.key !== "managed" && visibleKinds.some((k) => k.group === g.key)
-  );
-
-  const objectSearch = search.toLowerCase();
-  const filteredKinds = (group: string) =>
-    visibleKinds.filter(
-      (k) => k.group === group && k.label[lang as "ru" | "en"].toLowerCase().includes(objectSearch)
-    );
-  const filteredGroupKinds = GROUP_KINDS.filter(
-    (k) => k.label[lang as "ru" | "en"].toLowerCase().includes(objectSearch)
-  );
-
   return (
     <aside
       className="palette-sidebar"
       onMouseLeave={handlePaletteLeave}
       style={readOnly ? { opacity: 0.72 } : undefined}
     >
-      {/* Tab switcher */}
-      <div className="palette-sidebar__tabs" role="tablist">
+      {/* Быстрое добавление: Область + Объект */}
+      <div className="palette-sidebar__tabs">
         <button
           type="button"
-          role="tab"
-          aria-selected={tab === "monitoring"}
-          aria-controls="palette-panel-monitoring"
-          className={`palette-sidebar__tab${tab === "monitoring" ? " palette-sidebar__tab--active" : ""}`}
-          onClick={() => setTab("monitoring")}
+          disabled={readOnly}
+          className="palette-sidebar__tab"
+          onClick={onAddArea}
+          title={t("paletteArea")}
         >
-          {t("paletteTabMonitoring")}
+          <FaPlus size={9} aria-hidden style={{ marginRight: 4, verticalAlign: "middle" }} />
+          {t("paletteArea")}
         </button>
         <button
           type="button"
-          role="tab"
-          aria-selected={tab === "objects"}
-          aria-controls="palette-panel-objects"
-          className={`palette-sidebar__tab${tab === "objects" ? " palette-sidebar__tab--active" : ""}`}
-          onClick={() => setTab("objects")}
+          disabled={readOnly}
+          className="palette-sidebar__tab"
+          onClick={onAddObject}
+          title={t("paletteObject")}
         >
-          {t("paletteTabObjects")}
+          <FaPlus size={9} aria-hidden style={{ marginRight: 4, verticalAlign: "middle" }} />
+          {t("paletteObject")}
         </button>
       </div>
 
-      {tab === "monitoring" && (
-        <div id="palette-panel-monitoring" role="tabpanel">
-          <input
-            className="palette-sidebar__search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("searchPlaceholder")}
-            type="search"
-            autoComplete="off"
-            spellCheck={false}
-          />
+      {/* Поиск по сервисам */}
+      <input
+        className="palette-sidebar__search"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        placeholder={t("searchPlaceholder")}
+        type="search"
+        autoComplete="off"
+        spellCheck={false}
+      />
 
-          <div className="palette-sidebar__section-header palette-sidebar__section-header--with-count">
-            {t("servicesTitle")}
-            <span className="palette-sidebar__count">{services.length}</span>
-          </div>
+      <div className="palette-sidebar__section-header palette-sidebar__section-header--with-count">
+        {t("servicesTitle")}
+        <span className="palette-sidebar__count">{services.length}</span>
+      </div>
 
-          <div className="palette-sidebar__list">
-            {filtered.length === 0 && (
-              <div className="palette-sidebar__empty">{t("nothingFound")}</div>
-            )}
-            {(["service", "resource"] as const).map((kind) => {
-              const group = grouped[kind];
-              if (group.length === 0) return null;
-              return (
-                <div key={kind}>
-                  {hasMultipleGroups && (
-                    <div className="palette-sidebar__section-header">
-                      {kind === "service" ? t("paletteSectionServices") : t("paletteSectionResources")}
-                    </div>
-                  )}
-                  {group.map((svc) => {
-                    const active = onCanvas.has(svc.id);
-                    const selected = active && selectedId === svc.id;
-                    const hovered = hoveredId === svc.id;
-                    const statusColor = STATUS_COLOR[statusMap?.[svc.id] ?? "unknown"] ?? STATUS_COLOR.unknown;
-
-                    const rowClass = [
-                      "palette-row",
-                      !active && "palette-row--missing",
-                      active && "palette-row--on-canvas",
-                      active && hovered && "palette-row--hover",
-                      active && selected && "palette-row--selected",
-                    ]
-                      .filter(Boolean)
-                      .join(" ");
-
-                    return (
-                      <div
-                        key={svc.id}
-                        onClick={() => handleClick(svc)}
-                        onMouseEnter={() => handleMouseEnter(svc)}
-                        onMouseLeave={handleMouseLeave}
-                        className={rowClass}
-                        style={selected ? { "--palette-row-accent": statusColor } as never : undefined}
-                      >
-                        <span className="palette-row__name">{svc.name}</span>
-                        {!active && !readOnly && (
-                          <button
-                            type="button"
-                            className="probemap-btn palette-row__add"
-                            aria-label={t("paletteAdd")}
-                            title={t("paletteAdd")}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddService(svc);
-                            }}
-                          >
-                            <FaPlus size={11} aria-hidden />
-                          </button>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })}
-          </div>
-
-        </div>
-      )}
-
-      {tab === "objects" && (
-        <div id="palette-panel-objects" role="tabpanel">
-          <input
-            className="palette-sidebar__search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("searchPlaceholder")}
-            type="search"
-            autoComplete="off"
-            spellCheck={false}
-          />
-
-          <div className="palette-sidebar__list">
-            {visibleGroups.every((g) => filteredKinds(g.key).length === 0) && filteredGroupKinds.length === 0 && (
-              <div className="palette-sidebar__empty">{t("nothingFound")}</div>
-            )}
-            {visibleGroups.map((g) => {
-              const kinds = filteredKinds(g.key);
-              if (kinds.length === 0) return null;
-              const i18nKey = KIND_GROUP_I18N[g.key];
-              return (
-                <div key={g.key}>
-                  <div className="palette-sidebar__section-header">
-                    {i18nKey ? t(i18nKey as I18nKey) : g.label[lang as "ru" | "en"]}
-                  </div>
-                  {kinds.map((kindDef) => (
-                    <button
-                      key={kindDef.kind}
-                      type="button"
-                      disabled={readOnly}
-                      className="palette-row palette-row--missing palette-row--kind"
-                      onClick={() => onAddComponent(kindDef)}
-                    >
-                      <span className="palette-row__name">{kindDef.label[lang as "ru" | "en"]}</span>
-                      <span className="palette-row__add" aria-hidden>
-                        <FaPlus size={11} />
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              );
-            })}
-
-            {(filteredGroupKinds.length > 0 || !objectSearch) && (
-              <div>
+      <div className="palette-sidebar__list">
+        {filtered.length === 0 && (
+          <div className="palette-sidebar__empty">{t("nothingFound")}</div>
+        )}
+        {(["service", "resource"] as const).map((kind) => {
+          const group = grouped[kind];
+          if (group.length === 0) return null;
+          return (
+            <div key={kind}>
+              {hasMultipleGroups && (
                 <div className="palette-sidebar__section-header">
-                  {t("paletteGroupsSection")}
+                  {kind === "service" ? t("paletteSectionServices") : t("paletteSectionResources")}
                 </div>
-                {!objectSearch && (
-                  <button
-                    type="button"
-                    disabled={readOnly}
-                    className="palette-row palette-row--missing palette-row--kind"
-                    onClick={onAddArea}
+              )}
+              {group.map((svc) => {
+                const active = onCanvas.has(svc.id);
+                const selected = active && selectedId === svc.id;
+                const hovered = hoveredId === svc.id;
+                const statusColor = STATUS_COLOR[statusMap?.[svc.id] ?? "unknown"] ?? STATUS_COLOR.unknown;
+
+                const rowClass = [
+                  "palette-row",
+                  !active && "palette-row--missing",
+                  active && "palette-row--on-canvas",
+                  active && hovered && "palette-row--hover",
+                  active && selected && "palette-row--selected",
+                ]
+                  .filter(Boolean)
+                  .join(" ");
+
+                return (
+                  <div
+                    key={svc.id}
+                    onClick={() => handleClick(svc)}
+                    onMouseEnter={() => handleMouseEnter(svc)}
+                    onMouseLeave={handleMouseLeave}
+                    className={rowClass}
+                    style={selected ? { "--palette-row-accent": statusColor } as never : undefined}
                   >
-                    <span className="palette-row__name">{t("paletteArea")}</span>
-                    <span className="palette-row__add" aria-hidden>
-                      <FaPlus size={11} />
-                    </span>
-                  </button>
-                )}
-                {filteredGroupKinds.map((gk) => (
-                  <button
-                    key={gk.kind}
-                    type="button"
-                    disabled={readOnly}
-                    className="palette-row palette-row--missing palette-row--kind"
-                    onClick={() => onAddGroup(gk)}
-                  >
-                    <span className="palette-row__name">{gk.label[lang as "ru" | "en"]}</span>
-                    <span className="palette-row__add" aria-hidden>
-                      <FaPlus size={11} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+                    <span className="palette-row__name">{svc.name}</span>
+                    {!active && !readOnly && (
+                      <button
+                        type="button"
+                        className="probemap-btn palette-row__add"
+                        aria-label={t("paletteAdd")}
+                        title={t("paletteAdd")}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onAddService(svc);
+                        }}
+                      >
+                        <FaPlus size={11} aria-hidden />
+                      </button>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })}
+      </div>
     </aside>
   );
 });

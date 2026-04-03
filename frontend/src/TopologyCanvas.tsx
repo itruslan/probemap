@@ -36,7 +36,6 @@ import { EdgeMetadataModal } from "./edges/EdgeMetadataModal";
 import { EdgeInteractionContext } from "./edges/edgeInteractionContext";
 import { Palette } from "./Palette";
 import { MapObjectsBar } from "./MapObjectsBar";
-import { ContextMenu } from "./ContextMenu";
 import { CollisionContext } from "./CollisionContext";
 import { DragContext } from "./DragContext";
 import { ServicesContext } from "./ServicesContext";
@@ -44,7 +43,7 @@ import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 import { effectiveServiceIdForNode, probeNodeStatus } from "./probeAlert";
-import type { NodeKindDef, GroupKindDef } from "./nodeKinds";
+import { NODE_KIND_MAP, type NodeKindDef } from "./nodeKinds";
 
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
 const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
@@ -295,7 +294,6 @@ export function TopologyCanvas({
       setEdges(snap.edges);
       setPaletteSelectedId(null);
       setPaletteHoverId(null);
-      setContextMenu(null);
     } finally {
       applyingHistory.current = false;
       setHistoryTick((x) => x + 1);
@@ -334,7 +332,6 @@ export function TopologyCanvas({
     [metricsStale, canvasInteractive, onEdgesChangeBase, pushSnapshot],
   );
 
-  const [contextMenu, setContextMenu] = useState<{ screenX: number; screenY: number } | null>(null);
   const [collidingIds, setCollidingIds] = useState<Set<string>>(new Set());
   const [draggingService, setDraggingService] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<{ id: string; label: string } | null>(null);
@@ -650,7 +647,7 @@ export function TopologyCanvas({
               type: "group",
               position: { x: ln.x, y: ln.y },
               style: { width: ln.width ?? 260, height: ln.height ?? 180, zIndex: ln.zIndex ?? -1 },
-              data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color, kind: ln.kind, clusterLabel: ln.clusterLabel, clusterValue: ln.clusterValue } satisfies GroupNodeData,
+              data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color } satisfies GroupNodeData,
             } as Node;
           }
           const legacyType = ln.type as string | undefined;
@@ -851,55 +848,6 @@ export function TopologyCanvas({
     [metricsStale, canvasInteractive, setEdges, pushSnapshot]
   );
 
-  const addArea = useCallback(
-    (screenX: number, screenY: number) => {
-      if (metricsStale || !canvasInteractive) return;
-      if (!applyingHistory.current) pushSnapshot();
-      const position = screenToFlowPosition({ x: screenX, y: screenY });
-      setNodes((ns) => {
-        const groupCount = ns.filter((n) => n.type === "group").length;
-        return [
-          {
-            id: `group-${Date.now()}`,
-            type: "group",
-            position,
-            style: { width: 260, height: 180, zIndex: -10 + groupCount },
-            data: { label: t("defaultGroupLabel") } satisfies GroupNodeData,
-          } as Node,
-          ...ns,
-        ];
-      });
-    },
-    [setNodes, screenToFlowPosition, t, metricsStale, canvasInteractive, pushSnapshot]
-  );
-
-  const addGroupFromPalette = useCallback(
-    (groupKindDef: GroupKindDef) => {
-      if (metricsStale || !canvasInteractive) return;
-      if (!applyingHistory.current) pushSnapshot();
-      const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
-      setNodes((ns) => {
-        const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
-        const groupCount = ns.filter((n) => n.type === "group").length;
-        return [
-          {
-            id: `group-${Date.now()}`,
-            type: "group",
-            position,
-            style: { width: 260, height: 180, zIndex: -10 + groupCount },
-            data: {
-              label: groupKindDef.label[lang as "ru" | "en"],
-              color: groupKindDef.defaultColor,
-              kind: groupKindDef.kind,
-            } satisfies GroupNodeData,
-          } as Node,
-          ...ns,
-        ];
-      });
-    },
-    [metricsStale, canvasInteractive, setNodes, screenToFlowPosition, t, pushSnapshot, lang]
-  );
-
   /** Как из палитры: свободная позиция в видимой области холста. */
   const addAreaFromSidebar = useCallback(() => {
     if (metricsStale || !canvasInteractive) return;
@@ -920,21 +868,6 @@ export function TopologyCanvas({
       ];
     });
   }, [metricsStale, canvasInteractive, setNodes, screenToFlowPosition, t, pushSnapshot]);
-
-  /** Тот же путь, что пункт «сервис из мониторинга» в ПКМ (позиция — экранные координаты). */
-  const addServiceAtScreen = useCallback(
-    (svc: Service, screenX: number, screenY: number) => {
-      if (metricsStale || !canvasInteractive) return;
-      if (!applyingHistory.current) pushSnapshot();
-      setNodes((ns) => {
-        if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
-        const position = screenToFlowPosition({ x: screenX, y: screenY });
-        const cfg = serviceConfigs.current[svc.id] ?? {};
-        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null, svc.kind)];
-      });
-    },
-    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
-  );
 
   const addServiceFromPalette = useCallback(
     (svc: Service) => {
@@ -977,28 +910,10 @@ export function TopologyCanvas({
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot, lang]
   );
 
-  const addComponentAtScreen = useCallback(
-    (kindDef: NodeKindDef, screenX: number, screenY: number) => {
-      if (metricsStale || !canvasInteractive) return;
-      if (!applyingHistory.current) pushSnapshot();
-      const position = screenToFlowPosition({ x: screenX, y: screenY });
-      const id = `${kindDef.kind}-${Date.now()}`;
-      setNodes((ns) => [
-        ...ns,
-        {
-          id,
-          type: "service",
-          position,
-          data: {
-            label: kindDef.label[lang as "ru" | "en"],
-            ports: [],
-            kind: kindDef.kind,
-          } satisfies ServiceNodeData,
-        } as Node,
-      ]);
-    },
-    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot, lang]
-  );
+  const addObjectFromPalette = useCallback(() => {
+    const kindDef = NODE_KIND_MAP.get("custom");
+    if (kindDef) addComponentFromPalette(kindDef);
+  }, [addComponentFromPalette]);
 
   const persistLayout = useCallback(() => {
     const layoutNodes = nodes.map((n) => ({
@@ -1010,9 +925,6 @@ export function TopologyCanvas({
         ? {
             label: (n.data as unknown as GroupNodeData).label,
             color: (n.data as unknown as GroupNodeData).color,
-            kind: (n.data as unknown as GroupNodeData).kind,
-            clusterLabel: (n.data as unknown as GroupNodeData).clusterLabel,
-            clusterValue: (n.data as unknown as GroupNodeData).clusterValue,
             width: n.measured?.width ?? (n.style?.width as number) ?? 260,
             height: n.measured?.height ?? (n.style?.height as number) ?? 180,
             zIndex: (n.style?.zIndex as number) ?? -1,
@@ -1121,29 +1033,6 @@ export function TopologyCanvas({
     setTracedNodeId((prev) => (prev === nodeId ? null : nodeId));
   }, []);
 
-  const handleContextMenu = useCallback((e: React.MouseEvent) => {
-    if (metricsStale) {
-      e.preventDefault();
-      return;
-    }
-    if (!canvasInteractive) {
-      e.preventDefault();
-      return;
-    }
-    // Only trigger on canvas background, not on nodes
-    if ((e.target as HTMLElement).closest(".react-flow__node")) return;
-    e.preventDefault();
-    setContextMenu({ screenX: e.clientX, screenY: e.clientY });
-  }, [metricsStale, canvasInteractive]);
-
-  useEffect(() => {
-    if (metricsStale) setContextMenu(null);
-  }, [metricsStale]);
-
-  useEffect(() => {
-    if (!canvasInteractive) setContextMenu(null);
-  }, [canvasInteractive]);
-
   const onBeforeDelete = useCallback(async () => {
     if (metricsStale) return false;
     const s = store.getState();
@@ -1190,8 +1079,7 @@ export function TopologyCanvas({
             services={data.services}
             onCanvas={onCanvas}
             onAddService={addServiceFromPalette}
-            onAddComponent={addComponentFromPalette}
-            onAddGroup={addGroupFromPalette}
+            onAddObject={addObjectFromPalette}
             onAddArea={addAreaFromSidebar}
             readOnly={metricsStale || !canvasInteractive}
             selectedId={paletteSelectedId}
@@ -1209,7 +1097,6 @@ export function TopologyCanvas({
         <div
           ref={wrapperRef}
           style={{ flex: 1, minHeight: 0, position: "relative" }}
-          onContextMenu={handleContextMenu}
         >
         {metricsStale && (
           <div
@@ -1422,17 +1309,6 @@ export function TopologyCanvas({
           freezeToolbar={metricsStale}
         />
 
-        {contextMenu && (
-          <ContextMenu
-            x={contextMenu.screenX}
-            y={contextMenu.screenY}
-            services={data.services.filter((s) => !onCanvas.has(s.id))}
-            onAddArea={() => addArea(contextMenu.screenX, contextMenu.screenY)}
-            onAddService={(svc) => addServiceAtScreen(svc, contextMenu.screenX, contextMenu.screenY)}
-            onAddComponent={(kindDef) => addComponentAtScreen(kindDef, contextMenu.screenX, contextMenu.screenY)}
-            onClose={() => setContextMenu(null)}
-          />
-        )}
       </div>
         </EdgeInteractionContext.Provider>
     </div>

@@ -14,8 +14,7 @@ import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
 import { DeleteButton } from "./DeleteButton";
-import { isMonitoringOptional, getGroupVisual, getGroupKindDef } from "../nodeKinds";
-import type { GroupNodeData } from "./GroupNode";
+import { isMonitoringOptional, getGroupVisual } from "../nodeKinds";
 import { useTrace } from "../TraceContext";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -80,11 +79,6 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
   const { updateNodeData, getNode } = useReactFlow();
 
-  // Hide handles when inside a cluster group (hasHandles: true means the group itself connects, not its children)
-  const parentGroupKind = (getNode(id)?.parentId)
-    ? (getNode(getNode(id)!.parentId!)?.data as unknown as GroupNodeData | undefined)?.kind
-    : undefined;
-  const showHandles = !getGroupKindDef(parentGroupKind)?.hasHandles;
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
   const endpointLabel = useEndpointLabel();
@@ -106,6 +100,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const [locked, setLocked] = useState(false);
 
   const [editingIcon, setEditingIcon] = useState(false);
+  const [editingLabel, setEditingLabel] = useState(false);
   const [customIcons, setCustomIcons] = useState<CustomIcon[]>([]);
   const [editingEndpoint, setEditingEndpoint] = useState(false);
   const [endpointDraft, setEndpointDraft] = useState("");
@@ -403,16 +398,42 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
         >
           <IconRenderer name={d.icon ?? DEFAULT_SERVICE_ICON_NAME} size={16} />
         </button>
-        <div
-          style={{
-            fontSize: 13, fontWeight: 700, color: "var(--probemap-text)",
-            minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-            letterSpacing: "-0.01em", flex: 1,
-          }}
-          title={d.label}
-        >
-          {d.label}
-        </div>
+        {editingLabel ? (
+          <input
+            autoFocus
+            defaultValue={d.label}
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v) updateNodeData(id, { label: v });
+              setEditingLabel(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+              if (e.key === "Escape") setEditingLabel(false);
+              e.stopPropagation();
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700,
+              color: "var(--probemap-text)", background: "transparent",
+              border: "none", borderBottom: "1.5px solid var(--probemap-interactive-hover-border)",
+              outline: "none", padding: 0, letterSpacing: "-0.01em",
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              fontSize: 13, fontWeight: 700, color: "var(--probemap-text)",
+              minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+              letterSpacing: "-0.01em", flex: 1, cursor: "text",
+            }}
+            title={d.label}
+            onDoubleClick={() => setEditingLabel(true)}
+          >
+            {d.label}
+          </div>
+        )}
         {locked && (
           <button
             type="button"
@@ -936,7 +957,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
           transition: "opacity 0.1s, outline 0.1s",
         }}
       >
-        {showHandles && <AllHandles />}
+        <AllHandles />
         {groupVisual.accentColor && (
           <div style={{
             position: "absolute",

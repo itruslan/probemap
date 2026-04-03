@@ -80,44 +80,6 @@ export function getKindDef(kind: string | undefined): NodeKindDef {
 }
 
 // ---------------------------------------------------------------------------
-// Group kinds (typed containers: VM, K8s, DB clusters, etc.)
-// ---------------------------------------------------------------------------
-
-export interface GroupKindDef {
-  kind: string;
-  label: { en: string; ru: string };
-  /** FA6 icon name */
-  icon: string;
-  /** Whether this group type exposes connection handles */
-  hasHandles: boolean;
-  /** Default hex color for the area fill */
-  defaultColor: string;
-}
-
-export const GROUP_KINDS: GroupKindDef[] = [
-  // Infrastructure hosts — no handles (arrows go to services inside)
-  { kind: "vm",               label: { en: "Virtual Machine",    ru: "Виртуальная машина"   }, icon: "FaServer",         hasHandles: false, defaultColor: "#cbd5e1" },
-  { kind: "k8s-cluster",     label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes"   }, icon: "FaLayerGroup",    hasHandles: false, defaultColor: "#93c5fd" },
-
-  // DB / infra clusters — have handles (connect cluster as whole to other objects)
-  { kind: "postgres-cluster",    label: { en: "PostgreSQL Cluster",  ru: "Кластер PostgreSQL"   }, icon: "FaDatabase",      hasHandles: true, defaultColor: "#86efac" },
-  { kind: "mysql-cluster",       label: { en: "MySQL Cluster",       ru: "Кластер MySQL"        }, icon: "FaDatabase",      hasHandles: true, defaultColor: "#86efac" },
-  { kind: "oracle-cluster",      label: { en: "Oracle DB Cluster",   ru: "Кластер Oracle DB"    }, icon: "FaDatabase",      hasHandles: true, defaultColor: "#fcd34d" },
-  { kind: "redis-cluster",       label: { en: "Redis Cluster",       ru: "Кластер Redis"        }, icon: "FaMicrochip",     hasHandles: true, defaultColor: "#f9a8d4" },
-  { kind: "kafka-cluster",       label: { en: "Kafka Cluster",       ru: "Кластер Kafka"        }, icon: "FaTowerBroadcast", hasHandles: true, defaultColor: "#c4b5fd" },
-  { kind: "mongodb-cluster",     label: { en: "MongoDB Cluster",     ru: "Кластер MongoDB"      }, icon: "FaDatabase",      hasHandles: true, defaultColor: "#86efac" },
-  { kind: "opensearch-cluster",  label: { en: "OpenSearch Cluster",  ru: "Кластер OpenSearch"   }, icon: "FaDatabase",      hasHandles: true, defaultColor: "#93c5fd" },
-  { kind: "clickhouse-cluster",  label: { en: "ClickHouse Cluster",  ru: "Кластер ClickHouse"   }, icon: "FaDatabase",      hasHandles: true, defaultColor: "#fcd34d" },
-  { kind: "generic-cluster",     label: { en: "Self-managed Cluster", ru: "Self-managed кластер" }, icon: "FaCubes",         hasHandles: true, defaultColor: "#cbd5e1" },
-];
-
-export const GROUP_KIND_MAP = new Map(GROUP_KINDS.map((k) => [k.kind, k]));
-
-export function getGroupKindDef(kind: string | undefined): GroupKindDef | undefined {
-  return kind ? GROUP_KIND_MAP.get(kind) : undefined;
-}
-
-// ---------------------------------------------------------------------------
 // Group visual styles
 // ---------------------------------------------------------------------------
 

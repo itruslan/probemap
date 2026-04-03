@@ -15,27 +15,28 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ### Сущности на карте
 
-| Сущность | Примеры | Пробы | kind в nodeKinds |
-|----------|---------|-------|------------------|
-| **Сервис** | API, фронтенд, бэкенд | HTTP, TCP, UDP | `service` |
-| **Ресурс** | ВМ, LB, managed DB, кеш, DNS | ICMP (+ TCP для managed) | `managed-db`, `managed-cache`, `load-balancer`, `dns`, ... |
-| **Кластер** | K8s, Managed DB, кеш, self-managed | Агрегат / ICMP | `cluster` (generic); `managed-kubernetes`, `managed-postgresql`, ... (для kind_rules) |
-| **Допобъект** | Пользователь, роутер, VPC, VPN | Нет (адрес может быть неизвестен) | `user`, `vpn-gateway`, `vpc`, `interconnect`, ... |
-| **Область** | Визуальная группировка | Нет | `type: "group"` (React Flow) |
+| Сущность | ReactFlow type | Откуда | Мониторинг |
+|----------|---------------|--------|------------|
+| **Сервис** | `service` | Палитра → список из мониторинга | Да — HTTP/TCP/UDP |
+| **Ресурс** | `service` | Палитра → список из мониторинга | Да — ICMP/TCP |
+| **Объект** | `service` | Кнопка «+ Объект» (kind: custom) | Опционально (через matchServiceId) |
+| **Область** | `group` | Кнопка «+ Область» | Нет |
 
-Когда ProbeMap сконфигурирован на датасорс и (опционально) метрики отфильтрованы по лейблам — мы получаем общий каталог доступных объектов. Дальше размещаем их на карте и связываем как хотим.
+Сервис и Ресурс приходят из VictoriaMetrics (probe_success). Объект — произвольный, имя и иконку задаёт пользователь. Область — визуальная зона для группировки, поддерживает parentId (дочерние ноды). Все стрелки можно соединять с любой стороной любого элемента.
 
 ---
 
 ## Сделано (недавно)
 
-- **2026-04-03 — fix(groups): z-index handles кластера + area в палитре.** `GroupNode` HANDLE_STYLE: `zIndex: 10` — handles кластера теперь выше child-нод. Убран kind-subtitle из заголовка группы (иконка достаточна, лейбл не дублируется). «Область» перенесена из `MapObjectsBar` в Objects tab палитры (секция «Группы», первая строка); `FaObjectGroup` и проп `onAddArea` убраны из `MapObjectsBar`.
+- **2026-04-03 — refactor(palette+canvas): убраны ПКМ, вкладки, типизированные группы.** Удалён `ContextMenu.tsx` и весь код ПКМ. Убраны `GROUP_KINDS`/`GroupKindDef`/`getGroupKindDef` — теперь одна универсальная «Область» (`type: "group"`) с handles на всех 4 сторонах. Удалены Objects tab и вкладки из палитры — единая панель: `[+ Область]` `[+ Объект]` → поиск → список сервисов. `GroupNodeData` упрощён до `{label, color}`. `ServiceNode` лейбл редактируется двойным кликом.
 
-- **2026-04-03 — feat(groups): G6 — авто-импорт нод кластера по лейблу.** `GroupNodeData`: `clusterLabel`/`clusterValue` (персист через `LayoutNode`). `GroupNode`: кнопка «↓+» в chrome для cluster-видов открывает попап — дропдаун лейблов из `useServices()`, ввод значения, кнопка «Загрузить»; найденные сервисы добавляются внутрь группы с `parentId`; показывается кол-во добавленных или «Нет совпадений».
+- **2026-04-03 — perf+a11y: React.memo, useMemo, debounce, ARIA.** `ServiceNode`/`GroupNode`/`Palette` — `React.memo`. `ServiceNode` — `useMemo` на probeRows, sourceAgg, blackboxOrder. `TopologyCanvas` — `onCanvas` в `useMemo`; `persistLayout` debounced 500ms. `Settings` — `role="dialog"`, ARIA. Tabs в `Palette` — `role="tablist"`, `role="tab"`, `aria-selected`.
 
-- **2026-04-03 — feat(groups): G1–G5 — типизированные группы с parentId.** `GROUP_KINDS` реестр (11 видов: vm, k8s-cluster, 9 DB/infra кластеров) в `nodeKinds.ts`; `GroupNodeData.kind` + `LayoutNode.parentId`. `GroupNode`: иконка вида в заголовке, `Handle` для cluster-групп. `ServiceNode`: скрытие handles внутри cluster-группы. `TopologyCanvas`: `onNodeDragStop` → `parentId` + конвертация relative/absolute; при удалении группы дети освобождаются; `persistLayout`/loadLayout сохраняют `parentId` и `kind`. `Palette` Objects tab: секция «Группы» c `GROUP_KINDS`, `addGroupFromPalette` с дефолтным цветом из реестра.
+- **2026-04-03 — fix(groups): z-index handles + area в палитре.** `GroupNode` HANDLE_STYLE `zIndex: 10` — handles выше child-нод. «Область» перенесена из `MapObjectsBar` в Objects tab палитры.
 
-- **2026-04-03 — feat(palette): H1 — вкладка «Объекты».** Таб-переключатель «Мониторинг»/«Объекты»; вкладка «Объекты» — компоненты из `NODE_KINDS` по `KIND_GROUPS` + секция «Группы» (`GROUP_KINDS` + «Область»); поиск; клик добавляет в свободную точку. Мониторинг: убран `(?)`, поиск поднят над заголовком «Сервисы», стиль заголовка выровнен.
+- **2026-04-03 — feat(groups): G1–G6 — типизированные группы с parentId + авто-импорт.** (Затем полностью упрощены — см. выше.)
+
+- **2026-04-03 — feat(palette): H1 — вкладка «Объекты».** (Затем заменена единой панелью — см. выше.)
 
 - **2026-04-03 — fix(metrics): логирование ошибок VM с контекстом.**
 
