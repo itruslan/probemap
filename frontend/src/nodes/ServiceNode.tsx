@@ -14,7 +14,8 @@ import { useI18n } from "../i18n";
 import { TrashIcon } from "../TrashIcon";
 import { ServiceLabelsSection } from "../ServiceLabelsSection";
 import { DeleteButton } from "./DeleteButton";
-import { isMonitoringOptional, getGroupVisual } from "../nodeKinds";
+import { isMonitoringOptional, getGroupVisual, getGroupKindDef } from "../nodeKinds";
+import type { GroupNodeData } from "./GroupNode";
 import { useTrace } from "../TraceContext";
 
 const STATUS_COLOR: Record<string, string> = {
@@ -77,7 +78,13 @@ export interface ServiceNodeData {
 
 export function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
-  const { updateNodeData } = useReactFlow();
+  const { updateNodeData, getNode } = useReactFlow();
+
+  // Hide handles when inside a cluster group (hasHandles: true means the group itself connects, not its children)
+  const parentGroupKind = (getNode(id)?.parentId)
+    ? (getNode(getNode(id)!.parentId!)?.data as unknown as GroupNodeData | undefined)?.kind
+    : undefined;
+  const showHandles = !getGroupKindDef(parentGroupKind)?.hasHandles;
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
   const endpointLabel = useEndpointLabel();
@@ -920,7 +927,7 @@ export function ServiceNode({ data, id }: NodeProps) {
           transition: "opacity 0.1s, outline 0.1s",
         }}
       >
-        <AllHandles />
+        {showHandles && <AllHandles />}
         {groupVisual.accentColor && (
           <div style={{
             position: "absolute",
