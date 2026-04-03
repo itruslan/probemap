@@ -1,11 +1,9 @@
 import json
 import pathlib
 
+import metrics
 import pytest
 import pytest_mock
-
-import metrics
-
 
 # ---------------------------------------------------------------------------
 # Pure functions
@@ -102,30 +100,6 @@ class TestConsensusLabels:
         assert metrics._consensus_labels(ms, set()) == {}
 
 
-class TestApplyKindRules:
-    def test_no_rules_returns_none(self) -> None:
-        assert metrics._apply_kind_rules({"app": "nginx"}, []) is None
-
-    def test_first_match_wins(self) -> None:
-        rules = [
-            {"label": "app", "value": "nginx", "kind": "web"},
-            {"label": "app", "value": "nginx", "kind": "proxy"},
-        ]
-        assert metrics._apply_kind_rules({"app": "nginx"}, rules) == "web"
-
-    def test_no_match_returns_none(self) -> None:
-        rules = [{"label": "app", "value": "redis", "kind": "db"}]
-        assert metrics._apply_kind_rules({"app": "nginx"}, rules) is None
-
-    def test_skips_invalid_rule(self) -> None:
-        rules = ["not-a-dict", {"label": "", "value": "x", "kind": "k"}]
-        assert metrics._apply_kind_rules({"app": "x"}, rules) is None
-
-    def test_label_missing_from_service(self) -> None:
-        rules = [{"label": "tier", "value": "db", "kind": "database"}]
-        assert metrics._apply_kind_rules({"app": "pg"}, rules) is None
-
-
 class TestModuleToType:
     @pytest.mark.parametrize(
         "module,expected",
@@ -220,16 +194,16 @@ class TestGetServices:
         data_dir: pathlib.Path,
         config_with_datasource: dict,
     ) -> None:
-        mocker.patch("metrics._query", side_effect=RuntimeError("VictoriaMetrics request failed: conn"))
+        mocker.patch(
+            "metrics._query", side_effect=RuntimeError("VictoriaMetrics request failed: conn")
+        )
 
         with pytest.raises(RuntimeError, match="VictoriaMetrics request failed"):
             await metrics.get_services()
 
 
 class TestDiscoverJobsFor:
-    async def test_returns_jobs_with_sources(
-        self, mocker: pytest_mock.MockerFixture
-    ) -> None:
+    async def test_returns_jobs_with_sources(self, mocker: pytest_mock.MockerFixture) -> None:
         series = [
             {"metric": {"job": "blackbox", "instance": "dc1"}},
             {"metric": {"job": "blackbox", "instance": "dc2"}},
@@ -249,9 +223,7 @@ class TestDiscoverJobsFor:
 
 
 class TestTestDatasource:
-    async def test_returns_true_on_200(
-        self, mocker: pytest_mock.MockerFixture
-    ) -> None:
+    async def test_returns_true_on_200(self, mocker: pytest_mock.MockerFixture) -> None:
         mock_resp = mocker.MagicMock()
         mock_resp.status_code = 200
         mock_client = mocker.AsyncMock()
@@ -262,9 +234,7 @@ class TestTestDatasource:
 
         assert await metrics.test_datasource("http://vm:8428") is True
 
-    async def test_returns_false_on_exception(
-        self, mocker: pytest_mock.MockerFixture
-    ) -> None:
+    async def test_returns_false_on_exception(self, mocker: pytest_mock.MockerFixture) -> None:
         import httpx
 
         mock_client = mocker.AsyncMock()

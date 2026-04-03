@@ -89,8 +89,6 @@ function kindKeyForBadge(kind: string): string {
 export interface ServiceNodeData {
   label: string;
   ports: Port[];
-  /** Резерв: привязка к id в каталоге, если id узла не совпадает с каталогом */
-  matchServiceId?: string | null;
   /** Semantic type: "service", "vpn-gateway", "managed-db", etc. */
   kind?: string;
   icon?: string;
@@ -104,7 +102,7 @@ export interface ServiceNodeData {
 
 export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
-  const { updateNodeData, getNode } = useReactFlow();
+  const { updateNodeData } = useReactFlow();
 
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
@@ -154,10 +152,9 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const dragging = useIsDraggingOnCanvas();
   const portAgg = aggStatus(d.ports ?? []);
 
-  const svcId = d.matchServiceId ?? id;
   const catalogLabels = useMemo(
-    () => services.find((s) => s.id === svcId)?.labels,
-    [services, svcId],
+    () => services.find((s) => s.id === id)?.labels,
+    [services, id],
   );
 
   /** Endpoint из глобального лейбла (Settings → endpoint_label). Активен, если лейбл задан и у сервиса есть его значение. */
@@ -263,14 +260,12 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
     );
   }, [probeSourcesGlobal, sourceAgg]);
 
-  // Для компонентов статус "offline" определяем по наличию портов/проб, а не по id узла.
-  // Это позволяет binding через `matchServiceId` показывать live-статус.
+  // Статус "offline" определяем по наличию портов/проб, а не по id узла.
   const offline = (d.ports ?? []).length === 0;
 
-  // Узел без мониторинга: kind из группы actor/network/other + нет привязки matchServiceId.
-  // Для таких объектов "нет мониторинга" — нормальное состояние, а не "unknown".
-  const unmonitored =
-    offline && isMonitoringOptional(d.kind) && !d.matchServiceId;
+  // Узел без мониторинга: kind из группы actor/network/other — для таких объектов
+  // "нет мониторинга" нормальное состояние, а не "unknown".
+  const unmonitored = offline && isMonitoringOptional(d.kind);
 
   const groupVisual = getGroupVisual(d.kind);
 
@@ -770,67 +765,6 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   )}
                 </>
               )}
-
-              {/* Фаза 4: привязка компонента к каталожному сервису мониторинга */}
-              {locked &&
-                (d.kind ?? "service") !== "service" &&
-                services.length > 0 && (
-                  <div style={{ marginBottom: 10 }}>
-                    <div
-                      style={{
-                        fontSize: 10,
-                        fontWeight: 700,
-                        color: "var(--probemap-text-faint)",
-                        marginBottom: 6,
-                        letterSpacing: "0.06em",
-                      }}
-                    >
-                      {t("monitoringBindingTitle")}
-                    </div>
-                    <select
-                      value={d.matchServiceId ?? ""}
-                      onChange={(e) => {
-                        const next = e.target.value || null;
-                        const svc = next
-                          ? (services.find((s) => s.id === next) ?? null)
-                          : null;
-                        updateNodeData(id, {
-                          matchServiceId: next,
-                          // Проставляем порты сразу, чтобы UI показывал статусы без ожидания следующего refresh-цикла.
-                          ports: svc ? svc.ports : [],
-                        });
-                      }}
-                      style={{
-                        width: "100%",
-                        boxSizing: "border-box",
-                        padding: "7px 10px",
-                        borderRadius: 6,
-                        fontSize: 13,
-                        border: "1.5px solid var(--probemap-border)",
-                        outline: "none",
-                        color: "var(--probemap-text)",
-                        background: "var(--probemap-input-bg)",
-                      }}
-                    >
-                      <option value="">{t("monitoringBindingNone")}</option>
-                      {services.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        fontSize: 11,
-                        color: "var(--probemap-text-faint)",
-                        lineHeight: 1.35,
-                      }}
-                    >
-                      {t("monitoringBindingHelp")}
-                    </div>
-                  </div>
-                )}
 
               {blackboxOrder.length > 0 && locked && (
                 <div style={{ marginBottom: 8, marginTop: -2 }}>

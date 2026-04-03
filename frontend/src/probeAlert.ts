@@ -11,7 +11,9 @@ function aggStatusFromPorts(ports: Port[]): string {
 }
 
 /** Full probe status — mirrors the ServiceNode status computation. */
-export function probeNodeStatus(ports: Port[] | undefined): "ok" | "warn" | "down" | "unknown" {
+export function probeNodeStatus(
+  ports: Port[] | undefined,
+): "ok" | "warn" | "down" | "unknown" {
   const rows = (ports ?? []).flatMap((p) =>
     Object.entries(p.sources ?? {}).map(([, s]) => ({ success: s.success })),
   );
@@ -25,13 +27,13 @@ export function probeNodeStatus(ports: Port[] | undefined): "ok" | "warn" | "dow
   return aggStatusFromPorts(ports ?? []) as "ok" | "warn" | "down" | "unknown";
 }
 
-
-/** Id сервиса в каталоге для подсветки: service-узел → id в каталоге или matchServiceId. */
-export function effectiveServiceIdForNode(n: Node, services: Service[]): string | null {
+/** Id сервиса в каталоге для подсветки: service-узел → id в каталоге. */
+export function effectiveServiceIdForNode(
+  n: Node,
+  services: Service[],
+): string | null {
   if (n.type === "service") {
     if (services.some((s) => s.id === n.id)) return n.id;
-    const d = n.data as { matchServiceId?: string | null };
-    return d.matchServiceId ?? null;
   }
   return null;
 }

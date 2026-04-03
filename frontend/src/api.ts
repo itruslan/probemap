@@ -51,8 +51,6 @@ export interface Service {
   labels?: Record<string, string>;
   /** Классификация по типу проб для группировки в каталоге: "service" (HTTP/TCP) | "resource" (ICMP/DNS). */
   probe_kind?: "service" | "resource";
-  /** Kind из kind_rules (маппинг лейблов → тип узла на карте). */
-  kind?: string;
 }
 
 export interface ServicesResponse {
@@ -86,8 +84,6 @@ export interface LayoutNode {
   type?: "service" | "group";
   label?: string;
   kind?: string;
-  /** Для service-узлов: привязка к сервису из мониторинга по id */
-  matchServiceId?: string | null;
   icon?: string;
   width?: number;
   height?: number;
@@ -182,21 +178,12 @@ export interface MetricFilterRule {
   op: MetricFilterOp;
 }
 
-/** Правило маппинга лейбла сервиса → kind на карте (первое совпадение побеждает). */
-export interface KindRule {
-  label: string;
-  value: string;
-  kind: string;
-}
-
 export interface AppConfig {
   datasource: Datasource | null;
   probe_jobs: ProbeJob[];
   label_map: LabelMap;
   /** Правила лейбл + значение (конструктор) */
   metric_filter_rules?: MetricFilterRule[];
-  /** Маппинг лейблов сервиса → kind узла (первое совпадение) */
-  kind_rules?: KindRule[];
   /**
    * false — после сохранения URL показан только шаг выбора job; true — полные настройки.
    * В старых конфигах ключ отсутствует → считаем true (миграция).
@@ -238,7 +225,9 @@ export interface Project {
 // ---------------------------------------------------------------------------
 
 export async function fetchServices(): Promise<ServicesResponse> {
-  const raw = await apiFetch<ServicesResponse & { zones?: string[] }>(`${BASE}/api/services`);
+  const raw = await apiFetch<ServicesResponse & { zones?: string[] }>(
+    `${BASE}/api/services`,
+  );
   const probe_sources = raw.probe_sources ?? raw.zones ?? [];
   const services = raw.services.map((svc) => ({
     ...svc,
@@ -270,7 +259,10 @@ export async function fetchProjects(): Promise<Project[]> {
   return apiFetch<Project[]>(`${BASE}/api/projects`);
 }
 
-export async function createProject(name: string, filters: ProjectFilter[]): Promise<Project> {
+export async function createProject(
+  name: string,
+  filters: ProjectFilter[],
+): Promise<Project> {
   return apiFetch<Project>(`${BASE}/api/projects`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -281,7 +273,10 @@ export async function createProject(name: string, filters: ProjectFilter[]): Pro
   });
 }
 
-export async function updateProject(id: string, data: Partial<Omit<Project, "id">>): Promise<Project> {
+export async function updateProject(
+  id: string,
+  data: Partial<Omit<Project, "id">>,
+): Promise<Project> {
   return apiFetch<Project>(`${BASE}/api/projects/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -297,7 +292,10 @@ export async function deleteProject(id: string): Promise<void> {
   }
 }
 
-export async function fetchProjectFilterValues(id: string, label?: string): Promise<string[]> {
+export async function fetchProjectFilterValues(
+  id: string,
+  label?: string,
+): Promise<string[]> {
   const q = label ? `?label=${encodeURIComponent(label)}` : "";
   return apiFetch<string[]>(`${BASE}/api/projects/${id}/filter-values${q}`);
 }
@@ -309,7 +307,9 @@ export async function fetchMetricLabelValues(label: string): Promise<string[]> {
   );
 }
 
-export async function fetchProjectServices(id: string): Promise<ServicesResponse> {
+export async function fetchProjectServices(
+  id: string,
+): Promise<ServicesResponse> {
   return apiFetch<ServicesResponse>(`${BASE}/api/projects/${id}/services`);
 }
 
@@ -317,7 +317,10 @@ export async function fetchProjectLayout(id: string): Promise<Layout> {
   return apiFetch<Layout>(`${BASE}/api/projects/${id}/layout`);
 }
 
-export async function saveProjectLayout(id: string, layout: Layout): Promise<void> {
+export async function saveProjectLayout(
+  id: string,
+  layout: Layout,
+): Promise<void> {
   await apiFetch(`${BASE}/api/projects/${id}/layout`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
@@ -347,11 +350,14 @@ export async function previewMetricSelector(body: {
   metric_filter_rules?: MetricFilterRule[];
   project_filter_pairs?: { label: string; value: string }[];
 }): Promise<MetricSelectorPreview> {
-  return apiFetch<MetricSelectorPreview>(`${BASE}/api/config/preview-selector`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
+  return apiFetch<MetricSelectorPreview>(
+    `${BASE}/api/config/preview-selector`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export async function testDatasource(url: string): Promise<boolean> {
@@ -366,7 +372,9 @@ export async function testDatasource(url: string): Promise<boolean> {
 }
 
 export async function discoverJobs(): Promise<DiscoveredJob[]> {
-  return apiFetch<DiscoveredJob[]>(`${BASE}/api/config/discover/jobs`).catch(() => []);
+  return apiFetch<DiscoveredJob[]>(`${BASE}/api/config/discover/jobs`).catch(
+    () => [],
+  );
 }
 
 /** Список job по явному URL (без сохранения конфига). */
@@ -385,7 +393,9 @@ export async function discoverJobsForUrl(
 }
 
 export async function discoverLabels(): Promise<string[]> {
-  return apiFetch<string[]>(`${BASE}/api/config/discover/labels`).catch(() => []);
+  return apiFetch<string[]>(`${BASE}/api/config/discover/labels`).catch(
+    () => [],
+  );
 }
 
 /** Список лейблов probe_success по явному URL (без сохранения конфига). */
@@ -411,11 +421,17 @@ export async function fetchIcons(): Promise<CustomIcon[]> {
   return data.icons;
 }
 
-export async function uploadIcon(name: string, file: File): Promise<CustomIcon> {
+export async function uploadIcon(
+  name: string,
+  file: File,
+): Promise<CustomIcon> {
   const form = new FormData();
   form.append("name", name);
   form.append("file", file);
-  return apiFetch<CustomIcon>(`${BASE}/api/icons`, { method: "POST", body: form });
+  return apiFetch<CustomIcon>(`${BASE}/api/icons`, {
+    method: "POST",
+    body: form,
+  });
 }
 
 export async function deleteIcon(name: string): Promise<void> {

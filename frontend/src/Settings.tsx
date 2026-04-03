@@ -13,7 +13,6 @@ import {
   type CustomIcon,
   type Datasource,
   type DiscoveredJob,
-  type KindRule,
   type MetricFilterOp,
   type MetricFilterRule,
   type MetricSelectorPreview,
@@ -21,7 +20,6 @@ import {
 } from "./api";
 
 const BASE = import.meta.env.VITE_API_URL ?? "";
-import { NODE_KINDS } from "./nodeKinds";
 import { useI18n, type I18nKey } from "./i18n";
 import { I18N_STABLE } from "./i18nLayout";
 import { TrashIcon } from "./TrashIcon";
@@ -58,11 +56,6 @@ function normalizeConfig(c: AppConfig): AppConfig {
       ? r.op
       : "eq") as MetricFilterOp,
   }));
-  const kindRules = (c.kind_rules ?? []).map((r) => ({
-    label: (r.label ?? "").trim(),
-    value: (r.value ?? "").trim(),
-    kind: (r.kind ?? "").trim(),
-  }));
   const rawDs = c.datasource;
   const name = (rawDs?.name ?? "").trim() || DEFAULT_DATASOURCE_NAME;
   const datasource: Datasource = rawDs
@@ -82,7 +75,6 @@ function normalizeConfig(c: AppConfig): AppConfig {
       c.label_map as AppConfig["label_map"] & { zone?: string },
     ),
     metric_filter_rules: rules,
-    kind_rules: kindRules,
   };
 }
 
@@ -93,7 +85,6 @@ type CommittedSnapshot = {
   probe_jobs: ProbeJob[];
   label_map: AppConfig["label_map"];
   metric_filter_rules: MetricFilterRule[];
-  kind_rules: KindRule[];
 };
 
 function snapshotFromConfig(c: AppConfig): CommittedSnapshot {
@@ -113,7 +104,6 @@ function snapshotFromConfig(c: AppConfig): CommittedSnapshot {
     metric_filter_rules: JSON.parse(
       JSON.stringify(c.metric_filter_rules ?? []),
     ) as MetricFilterRule[],
-    kind_rules: JSON.parse(JSON.stringify(c.kind_rules ?? [])) as KindRule[],
   };
 }
 
@@ -127,8 +117,7 @@ function restEqualToCommitted(cfg: AppConfig, com: CommittedSnapshot): boolean {
     probeJobsEqual(cfg.probe_jobs, com.probe_jobs) &&
     JSON.stringify(cfg.label_map) === JSON.stringify(com.label_map) &&
     JSON.stringify(cfg.metric_filter_rules ?? []) ===
-      JSON.stringify(com.metric_filter_rules) &&
-    JSON.stringify(cfg.kind_rules ?? []) === JSON.stringify(com.kind_rules)
+      JSON.stringify(com.metric_filter_rules)
   );
 }
 
@@ -176,7 +165,7 @@ const LABEL_FIELD_KEYS: {
 ];
 
 export function Settings({ onClose, projectFilterPairs }: Props) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [committed, setCommitted] = useState<CommittedSnapshot | null>(null);
   const [testState, setTestState] = useState<
@@ -442,13 +431,6 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           value: r.value.trim(),
           op: r.op,
         }));
-      const kindRules = (cfg.kind_rules ?? [])
-        .filter((r) => r.label.trim() && r.value.trim() && r.kind.trim())
-        .map((r) => ({
-          label: r.label.trim(),
-          value: r.value.trim(),
-          kind: r.kind.trim(),
-        }));
       await saveConfig({
         ...cfg,
         datasource: {
@@ -458,7 +440,6 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           type: ds.type || "victoriametrics",
         },
         metric_filter_rules: rules,
-        kind_rules: kindRules,
         settings_targets_saved: true,
       });
       const normalized = normalizeConfig(await fetchConfig());
@@ -523,37 +504,6 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
 
   const clearFilterRules = () =>
     setCfg((prev) => (prev ? { ...prev, metric_filter_rules: [] } : prev));
-
-  const addKindRule = () =>
-    setCfg((prev) =>
-      prev
-        ? {
-            ...prev,
-            kind_rules: [
-              ...(prev.kind_rules ?? []),
-              { label: "", value: "", kind: "" },
-            ],
-          }
-        : prev,
-    );
-
-  const removeKindRule = (i: number) =>
-    setCfg((prev) =>
-      prev
-        ? {
-            ...prev,
-            kind_rules: (prev.kind_rules ?? []).filter((_, j) => j !== i),
-          }
-        : prev,
-    );
-
-  const patchKindRule = (i: number, patch: Partial<KindRule>) =>
-    setCfg((prev) => {
-      if (!prev) return prev;
-      const next = [...(prev.kind_rules ?? [])];
-      next[i] = { ...next[i], ...patch };
-      return { ...prev, kind_rules: next };
-    });
 
   const setDs = (patch: Partial<typeof ds>) => {
     const nextDs = { ...ds, ...patch };
@@ -1192,127 +1142,6 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   ),
                 )}
               </div>
-            </Section>
-
-            <Section
-              title={
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  {t("settingsSectionKindRules")}
-                  <HelpIcon
-                    aria={t("tooltipInfoAria")}
-                    onMouseEnter={(el) =>
-                      setSettingsHoverTip({
-                        label: t("settingsKindRulesIntro"),
-                        el,
-                      })
-                    }
-                    onMouseLeave={() => setSettingsHoverTip(null)}
-                    onClick={(el) =>
-                      toggleSettingsTip(t("settingsKindRulesIntro"), el)
-                    }
-                  />
-                </span>
-              }
-            >
-              {(cfg.kind_rules ?? []).length > 0 && (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    marginBottom: 10,
-                  }}
-                >
-                  {(cfg.kind_rules ?? []).map((row, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "minmax(100px, 1fr) 24px minmax(100px, 1fr) minmax(120px, 1fr) 36px",
-                        gap: 8,
-                        alignItems: "center",
-                      }}
-                    >
-                      {availableLabels.length > 0 ? (
-                        <select
-                          value={row.label}
-                          onChange={(e) =>
-                            patchKindRule(i, { label: e.target.value })
-                          }
-                          style={{ ...inputStyle, cursor: "pointer" }}
-                        >
-                          <option value="">
-                            {t("settingsKindRulesLabelPlaceholder")}
-                          </option>
-                          {availableLabels.map((l) => (
-                            <option key={l} value={l}>
-                              {l}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          value={row.label}
-                          onChange={(e) =>
-                            patchKindRule(i, { label: e.target.value })
-                          }
-                          placeholder={t("settingsKindRulesLabelPlaceholder")}
-                          style={inputStyle}
-                        />
-                      )}
-                      <span
-                        style={{
-                          textAlign: "center",
-                          fontSize: 12,
-                          color: "var(--probemap-text-faint)",
-                        }}
-                      >
-                        {t("settingsKindRulesArrow")}
-                      </span>
-                      <input
-                        value={row.value}
-                        onChange={(e) =>
-                          patchKindRule(i, { value: e.target.value })
-                        }
-                        placeholder={t("settingsKindRulesValuePlaceholder")}
-                        style={inputStyle}
-                      />
-                      <select
-                        value={row.kind}
-                        onChange={(e) =>
-                          patchKindRule(i, { kind: e.target.value })
-                        }
-                        style={{ ...inputStyle, cursor: "pointer" }}
-                      >
-                        <option value="">
-                          {t("settingsKindRulesKindPlaceholder")}
-                        </option>
-                        {NODE_KINDS.map((k) => (
-                          <option key={k.kind} value={k.kind}>
-                            {k.label[lang as "ru" | "en"] ?? k.label.ru}
-                          </option>
-                        ))}
-                      </select>
-                      <button
-                        type="button"
-                        onClick={() => removeKindRule(i)}
-                        title={t("delete")}
-                        className="probemap-btn probemap-btn--icon-plain"
-                      >
-                        <TrashIcon size={14} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={addKindRule}
-                className="probemap-btn probemap-btn--preset"
-              >
-                {t("settingsKindRulesAddRule")}
-              </button>
             </Section>
 
             <Section

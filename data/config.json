@@ -18,6 +18,5 @@
     "endpoint_label": "service"
   },
   "metric_filter_rules": [],
-  "settings_targets_saved": true,
-  "kind_rules": []
+  "settings_targets_saved": true
 }

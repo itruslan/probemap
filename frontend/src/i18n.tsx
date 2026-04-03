@@ -70,13 +70,10 @@ const STRINGS = {
     monitoringTitle: "МОНИТОРИНГ",
     monitoringSummary: "Пробы: {ok}/{total}",
     monitoringSourcesCoverage: "Blackbox: {present}/{expected}",
-    monitoringSourcesToggleHint: "Источники: тапните, чтобы учитывать / не учитывать",
+    monitoringSourcesToggleHint:
+      "Источники: тапните, чтобы учитывать / не учитывать",
     monitoringIgnoreSourceOn: "Не учитывать",
     monitoringIgnoreSourceOff: "Учитывать",
-    monitoringBindingTitle: "Привязка к мониторингу",
-    monitoringBindingNone: "Без мониторинга",
-    monitoringBindingHelp:
-      "Выберите сервис из каталога метрик: компонент получит статусы blackbox-проб по этому сервису.",
     endpointTitle: "КОНЕЧНАЯ ТОЧКА",
     endpointPlaceholder: "https://...",
     endpointPickLabel: "из лейбла",
@@ -103,12 +100,14 @@ const STRINGS = {
     loading: "Загрузка…",
 
     apiErrorHttp: "Не удалось загрузить данные (HTTP {status}).",
-    apiErrorNetwork: "Нет связи с сервером. Проверьте сеть и что бэкенд запущен.",
+    apiErrorNetwork:
+      "Нет связи с сервером. Проверьте сеть и что бэкенд запущен.",
     apiErrorDatasourceUnavailable:
       "Источник метрик (VictoriaMetrics / Prometheus) недоступен, не отвечает или вернул ошибку. Проверьте URL в настройках, сеть и что VM/Prometheus запущены.",
     metricsStaleOverlay:
       "Живые метрики недоступны. Показано последнее удачное состояние; правка карты отключена до восстановления связи.",
-    apiLoadErrorHint: "Карта временно недоступна. Используйте «Повторить» в панели уведомления выше.",
+    apiLoadErrorHint:
+      "Карта временно недоступна. Используйте «Повторить» в панели уведомления выше.",
     apiLoadRetry: "Повторить",
     apiLoadDismiss: "Скрыть",
 
@@ -134,7 +133,8 @@ const STRINGS = {
     settingsJobsStepHint:
       "Отметьте нужные job и нажмите «Сохранить» — без этого шага дальнейшие настройки не откроются. Можно сохранить и без выбранных job (если список пуст или вы отключите всё осознанно).",
     settingsJobsLoading: "Загружаем список job…",
-    settingsJobsEmptyVm: "В метриках probe_success не найдено ни одного job — проверьте blackbox / scrape.",
+    settingsJobsEmptyVm:
+      "В метриках probe_success не найдено ни одного job — проверьте blackbox / scrape.",
     settingsName: "Название",
     settingsUrlApi: "URL API",
     settingsUrlPlaceholder: "https://victoria-metrics.example:8428",
@@ -167,15 +167,6 @@ const STRINGS = {
       "Выберите реальные имена лейблов из вашего источника метрик — они должны совпадать с тем, что отдаёт blackbox / scrape.",
     settingsLabelNotSet: "— не задано —",
     settingsClose: "Закрыть",
-
-    settingsSectionKindRules: "МАППИНГ КОМПОНЕНТОВ",
-    settingsKindRulesIntro:
-      "Правила определяют тип (kind) узла при добавлении сервиса на карту. Первое совпадение по лейблу = значению побеждает.",
-    settingsKindRulesAddRule: "+ Добавить правило",
-    settingsKindRulesLabelPlaceholder: "лейбл",
-    settingsKindRulesValuePlaceholder: "значение",
-    settingsKindRulesKindPlaceholder: "тип",
-    settingsKindRulesArrow: "→",
 
     labelMapServiceTitle: "Имя сервиса",
     labelMapServiceHint:
@@ -219,8 +210,10 @@ const STRINGS = {
     projectPlaceholderFirstLabel: "сначала лейбл",
     projectRemoveCondition: "Удалить условие",
     projectAddCondition: "+ Условие (ещё лейбл)",
-    projectCreateBlockedDatasource: "Сначала сохраните URL источника метрик в настройках.",
-    projectCreateBlockedWizard: "В настройках сохраните шаг выбора job (таргеты).",
+    projectCreateBlockedDatasource:
+      "Сначала сохраните URL источника метрик в настройках.",
+    projectCreateBlockedWizard:
+      "В настройках сохраните шаг выбора job (таргеты).",
 
     defaultGroupLabel: "Область",
     defaultServiceLabel: "Сервис",
@@ -233,7 +226,8 @@ const STRINGS = {
 
     iconSectionBuiltin: "ИКОНКИ",
     iconSectionCustom: "МОИ ИКОНКИ",
-    iconSectionCustomHint: "SVG, PNG или WebP. После загрузки иконки появятся в сетке выбора иконки у каждого узла и действия.",
+    iconSectionCustomHint:
+      "SVG, PNG или WebP. После загрузки иконки появятся в сетке выбора иконки у каждого узла и действия.",
     iconNamePlaceholder: "Название *",
     iconNameRequiredError: "Введите название",
     iconUpload: "+ Загрузить иконку",
@@ -325,10 +319,6 @@ const STRINGS = {
     monitoringSourcesToggleHint: "Sources: tap to include / ignore",
     monitoringIgnoreSourceOn: "Ignore",
     monitoringIgnoreSourceOff: "Include",
-    monitoringBindingTitle: "Bind to monitoring",
-    monitoringBindingNone: "No monitoring",
-    monitoringBindingHelp:
-      "Select a service from the metrics catalog: the component will show statuses of blackbox probes for this service.",
     endpointTitle: "ENDPOINT",
     endpointPlaceholder: "https://...",
     endpointPickLabel: "from label",
@@ -339,7 +329,8 @@ const STRINGS = {
     labelsTitle: "LABELS",
     noData: "No data",
 
-    datasourceStatusOk: "Datasource is reachable (VictoriaMetrics / Prometheus)",
+    datasourceStatusOk:
+      "Datasource is reachable (VictoriaMetrics / Prometheus)",
     datasourceStatusBad: "Datasource is unreachable or not responding",
     datasourceStatusUnknown: "Datasource URL is not saved — open Settings",
     ok: "OK",
@@ -355,12 +346,14 @@ const STRINGS = {
     loading: "Loading…",
 
     apiErrorHttp: "Could not load data (HTTP {status}).",
-    apiErrorNetwork: "Cannot reach the server. Check your network and that the backend is running.",
+    apiErrorNetwork:
+      "Cannot reach the server. Check your network and that the backend is running.",
     apiErrorDatasourceUnavailable:
       "The metrics datasource (VictoriaMetrics / Prometheus) is unreachable, not responding, or returned an error. Check the URL in settings, network, and that VM/Prometheus is up.",
     metricsStaleOverlay:
       "Live metrics are unavailable. Showing the last successful snapshot; editing is disabled until the connection is restored.",
-    apiLoadErrorHint: "The map is temporarily unavailable. Use «Retry» in the banner above.",
+    apiLoadErrorHint:
+      "The map is temporarily unavailable. Use «Retry» in the banner above.",
     apiLoadRetry: "Retry",
     apiLoadDismiss: "Dismiss",
 
@@ -385,7 +378,8 @@ const STRINGS = {
     settingsJobsStepHint:
       "Select the jobs you need and click «Save» — advanced settings stay hidden until this step. You may save with none selected if the list is empty or you intend to disable all jobs.",
     settingsJobsLoading: "Loading job list…",
-    settingsJobsEmptyVm: "No job labels found in probe_success — check blackbox / scrape configuration.",
+    settingsJobsEmptyVm:
+      "No job labels found in probe_success — check blackbox / scrape configuration.",
     settingsName: "Name",
     settingsUrlApi: "API URL",
     settingsUrlPlaceholder: "https://victoria-metrics.example:8428",
@@ -418,15 +412,6 @@ const STRINGS = {
       "Pick label names as they appear in your metrics source; they must match what blackbox / scrape exports.",
     settingsLabelNotSet: "— not set —",
     settingsClose: "Close",
-
-    settingsSectionKindRules: "COMPONENT MAPPING",
-    settingsKindRulesIntro:
-      "Rules determine the node kind when adding a service to the map. First matching label = value wins.",
-    settingsKindRulesAddRule: "+ Add rule",
-    settingsKindRulesLabelPlaceholder: "label",
-    settingsKindRulesValuePlaceholder: "value",
-    settingsKindRulesKindPlaceholder: "kind",
-    settingsKindRulesArrow: "→",
 
     labelMapServiceTitle: "Service name",
     labelMapServiceHint:
@@ -468,8 +453,10 @@ const STRINGS = {
     projectPlaceholderFirstLabel: "label first",
     projectRemoveCondition: "Remove condition",
     projectAddCondition: "+ Another condition",
-    projectCreateBlockedDatasource: "Save the metrics datasource URL in settings first.",
-    projectCreateBlockedWizard: "Finish the job (targets) step in settings and save it.",
+    projectCreateBlockedDatasource:
+      "Save the metrics datasource URL in settings first.",
+    projectCreateBlockedWizard:
+      "Finish the job (targets) step in settings and save it.",
 
     defaultGroupLabel: "Area",
     defaultServiceLabel: "Service",
@@ -482,7 +469,8 @@ const STRINGS = {
 
     iconSectionBuiltin: "ICONS",
     iconSectionCustom: "MY ICONS",
-    iconSectionCustomHint: "SVG, PNG or WebP. Uploaded icons appear in the icon picker grid for every node and action.",
+    iconSectionCustomHint:
+      "SVG, PNG or WebP. Uploaded icons appear in the icon picker grid for every node and action.",
     iconNamePlaceholder: "Name *",
     iconNameRequiredError: "Enter a name",
     iconUpload: "+ Upload icon",
@@ -524,7 +512,10 @@ const I18nContext = createContext<I18nContextValue | null>(null);
 
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLang] = useState<Lang>(() => {
-    const v = typeof window !== "undefined" ? window.localStorage.getItem(STORAGE_KEY) : null;
+    const v =
+      typeof window !== "undefined"
+        ? window.localStorage.getItem(STORAGE_KEY)
+        : null;
     return v === "en" ? "en" : "ru";
   });
 

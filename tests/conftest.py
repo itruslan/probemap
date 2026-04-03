@@ -36,7 +36,6 @@ def config_with_datasource(data_dir: pathlib.Path) -> dict:
         "probe_jobs": [{"job": "blackbox", "enabled": True}],
         "label_map": cfg_mod.DEFAULT_LABEL_MAP,
         "metric_filter_rules": [],
-        "kind_rules": [],
     }
     (data_dir / "config.json").write_text(json.dumps(cfg))
     return cfg

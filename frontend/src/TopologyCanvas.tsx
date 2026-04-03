@@ -17,7 +17,14 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { createPortal } from "react-dom";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   fetchProjectLayout,
   normalizeLayoutEdgeData,
@@ -55,8 +62,10 @@ type MapEdge = Edge<LayoutEdgeData>;
 
 function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
   const id = typeof raw.id === "string" ? raw.id : String(raw.id ?? "");
-  const source = typeof raw.source === "string" ? raw.source : String(raw.source ?? "");
-  const target = typeof raw.target === "string" ? raw.target : String(raw.target ?? "");
+  const source =
+    typeof raw.source === "string" ? raw.source : String(raw.source ?? "");
+  const target =
+    typeof raw.target === "string" ? raw.target : String(raw.target ?? "");
   if (!id || !source || !target) return null;
   const type = typeof raw.type === "string" ? raw.type : "default";
   const edge: MapEdge = {
@@ -97,14 +106,21 @@ function serviceToNode(
   description?: string,
   actions?: ServiceAction[],
   ignored_sources?: string[],
-  matchServiceId?: string | null,
   kind?: string,
 ): Node {
   return {
     id: svc.id,
     type: "service",
     position,
-    data: { label: svc.name, ports: svc.ports, icon, description, actions, ignored_sources, matchServiceId: matchServiceId ?? null, kind: kind ?? "service" } satisfies ServiceNodeData,
+    data: {
+      label: svc.name,
+      ports: svc.ports,
+      icon,
+      description,
+      actions,
+      ignored_sources,
+      kind: kind ?? "service",
+    } satisfies ServiceNodeData,
   };
 }
 
@@ -123,7 +139,9 @@ function rectsOverlap(
   a: { x: number; y: number; w: number; h: number },
   b: { x: number; y: number; w: number; h: number },
 ) {
-  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  return (
+    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y
+  );
 }
 
 const NEW_NODE_W = 140;
@@ -132,9 +150,19 @@ const PLACE_GAP = 10;
 const VIEW_PAD = 16;
 
 /** Запасной вариант: спираль от точки, если сетка по вьюпорту не нашла место. */
-function findFreePositionNearPreferred(preferred: { x: number; y: number }, nodes: Node[]): { x: number; y: number } {
-  const others = nodes.filter((n) => PLACEABLE_TYPES.includes(n.type as "service"));
-  const newRect = (pos: { x: number; y: number }) => ({ x: pos.x, y: pos.y, w: NEW_NODE_W, h: NEW_NODE_H });
+function findFreePositionNearPreferred(
+  preferred: { x: number; y: number },
+  nodes: Node[],
+): { x: number; y: number } {
+  const others = nodes.filter((n) =>
+    PLACEABLE_TYPES.includes(n.type as "service"),
+  );
+  const newRect = (pos: { x: number; y: number }) => ({
+    x: pos.x,
+    y: pos.y,
+    w: NEW_NODE_W,
+    h: NEW_NODE_H,
+  });
   const clashes = (pos: { x: number; y: number }) =>
     others.some((n) => rectsOverlap(newRect(pos), nodeRect(n)));
 
@@ -143,7 +171,14 @@ function findFreePositionNearPreferred(preferred: { x: number; y: number }, node
   const step = 28;
   for (let r = 1; r <= 40; r++) {
     for (const [dx, dy] of [
-      [r, 0], [0, r], [r, r], [-r, 0], [0, -r], [r, -r], [-r, r], [-r, -r],
+      [r, 0],
+      [0, r],
+      [r, r],
+      [-r, 0],
+      [0, -r],
+      [r, -r],
+      [-r, r],
+      [-r, -r],
     ] as [number, number][]) {
       const p = { x: preferred.x + dx * step, y: preferred.y + dy * step };
       if (!clashes(p)) return p;
@@ -158,11 +193,21 @@ function findFreePositionNearPreferred(preferred: { x: number; y: number }, node
  */
 function findFreePositionViewportLeftColumn(
   nodes: Node[],
-  screenToFlowPosition: (p: { x: number; y: number }) => { x: number; y: number },
+  screenToFlowPosition: (p: { x: number; y: number }) => {
+    x: number;
+    y: number;
+  },
   rect: DOMRect | null,
 ): { x: number; y: number } {
-  const others = nodes.filter((n) => PLACEABLE_TYPES.includes(n.type as "service"));
-  const newRect = (pos: { x: number; y: number }) => ({ x: pos.x, y: pos.y, w: NEW_NODE_W, h: NEW_NODE_H });
+  const others = nodes.filter((n) =>
+    PLACEABLE_TYPES.includes(n.type as "service"),
+  );
+  const newRect = (pos: { x: number; y: number }) => ({
+    x: pos.x,
+    y: pos.y,
+    w: NEW_NODE_W,
+    h: NEW_NODE_H,
+  });
   const clashes = (pos: { x: number; y: number }) =>
     others.some((n) => rectsOverlap(newRect(pos), nodeRect(n)));
 
@@ -198,7 +243,10 @@ function findFreePositionViewportLeftColumn(
     }
   }
 
-  return findFreePositionNearPreferred({ x: minX + VIEW_PAD, y: minY + VIEW_PAD }, nodes);
+  return findFreePositionNearPreferred(
+    { x: minX + VIEW_PAD, y: minY + VIEW_PAD },
+    nodes,
+  );
 }
 
 interface Props {
@@ -208,10 +256,16 @@ interface Props {
   /** Ручное обновление по кнопке «Обновить» — disabled до ответа */
   refreshPending: boolean;
   pollIntervalSec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
-  onPollIntervalSecChange: (sec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number]) => void;
+  onPollIntervalSecChange: (
+    sec: (typeof POLL_INTERVAL_OPTIONS_SEC)[number],
+  ) => void;
   /** Данные мониторинга устарели — затемнение канваса, без правок */
   metricsStale: boolean;
-  datasourceStatus?: { configured: boolean; ok: boolean; name?: string | null } | null;
+  datasourceStatus?: {
+    configured: boolean;
+    ok: boolean;
+    name?: string | null;
+  } | null;
   endpointLabel?: string | null;
 }
 
@@ -227,7 +281,16 @@ export function TopologyCanvas({
   endpointLabel,
 }: Props) {
   const { t, lang } = useI18n();
-  const { screenToFlowPosition, getNodes, getNode, setCenter, getZoom, fitView, zoomIn, zoomOut } = useReactFlow();
+  const {
+    screenToFlowPosition,
+    getNodes,
+    getNode,
+    setCenter,
+    getZoom,
+    fitView,
+    zoomIn,
+    zoomOut,
+  } = useReactFlow();
   /** Стабильный вызов fitView: иначе при смене языка меняется identity fitView → scheduleFitAfterLayout → повторный fetch layout и «центрирование». */
   const fitViewRef = useRef(fitView);
   fitViewRef.current = fitView;
@@ -250,11 +313,17 @@ export function TopologyCanvas({
       /* private mode / недоступно */
     }
   }, [store]);
-  const removedPositions = useRef<Map<string, { x: number; y: number }>>(new Map());
+  const removedPositions = useRef<Map<string, { x: number; y: number }>>(
+    new Map(),
+  );
   const serviceConfigs = useRef<Record<string, ServiceConfig>>({});
   const layoutLoaded = useRef(false);
   const HISTORY_MAX = 10;
-  type Snapshot = { nodes: Node[]; edges: MapEdge[]; service_configs: Record<string, ServiceConfig> };
+  type Snapshot = {
+    nodes: Node[];
+    edges: MapEdge[];
+    service_configs: Record<string, ServiceConfig>;
+  };
   const undoStack = useRef<Snapshot[]>([]);
   const redoStack = useRef<Snapshot[]>([]);
   const applyingHistory = useRef(false);
@@ -268,7 +337,10 @@ export function TopologyCanvas({
   const cloneSnapshot = useCallback((): Snapshot => {
     const n = JSON.parse(JSON.stringify(nodes)) as Node[];
     const e = JSON.parse(JSON.stringify(edges)) as MapEdge[];
-    const sc = JSON.parse(JSON.stringify(serviceConfigs.current)) as Record<string, ServiceConfig>;
+    const sc = JSON.parse(JSON.stringify(serviceConfigs.current)) as Record<
+      string,
+      ServiceConfig
+    >;
     return { nodes: n, edges: e, service_configs: sc };
   }, [nodes, edges]);
 
@@ -281,19 +353,22 @@ export function TopologyCanvas({
     setHistoryTick((x) => x + 1);
   }, [cloneSnapshot]);
 
-  const applySnapshot = useCallback((snap: Snapshot) => {
-    applyingHistory.current = true;
-    try {
-      serviceConfigs.current = snap.service_configs;
-      setNodes(snap.nodes);
-      setEdges(snap.edges);
-      setPaletteSelectedId(null);
-      setPaletteHoverId(null);
-    } finally {
-      applyingHistory.current = false;
-      setHistoryTick((x) => x + 1);
-    }
-  }, [setEdges, setNodes]);
+  const applySnapshot = useCallback(
+    (snap: Snapshot) => {
+      applyingHistory.current = true;
+      try {
+        serviceConfigs.current = snap.service_configs;
+        setNodes(snap.nodes);
+        setEdges(snap.edges);
+        setPaletteSelectedId(null);
+        setPaletteHoverId(null);
+      } finally {
+        applyingHistory.current = false;
+        setHistoryTick((x) => x + 1);
+      }
+    },
+    [setEdges, setNodes],
+  );
 
   const undo = useCallback(() => {
     if (metricsStale || !canvasInteractive) return;
@@ -319,7 +394,10 @@ export function TopologyCanvas({
         onEdgesChangeBase(changes.filter((c) => c.type !== "remove"));
         return;
       }
-      if (!applyingHistory.current && changes.some((c) => c.type === "remove")) {
+      if (
+        !applyingHistory.current &&
+        changes.some((c) => c.type === "remove")
+      ) {
         pushSnapshot();
       }
       onEdgesChangeBase(changes);
@@ -329,14 +407,23 @@ export function TopologyCanvas({
 
   const [collidingIds, setCollidingIds] = useState<Set<string>>(new Set());
   const [draggingService, setDraggingService] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<{ id: string; label: string } | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState<{
+    id: string;
+    label: string;
+  } | null>(null);
   const [confirmText, setConfirmText] = useState("");
-  const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(null);
+  const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(
+    null,
+  );
   const [paletteHoverId, setPaletteHoverId] = useState<string | null>(null);
   const [tracedNodeId, setTracedNodeId] = useState<string | null>(null);
   const [refreshLabelBold, setRefreshLabelBold] = useState(false);
-  const refreshBoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const persistLayoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshBoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const persistLayoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
 
   const handleToolbarRefresh = useCallback(() => {
     if (refreshBoldTimerRef.current) clearTimeout(refreshBoldTimerRef.current);
@@ -350,7 +437,8 @@ export function TopologyCanvas({
 
   useEffect(() => {
     return () => {
-      if (refreshBoldTimerRef.current) clearTimeout(refreshBoldTimerRef.current);
+      if (refreshBoldTimerRef.current)
+        clearTimeout(refreshBoldTimerRef.current);
     };
   }, []);
 
@@ -368,116 +456,171 @@ export function TopologyCanvas({
         void setCenter(cx, cy, { zoom: getZoom(), duration: 320 });
       });
     },
-    [getNode, setCenter, getZoom]
+    [getNode, setCenter, getZoom],
   );
 
   const COLLIDABLE = ["service"];
 
   const getBounds = (n: Node) => ({
-    x: n.position.x, y: n.position.y,
-    w: n.measured?.width ?? 140, h: n.measured?.height ?? 80,
+    x: n.position.x,
+    y: n.position.y,
+    w: n.measured?.width ?? 140,
+    h: n.measured?.height ?? 80,
   });
 
-  const overlaps = (a: ReturnType<typeof getBounds>, b: ReturnType<typeof getBounds>) =>
-    a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+  const overlaps = (
+    a: ReturnType<typeof getBounds>,
+    b: ReturnType<typeof getBounds>,
+  ) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
-  const onNodeDrag = useCallback((_: React.MouseEvent, dragged: Node) => {
-    if (!COLLIDABLE.includes(dragged.type ?? "")) return;
-    if (!dragStartSnapshot.current && !applyingHistory.current && layoutLoaded.current) {
-      dragStartSnapshot.current = cloneSnapshot();
-    }
-    setDraggingService(true);
-    if (dragged.parentId) return; // child nodes skip collision detection
-    const db = getBounds(dragged);
-    const hasOverlap = getNodes()
-      .filter((n) => n.id !== dragged.id && COLLIDABLE.includes(n.type ?? "") && !n.parentId)
-      .some((n) => overlaps(db, getBounds(n)));
-    setCollidingIds(hasOverlap ? new Set([dragged.id]) : new Set());
-  }, [getNodes, cloneSnapshot]);
+  const onNodeDrag = useCallback(
+    (_: React.MouseEvent, dragged: Node) => {
+      if (!COLLIDABLE.includes(dragged.type ?? "")) return;
+      if (
+        !dragStartSnapshot.current &&
+        !applyingHistory.current &&
+        layoutLoaded.current
+      ) {
+        dragStartSnapshot.current = cloneSnapshot();
+      }
+      setDraggingService(true);
+      if (dragged.parentId) return; // child nodes skip collision detection
+      const db = getBounds(dragged);
+      const hasOverlap = getNodes()
+        .filter(
+          (n) =>
+            n.id !== dragged.id &&
+            COLLIDABLE.includes(n.type ?? "") &&
+            !n.parentId,
+        )
+        .some((n) => overlaps(db, getBounds(n)));
+      setCollidingIds(hasOverlap ? new Set([dragged.id]) : new Set());
+    },
+    [getNodes, cloneSnapshot],
+  );
 
-  const onNodeDragStop = useCallback((_: React.MouseEvent, dragged: Node) => {
-    setCollidingIds(new Set());
-    setDraggingService(false);
-    if (!COLLIDABLE.includes(dragged.type ?? "")) return;
-    if (!applyingHistory.current && dragStartSnapshot.current) {
-      undoStack.current.push(dragStartSnapshot.current);
-      if (undoStack.current.length > HISTORY_MAX) undoStack.current.shift();
-      redoStack.current = [];
-      setHistoryTick((x) => x + 1);
-    }
-    dragStartSnapshot.current = null;
+  const onNodeDragStop = useCallback(
+    (_: React.MouseEvent, dragged: Node) => {
+      setCollidingIds(new Set());
+      setDraggingService(false);
+      if (!COLLIDABLE.includes(dragged.type ?? "")) return;
+      if (!applyingHistory.current && dragStartSnapshot.current) {
+        undoStack.current.push(dragStartSnapshot.current);
+        if (undoStack.current.length > HISTORY_MAX) undoStack.current.shift();
+        redoStack.current = [];
+        setHistoryTick((x) => x + 1);
+      }
+      dragStartSnapshot.current = null;
 
-    const allNodes = getNodes();
+      const allNodes = getNodes();
 
-    // --- Compute absolute position of dragged node ---
-    const absPos = dragged.parentId
-      ? (() => {
-          const pg = allNodes.find((n) => n.id === dragged.parentId);
-          return pg
-            ? { x: dragged.position.x + pg.position.x, y: dragged.position.y + pg.position.y }
-            : dragged.position;
-        })()
-      : dragged.position;
+      // --- Compute absolute position of dragged node ---
+      const absPos = dragged.parentId
+        ? (() => {
+            const pg = allNodes.find((n) => n.id === dragged.parentId);
+            return pg
+              ? {
+                  x: dragged.position.x + pg.position.x,
+                  y: dragged.position.y + pg.position.y,
+                }
+              : dragged.position;
+          })()
+        : dragged.position;
 
-    // --- Find target group: smallest group whose bounds contain node center ---
-    const nw = dragged.measured?.width ?? 140;
-    const nh = dragged.measured?.height ?? 60;
-    const cx = absPos.x + nw / 2;
-    const cy = absPos.y + nh / 2;
+      // --- Find target group: smallest group whose bounds contain node center ---
+      const nw = dragged.measured?.width ?? 140;
+      const nh = dragged.measured?.height ?? 60;
+      const cx = absPos.x + nw / 2;
+      const cy = absPos.y + nh / 2;
 
-    const targetGroup = allNodes
-      .filter((g) => g.type === "group")
-      .filter((g) => {
-        const gw = g.measured?.width ?? (g.style?.width as number) ?? 260;
-        const gh = g.measured?.height ?? (g.style?.height as number) ?? 180;
-        return cx >= g.position.x && cx <= g.position.x + gw &&
-               cy >= g.position.y && cy <= g.position.y + gh;
-      })
-      .sort((a, b) => {
-        const aArea = (a.measured?.width ?? (a.style?.width as number) ?? 260) *
-                      (a.measured?.height ?? (a.style?.height as number) ?? 180);
-        const bArea = (b.measured?.width ?? (b.style?.width as number) ?? 260) *
-                      (b.measured?.height ?? (b.style?.height as number) ?? 180);
-        return aArea - bArea;
-      })[0] ?? null;
+      const targetGroup =
+        allNodes
+          .filter((g) => g.type === "group")
+          .filter((g) => {
+            const gw = g.measured?.width ?? (g.style?.width as number) ?? 260;
+            const gh = g.measured?.height ?? (g.style?.height as number) ?? 180;
+            return (
+              cx >= g.position.x &&
+              cx <= g.position.x + gw &&
+              cy >= g.position.y &&
+              cy <= g.position.y + gh
+            );
+          })
+          .sort((a, b) => {
+            const aArea =
+              (a.measured?.width ?? (a.style?.width as number) ?? 260) *
+              (a.measured?.height ?? (a.style?.height as number) ?? 180);
+            const bArea =
+              (b.measured?.width ?? (b.style?.width as number) ?? 260) *
+              (b.measured?.height ?? (b.style?.height as number) ?? 180);
+            return aArea - bArea;
+          })[0] ?? null;
 
-    const newParentId = targetGroup?.id;
+      const newParentId = targetGroup?.id;
 
-    if (newParentId !== dragged.parentId) {
-      // Parent changed — convert position and update
-      setNodes((ns) => ns.map((n) => {
-        if (n.id !== dragged.id) return n;
-        if (newParentId && targetGroup) {
-          return { ...n, parentId: newParentId, position: { x: absPos.x - targetGroup.position.x, y: absPos.y - targetGroup.position.y } };
-        }
-        return { ...n, parentId: undefined, position: absPos };
-      }));
-      return; // skip collision resolution when reparenting
-    }
+      if (newParentId !== dragged.parentId) {
+        // Parent changed — convert position and update
+        setNodes((ns) =>
+          ns.map((n) => {
+            if (n.id !== dragged.id) return n;
+            if (newParentId && targetGroup) {
+              return {
+                ...n,
+                parentId: newParentId,
+                position: {
+                  x: absPos.x - targetGroup.position.x,
+                  y: absPos.y - targetGroup.position.y,
+                },
+              };
+            }
+            return { ...n, parentId: undefined, position: absPos };
+          }),
+        );
+        return; // skip collision resolution when reparenting
+      }
 
-    // --- Collision detection (only for top-level service nodes) ---
-    if (dragged.parentId) return;
-    const others = allNodes.filter((n) => n.id !== dragged.id && COLLIDABLE.includes(n.type ?? "") && !n.parentId);
-    const db = getBounds(dragged);
-    if (!others.some((n) => overlaps(db, getBounds(n)))) return;
+      // --- Collision detection (only for top-level service nodes) ---
+      if (dragged.parentId) return;
+      const others = allNodes.filter(
+        (n) =>
+          n.id !== dragged.id &&
+          COLLIDABLE.includes(n.type ?? "") &&
+          !n.parentId,
+      );
+      const db = getBounds(dragged);
+      if (!others.some((n) => overlaps(db, getBounds(n)))) return;
 
-    // Find nearest non-overlapping position by spiral offsets
-    let pos = dragged.position;
-    const step = 20;
-    outer: for (let r = 1; r <= 15; r++) {
-      for (const [dx, dy] of [
-        [r, 0], [0, r], [r, r], [-r, 0], [0, -r], [r, -r], [-r, r], [-r, -r],
-      ] as [number, number][]) {
-        const candidate = { x: dragged.position.x + dx * step, y: dragged.position.y + dy * step };
-        const tb = { ...db, ...candidate };
-        if (!others.some((n) => overlaps(tb, getBounds(n)))) {
-          pos = candidate;
-          break outer;
+      // Find nearest non-overlapping position by spiral offsets
+      let pos = dragged.position;
+      const step = 20;
+      outer: for (let r = 1; r <= 15; r++) {
+        for (const [dx, dy] of [
+          [r, 0],
+          [0, r],
+          [r, r],
+          [-r, 0],
+          [0, -r],
+          [r, -r],
+          [-r, r],
+          [-r, -r],
+        ] as [number, number][]) {
+          const candidate = {
+            x: dragged.position.x + dx * step,
+            y: dragged.position.y + dy * step,
+          };
+          const tb = { ...db, ...candidate };
+          if (!others.some((n) => overlaps(tb, getBounds(n)))) {
+            pos = candidate;
+            break outer;
+          }
         }
       }
-    }
-    setNodes((ns) => ns.map((n) => n.id === dragged.id ? { ...n, position: pos } : n));
-  }, [getNodes, setNodes]);
+      setNodes((ns) =>
+        ns.map((n) => (n.id === dragged.id ? { ...n, position: pos } : n)),
+      );
+    },
+    [getNodes, setNodes],
+  );
 
   const onNodesChange: typeof onNodesChangeRaw = useCallback(
     (changes) => {
@@ -503,12 +646,15 @@ export function TopologyCanvas({
         }
         return true;
       });
-      if (!applyingHistory.current && allowed.some((c) => c.type === "remove" || c.type === "add")) {
+      if (
+        !applyingHistory.current &&
+        allowed.some((c) => c.type === "remove" || c.type === "add")
+      ) {
         pushSnapshot();
       }
       onNodesChangeRaw(allowed);
     },
-    [onNodesChangeRaw, getNodes, metricsStale, canvasInteractive, pushSnapshot]
+    [onNodesChangeRaw, getNodes, metricsStale, canvasInteractive, pushSnapshot],
   );
 
   // Handle Backspace/Delete on selected node (canvas selection or palette selection)
@@ -520,7 +666,9 @@ export function TopologyCanvas({
       const tag = (e.target as HTMLElement).tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       // Try ReactFlow selected first, then palette selection
-      const rfSelected = getNodes().filter((n) => n.selected && n.type === "service");
+      const rfSelected = getNodes().filter(
+        (n) => n.selected && n.type === "service",
+      );
       let targetId: string | null = null;
       if (rfSelected.length === 1) {
         targetId = rfSelected[0].id;
@@ -537,7 +685,13 @@ export function TopologyCanvas({
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [getNodes, confirmDelete, paletteSelectedId, metricsStale, canvasInteractive]);
+  }, [
+    getNodes,
+    confirmDelete,
+    paletteSelectedId,
+    metricsStale,
+    canvasInteractive,
+  ]);
 
   // Undo/redo hotkeys (Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z)
   useEffect(() => {
@@ -545,7 +699,13 @@ export function TopologyCanvas({
       if (metricsStale || !canvasInteractive) return;
       const el = e.target as HTMLElement | null;
       const tag = el?.tagName?.toUpperCase();
-      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || el?.isContentEditable) return;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        el?.isContentEditable
+      )
+        return;
       const mod = e.ctrlKey || e.metaKey;
       if (!mod) return;
       if (e.key.toLowerCase() !== "z") return;
@@ -588,19 +748,34 @@ export function TopologyCanvas({
     if (!applyingHistory.current) pushSnapshot();
     const allNodes = getNodes();
     const node = allNodes.find((n) => n.id === confirmDelete.id);
-    if (node) removedPositions.current.set(confirmDelete.id, { x: node.position.x, y: node.position.y });
+    if (node)
+      removedPositions.current.set(confirmDelete.id, {
+        x: node.position.x,
+        y: node.position.y,
+      });
     setNodes((ns) => {
       const filtered = ns.filter((n) => n.id !== confirmDelete.id);
       // When deleting a group, free its children (convert to absolute positions)
       if (node?.type === "group") {
         return filtered.map((n) => {
           if (n.parentId !== confirmDelete.id) return n;
-          return { ...n, parentId: undefined, position: { x: n.position.x + node.position.x, y: n.position.y + node.position.y } };
+          return {
+            ...n,
+            parentId: undefined,
+            position: {
+              x: n.position.x + node.position.x,
+              y: n.position.y + node.position.y,
+            },
+          };
         });
       }
       return filtered;
     });
-    setEdges((es) => es.filter((e) => e.source !== confirmDelete.id && e.target !== confirmDelete.id));
+    setEdges((es) =>
+      es.filter(
+        (e) => e.source !== confirmDelete.id && e.target !== confirmDelete.id,
+      ),
+    );
     setPaletteSelectedId(null);
     setPaletteHoverId(null);
     setTracedNodeId(null);
@@ -641,8 +816,15 @@ export function TopologyCanvas({
               id: ln.id,
               type: "group",
               position: { x: ln.x, y: ln.y },
-              style: { width: ln.width ?? 260, height: ln.height ?? 180, zIndex: ln.zIndex ?? -1 },
-              data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color } satisfies GroupNodeData,
+              style: {
+                width: ln.width ?? 260,
+                height: ln.height ?? 180,
+                zIndex: ln.zIndex ?? -1,
+              },
+              data: {
+                label: ln.label ?? t("defaultGroupLabel"),
+                color: ln.color,
+              } satisfies GroupNodeData,
             } as Node;
           }
           const legacyType = ln.type as string | undefined;
@@ -660,7 +842,6 @@ export function TopologyCanvas({
                 description: ln.description ?? cfg.description,
                 actions: ln.actions ?? cfg.actions,
                 ignored_sources: cfg.ignored_sources,
-                matchServiceId: ln.matchServiceId ?? null,
                 kind: ln.kind ?? "custom",
               } satisfies ServiceNodeData,
             } as Node;
@@ -669,12 +850,21 @@ export function TopologyCanvas({
             return null;
           }
           if (!ln.type || ln.type === "service") {
-            const migratedKind = ln.kind === "k8s-cluster" ? "cluster" : ln.kind;
+            const migratedKind =
+              ln.kind === "k8s-cluster" ? "cluster" : ln.kind;
             const svc = data.services.find((s) => s.id === ln.id) ?? null;
             const cfg = serviceConfigs.current[ln.id] ?? {};
             const parentId = ln.parentId || undefined;
             if (svc) {
-              const node = serviceToNode(svc, { x: ln.x, y: ln.y }, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, ln.matchServiceId ?? null, migratedKind);
+              const node = serviceToNode(
+                svc,
+                { x: ln.x, y: ln.y },
+                cfg.icon,
+                cfg.description,
+                cfg.actions,
+                cfg.ignored_sources,
+                migratedKind,
+              );
               return parentId ? { ...node, parentId } : node;
             }
             // Узел service без метрик: сервис мог исчезнуть во время сохранения
@@ -690,7 +880,6 @@ export function TopologyCanvas({
                 description: cfg.description,
                 actions: cfg.actions,
                 ignored_sources: cfg.ignored_sources,
-                matchServiceId: ln.matchServiceId ?? null,
                 kind: migratedKind ?? "service",
               } satisfies ServiceNodeData,
             } as Node;
@@ -742,12 +931,20 @@ export function TopologyCanvas({
         let cls: string | undefined;
         const eff = effectiveServiceIdForNode(n, data.services);
         const status = eff ? (probeStatusMap[eff] ?? "unknown") : "unknown";
-        if (n.id === paletteSelectedId) cls = `palette-selected palette-selected--${status}`;
-        else if (paletteHoverId && n.id === paletteHoverId) cls = `palette-hover palette-hover--${status}`;
+        if (n.id === paletteSelectedId)
+          cls = `palette-selected palette-selected--${status}`;
+        else if (paletteHoverId && n.id === paletteHoverId)
+          cls = `palette-hover palette-hover--${status}`;
         return { ...n, className: cls };
       }),
     );
-  }, [paletteSelectedId, paletteHoverId, probeStatusMap, data.services, setNodes]);
+  }, [
+    paletteSelectedId,
+    paletteHoverId,
+    probeStatusMap,
+    data.services,
+    setNodes,
+  ]);
 
   // Keep serviceConfigs in sync with node data changes
   useEffect(() => {
@@ -769,7 +966,6 @@ export function TopologyCanvas({
 
     setNodes((prev) => {
       const next: Node[] = [];
-      const orphanIds: string[] = [];
 
       for (const n of prev) {
         if (n.type !== "service") {
@@ -778,46 +974,32 @@ export function TopologyCanvas({
         }
         const d = n.data as unknown as ServiceNodeData;
         const directSvc = data.services.find((s) => s.id === n.id) ?? null;
-        const matchIdSvc = d.matchServiceId
-          ? (data.services.find((s) => s.id === d.matchServiceId) ?? null)
-          : null;
         let byNameSvc: Service | null = null;
-        if (!directSvc && !matchIdSvc && (d.ports ?? []).length === 0) {
-          const candidates = data.services.filter((s) => s.name === (d.label ?? ""));
+        if (!directSvc && (d.ports ?? []).length === 0) {
+          const candidates = data.services.filter(
+            (s) => s.name === (d.label ?? ""),
+          );
           if (candidates.length === 1) byNameSvc = candidates[0];
         }
-        const svc = directSvc ?? matchIdSvc ?? byNameSvc;
+        const svc = directSvc ?? byNameSvc;
 
         if (!svc) {
           next.push({ ...n, data: { ...d, ports: [] } });
           continue;
         }
 
-        const nextMatch = d.matchServiceId ?? byNameSvc?.id ?? null;
         const nextLabel =
-          d.kind && d.kind !== "service"
-            ? d.label ?? svc.name
-            : svc.name;
+          d.kind && d.kind !== "service" ? (d.label ?? svc.name) : svc.name;
         next.push({
           ...n,
           data: {
             ...d,
             label: nextLabel,
             ports: svc.ports,
-            matchServiceId: nextMatch,
             icon: d.icon,
             description: d.description,
             actions: d.actions,
           },
-        });
-      }
-
-      if (orphanIds.length > 0) {
-        const orphans = orphanIds;
-        queueMicrotask(() => {
-          setEdges((eds) =>
-            eds.filter((e) => !orphans.includes(e.source) && !orphans.includes(e.target)),
-          );
         });
       }
 
@@ -831,7 +1013,7 @@ export function TopologyCanvas({
       if (!applyingHistory.current) pushSnapshot();
       setEdges((eds) => addEdge(conn, eds));
     },
-    [metricsStale, canvasInteractive, setEdges, pushSnapshot]
+    [metricsStale, canvasInteractive, setEdges, pushSnapshot],
   );
 
   const onReconnect: OnReconnect = useCallback(
@@ -840,7 +1022,7 @@ export function TopologyCanvas({
       if (!applyingHistory.current) pushSnapshot();
       setEdges((eds) => reconnectEdge(oldEdge, newConn, eds));
     },
-    [metricsStale, canvasInteractive, setEdges, pushSnapshot]
+    [metricsStale, canvasInteractive, setEdges, pushSnapshot],
   );
 
   /** Как из палитры: свободная позиция в видимой области холста. */
@@ -849,7 +1031,11 @@ export function TopologyCanvas({
     if (!applyingHistory.current) pushSnapshot();
     const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
     setNodes((ns) => {
-      const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+      const position = findFreePositionViewportLeftColumn(
+        ns,
+        screenToFlowPosition,
+        rect,
+      );
       const groupCount = ns.filter((n) => n.type === "group").length;
       return [
         {
@@ -862,7 +1048,14 @@ export function TopologyCanvas({
         ...ns,
       ];
     });
-  }, [metricsStale, canvasInteractive, setNodes, screenToFlowPosition, t, pushSnapshot]);
+  }, [
+    metricsStale,
+    canvasInteractive,
+    setNodes,
+    screenToFlowPosition,
+    t,
+    pushSnapshot,
+  ]);
 
   const addServiceFromPalette = useCallback(
     (svc: Service) => {
@@ -871,12 +1064,32 @@ export function TopologyCanvas({
       const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
       setNodes((ns) => {
         if (ns.some((n) => n.type === "service" && n.id === svc.id)) return ns;
-        const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+        const position = findFreePositionViewportLeftColumn(
+          ns,
+          screenToFlowPosition,
+          rect,
+        );
         const cfg = serviceConfigs.current[svc.id] ?? {};
-        return [...ns, serviceToNode(svc, position, cfg.icon, cfg.description, cfg.actions, cfg.ignored_sources, null, svc.kind)];
+        return [
+          ...ns,
+          serviceToNode(
+            svc,
+            position,
+            cfg.icon,
+            cfg.description,
+            cfg.actions,
+            cfg.ignored_sources,
+          ),
+        ];
       });
     },
-    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
+    [
+      screenToFlowPosition,
+      setNodes,
+      metricsStale,
+      canvasInteractive,
+      pushSnapshot,
+    ],
   );
 
   const addComponentFromPalette = useCallback(
@@ -886,7 +1099,11 @@ export function TopologyCanvas({
       const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
       const id = `${kindDef.kind}-${Date.now()}`;
       setNodes((ns) => {
-        const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+        const position = findFreePositionViewportLeftColumn(
+          ns,
+          screenToFlowPosition,
+          rect,
+        );
         return [
           ...ns,
           {
@@ -902,7 +1119,14 @@ export function TopologyCanvas({
         ];
       });
     },
-    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot, lang]
+    [
+      screenToFlowPosition,
+      setNodes,
+      metricsStale,
+      canvasInteractive,
+      pushSnapshot,
+      lang,
+    ],
   );
 
   const addObjectFromPalette = useCallback(() => {
@@ -932,7 +1156,6 @@ export function TopologyCanvas({
             icon: (n.data as unknown as ServiceNodeData).icon,
             description: (n.data as unknown as ServiceNodeData).description,
             actions: (n.data as unknown as ServiceNodeData).actions,
-            matchServiceId: (n.data as unknown as ServiceNodeData).matchServiceId ?? null,
             ...(n.parentId ? { parentId: n.parentId } : {}),
           }
         : {}),
@@ -946,12 +1169,22 @@ export function TopologyCanvas({
         type: e.type ?? "default",
       };
       if (Object.keys(d).length > 0) row.data = d;
-      if (e.style && typeof e.style === "object" && e.style !== null && Object.keys(e.style).length > 0) {
+      if (
+        e.style &&
+        typeof e.style === "object" &&
+        e.style !== null &&
+        Object.keys(e.style).length > 0
+      ) {
         row.style = e.style;
       }
       return row;
     });
-    const payload = { nodes: layoutNodes, groups: [], edges: edgeRows, service_configs: serviceConfigs.current };
+    const payload = {
+      nodes: layoutNodes,
+      groups: [],
+      edges: edgeRows,
+      service_configs: serviceConfigs.current,
+    };
     saveProjectLayout(projectId, payload);
   }, [nodes, edges, projectId]);
 
@@ -959,30 +1192,36 @@ export function TopologyCanvas({
     (next: LayoutEdgeData) => {
       if (!edgeEditId) return;
       if (!applyingHistory.current) pushSnapshot();
-      setEdges((eds) => eds.map((e) => (e.id === edgeEditId ? { ...e, data: { ...next } } : e)));
+      setEdges((eds) =>
+        eds.map((e) => (e.id === edgeEditId ? { ...e, data: { ...next } } : e)),
+      );
       setEdgeEditId(null);
     },
     [edgeEditId, pushSnapshot, setEdges],
   );
 
   const editingEdge = useMemo(
-    () => (edgeEditId ? (edges.find((e) => e.id === edgeEditId) ?? null) : null),
+    () =>
+      edgeEditId ? (edges.find((e) => e.id === edgeEditId) ?? null) : null,
     [edgeEditId, edges],
   );
 
   useEffect(() => {
-    if (edgeEditId && !edges.some((e) => e.id === edgeEditId)) setEdgeEditId(null);
+    if (edgeEditId && !edges.some((e) => e.id === edgeEditId))
+      setEdgeEditId(null);
   }, [edges, edgeEditId]);
 
   useEffect(() => {
     if (!layoutLoaded.current || metricsStale) return;
-    if (persistLayoutTimerRef.current) clearTimeout(persistLayoutTimerRef.current);
+    if (persistLayoutTimerRef.current)
+      clearTimeout(persistLayoutTimerRef.current);
     persistLayoutTimerRef.current = setTimeout(() => {
       persistLayout();
       persistLayoutTimerRef.current = null;
     }, 500);
     return () => {
-      if (persistLayoutTimerRef.current) clearTimeout(persistLayoutTimerRef.current);
+      if (persistLayoutTimerRef.current)
+        clearTimeout(persistLayoutTimerRef.current);
     };
   }, [nodes, edges, metricsStale, persistLayout]);
 
@@ -1001,7 +1240,11 @@ export function TopologyCanvas({
       tracedSet
         ? nodes.map((n) => ({
             ...n,
-            style: { ...n.style, opacity: tracedSet.nodeIds.has(n.id) ? 1 : 0.15, transition: "opacity 0.18s" },
+            style: {
+              ...n.style,
+              opacity: tracedSet.nodeIds.has(n.id) ? 1 : 0.15,
+              transition: "opacity 0.18s",
+            },
           }))
         : nodes,
     [nodes, tracedSet],
@@ -1012,7 +1255,11 @@ export function TopologyCanvas({
       tracedSet
         ? edges.map((e) => ({
             ...e,
-            style: { ...e.style, opacity: tracedSet.edgeIds.has(e.id) ? 1 : 0.08, transition: "opacity 0.18s" },
+            style: {
+              ...e.style,
+              opacity: tracedSet.edgeIds.has(e.id) ? 1 : 0.08,
+              transition: "opacity 0.18s",
+            },
           }))
         : edges,
     [edges, tracedSet],
@@ -1031,7 +1278,9 @@ export function TopologyCanvas({
   const onBeforeDelete = useCallback(async () => {
     if (metricsStale) return false;
     const s = store.getState();
-    return Boolean(s.nodesDraggable || s.nodesConnectable || s.elementsSelectable);
+    return Boolean(
+      s.nodesDraggable || s.nodesConnectable || s.elementsSelectable,
+    );
   }, [metricsStale, store]);
 
   const handleZoomIn = useCallback(() => {
@@ -1049,7 +1298,8 @@ export function TopologyCanvas({
   const handleToggleCanvasInteraction = useCallback(() => {
     if (metricsStale) return;
     const s = store.getState();
-    const active = s.nodesDraggable || s.nodesConnectable || s.elementsSelectable;
+    const active =
+      s.nodesDraggable || s.nodesConnectable || s.elementsSelectable;
     const next = !active;
     store.setState({
       nodesDraggable: next,
@@ -1065,316 +1315,387 @@ export function TopologyCanvas({
 
   return (
     <TraceContext.Provider value={{ tracedNodeId, toggleTrace }}>
-    <CollisionContext.Provider value={collidingIds}>
-    <DragContext.Provider value={draggingService}>
-    <ServicesContext.Provider value={{ services: data.services, probe_sources: data.probe_sources, endpoint_label: endpointLabel }}>
-      <div style={{ display: "flex", height: "100%", width: "100%", minHeight: 0 }}>
-        <div className="palette-sidebar-column">
-          <Palette
-            services={data.services}
-            onCanvas={onCanvas}
-            onAddService={addServiceFromPalette}
-            onAddObject={addObjectFromPalette}
-            onAddArea={addAreaFromSidebar}
-            readOnly={metricsStale || !canvasInteractive}
-            selectedId={paletteSelectedId}
-            onSelect={onPaletteSelect}
-            onHoverChange={setPaletteHoverId}
-            statusMap={probeStatusMap}
-          />
-        </div>
-        <EdgeInteractionContext.Provider
-          value={{
-            openEditor: (id) => setEdgeEditId(id),
-            editable: !metricsStale && canvasInteractive,
-          }}
-        >
-        <div
-          ref={wrapperRef}
-          style={{ flex: 1, minHeight: 0, position: "relative" }}
-        >
-        {metricsStale && (
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              zIndex: 4,
-              background: "var(--probemap-metrics-stale-overlay)",
-              pointerEvents: "none",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: 24,
-              boxSizing: "border-box",
+      <CollisionContext.Provider value={collidingIds}>
+        <DragContext.Provider value={draggingService}>
+          <ServicesContext.Provider
+            value={{
+              services: data.services,
+              probe_sources: data.probe_sources,
+              endpoint_label: endpointLabel,
             }}
           >
             <div
               style={{
-                maxWidth: 400,
-                textAlign: "center",
-                fontSize: 14,
-                lineHeight: 1.55,
-                color: "var(--probemap-metrics-stale-text)",
-                fontWeight: 500,
-              }}
-            >
-              {t("metricsStaleOverlay")}
-            </div>
-          </div>
-        )}
-        <div className="probemap-map-poll">
-          <span className="probemap-map-poll__label">{t("pollDataInterval")}</span>
-          <select
-            value={pollIntervalSec}
-            disabled={metricsStale}
-            onChange={(e) => {
-              const v = Number(e.target.value) as (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
-              onPollIntervalSecChange(v);
-            }}
-            className="probemap-map-poll__select"
-            aria-label={t("pollDataInterval")}
-          >
-            {POLL_INTERVAL_OPTIONS_SEC.map((sec) => (
-              <option key={sec} value={sec}>
-                {sec}
-                {t("pollIntervalSecondsSuffix")}
-              </option>
-            ))}
-          </select>
-          <button
-            type="button"
-            onClick={handleToolbarRefresh}
-            disabled={refreshPending}
-            aria-busy={refreshPending}
-            aria-label={refreshPending ? t("refreshPendingAria") : t("refresh")}
-            className="probemap-outline-hover-btn probemap-toolbar-refresh probemap-map-poll__refresh"
-          >
-            <span
-              style={{
-                fontWeight: refreshLabelBold ? 700 : 400,
-              }}
-            >
-              {t("refresh")}
-            </span>
-          </button>
-        </div>
-        {typeof document !== "undefined" &&
-          document.getElementById("probemap-toolbar-host") &&
-          datasourceStatus &&
-          createPortal(
-            <div
-              title={
-                !datasourceStatus.configured
-                  ? t("datasourceStatusUnknown")
-                  : datasourceStatus.ok
-                    ? t("datasourceStatusOk")
-                    : t("datasourceStatusBad")
-              }
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                padding: "3px 8px",
-                borderRadius: 999,
-                border: "1.5px solid var(--probemap-border)",
-                background: "var(--probemap-bg)",
-                flexShrink: 0,
-                maxWidth: 260,
-              }}
-            >
-              <span
-                style={{
-                  width: 9,
-                  height: 9,
-                  borderRadius: "50%",
-                  flexShrink: 0,
-                  background: !datasourceStatus.configured
-                    ? "var(--probemap-border-strong)"
-                    : datasourceStatus.ok
-                      ? "var(--probemap-status-ok)"
-                      : "var(--probemap-danger)",
-                  boxShadow: "0 0 0 1px rgba(15,23,42,0.08)",
-                }}
-              />
-              <span
-                style={{
-                  fontSize: 12,
-                  color: "var(--probemap-text)",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              >
-                {datasourceStatus.name || "VictoriaMetrics"}
-              </span>
-            </div>,
-            document.getElementById("probemap-toolbar-host")!,
-          )}
-        <div
-          className="probemap-reactflow-root"
-          style={{
-            width: "100%",
-            height: "100%",
-            minHeight: 0,
-            position: "relative",
-            ["--probemap-vp-zoom" as string]: String(Math.max(0.08, viewportZoom)),
-          }}
-        >
-          {tracedNodeId && tracedNodeLabel && (
-            <div
-              style={{
-                position: "absolute",
-                top: 10,
-                left: "50%",
-                transform: "translateX(-50%)",
-                zIndex: 5,
                 display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "5px 10px 5px 12px",
-                borderRadius: 999,
-                background: "var(--probemap-bg)",
-                border: "1.5px solid var(--probemap-border)",
-                boxShadow: "0 2px 8px rgba(15,23,42,0.12)",
-                fontSize: 12,
-                color: "var(--probemap-text)",
-                fontWeight: 500,
-                whiteSpace: "nowrap",
-                pointerEvents: "all",
+                height: "100%",
+                width: "100%",
+                minHeight: 0,
               }}
             >
-              <span
-                style={{
-                  width: 8,
-                  height: 8,
-                  borderRadius: "50%",
-                  background: "var(--probemap-trace-accent)",
-                  flexShrink: 0,
+              <div className="palette-sidebar-column">
+                <Palette
+                  services={data.services}
+                  onCanvas={onCanvas}
+                  onAddService={addServiceFromPalette}
+                  onAddObject={addObjectFromPalette}
+                  onAddArea={addAreaFromSidebar}
+                  readOnly={metricsStale || !canvasInteractive}
+                  selectedId={paletteSelectedId}
+                  onSelect={onPaletteSelect}
+                  onHoverChange={setPaletteHoverId}
+                  statusMap={probeStatusMap}
+                />
+              </div>
+              <EdgeInteractionContext.Provider
+                value={{
+                  openEditor: (id) => setEdgeEditId(id),
+                  editable: !metricsStale && canvasInteractive,
                 }}
-              />
-              <span style={{ maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {tracedNodeLabel}
-              </span>
-              <button
-                type="button"
-                aria-label={t("pathTraceClearAria")}
-                onClick={() => setTracedNodeId(null)}
-                className="probemap-btn probemap-btn--close"
-                style={{ fontSize: 14 }}
               >
-                ×
-              </button>
+                <div
+                  ref={wrapperRef}
+                  style={{ flex: 1, minHeight: 0, position: "relative" }}
+                >
+                  {metricsStale && (
+                    <div
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        zIndex: 4,
+                        background: "var(--probemap-metrics-stale-overlay)",
+                        pointerEvents: "none",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        padding: 24,
+                        boxSizing: "border-box",
+                      }}
+                    >
+                      <div
+                        style={{
+                          maxWidth: 400,
+                          textAlign: "center",
+                          fontSize: 14,
+                          lineHeight: 1.55,
+                          color: "var(--probemap-metrics-stale-text)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {t("metricsStaleOverlay")}
+                      </div>
+                    </div>
+                  )}
+                  <div className="probemap-map-poll">
+                    <span className="probemap-map-poll__label">
+                      {t("pollDataInterval")}
+                    </span>
+                    <select
+                      value={pollIntervalSec}
+                      disabled={metricsStale}
+                      onChange={(e) => {
+                        const v = Number(
+                          e.target.value,
+                        ) as (typeof POLL_INTERVAL_OPTIONS_SEC)[number];
+                        onPollIntervalSecChange(v);
+                      }}
+                      className="probemap-map-poll__select"
+                      aria-label={t("pollDataInterval")}
+                    >
+                      {POLL_INTERVAL_OPTIONS_SEC.map((sec) => (
+                        <option key={sec} value={sec}>
+                          {sec}
+                          {t("pollIntervalSecondsSuffix")}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleToolbarRefresh}
+                      disabled={refreshPending}
+                      aria-busy={refreshPending}
+                      aria-label={
+                        refreshPending ? t("refreshPendingAria") : t("refresh")
+                      }
+                      className="probemap-outline-hover-btn probemap-toolbar-refresh probemap-map-poll__refresh"
+                    >
+                      <span
+                        style={{
+                          fontWeight: refreshLabelBold ? 700 : 400,
+                        }}
+                      >
+                        {t("refresh")}
+                      </span>
+                    </button>
+                  </div>
+                  {typeof document !== "undefined" &&
+                    document.getElementById("probemap-toolbar-host") &&
+                    datasourceStatus &&
+                    createPortal(
+                      <div
+                        title={
+                          !datasourceStatus.configured
+                            ? t("datasourceStatusUnknown")
+                            : datasourceStatus.ok
+                              ? t("datasourceStatusOk")
+                              : t("datasourceStatusBad")
+                        }
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 8,
+                          padding: "3px 8px",
+                          borderRadius: 999,
+                          border: "1.5px solid var(--probemap-border)",
+                          background: "var(--probemap-bg)",
+                          flexShrink: 0,
+                          maxWidth: 260,
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 9,
+                            height: 9,
+                            borderRadius: "50%",
+                            flexShrink: 0,
+                            background: !datasourceStatus.configured
+                              ? "var(--probemap-border-strong)"
+                              : datasourceStatus.ok
+                                ? "var(--probemap-status-ok)"
+                                : "var(--probemap-danger)",
+                            boxShadow: "0 0 0 1px rgba(15,23,42,0.08)",
+                          }}
+                        />
+                        <span
+                          style={{
+                            fontSize: 12,
+                            color: "var(--probemap-text)",
+                            whiteSpace: "nowrap",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {datasourceStatus.name || "VictoriaMetrics"}
+                        </span>
+                      </div>,
+                      document.getElementById("probemap-toolbar-host")!,
+                    )}
+                  <div
+                    className="probemap-reactflow-root"
+                    style={{
+                      width: "100%",
+                      height: "100%",
+                      minHeight: 0,
+                      position: "relative",
+                      ["--probemap-vp-zoom" as string]: String(
+                        Math.max(0.08, viewportZoom),
+                      ),
+                    }}
+                  >
+                    {tracedNodeId && tracedNodeLabel && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 10,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          zIndex: 5,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 10px 5px 12px",
+                          borderRadius: 999,
+                          background: "var(--probemap-bg)",
+                          border: "1.5px solid var(--probemap-border)",
+                          boxShadow: "0 2px 8px rgba(15,23,42,0.12)",
+                          fontSize: 12,
+                          color: "var(--probemap-text)",
+                          fontWeight: 500,
+                          whiteSpace: "nowrap",
+                          pointerEvents: "all",
+                        }}
+                      >
+                        <span
+                          style={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            background: "var(--probemap-trace-accent)",
+                            flexShrink: 0,
+                          }}
+                        />
+                        <span
+                          style={{
+                            maxWidth: 200,
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {tracedNodeLabel}
+                        </span>
+                        <button
+                          type="button"
+                          aria-label={t("pathTraceClearAria")}
+                          onClick={() => setTracedNodeId(null)}
+                          className="probemap-btn probemap-btn--close"
+                          style={{ fontSize: 14 }}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    )}
+                    <ReactFlow
+                      nodes={displayNodes}
+                      edges={displayEdges}
+                      onNodesChange={onNodesChange}
+                      onEdgesChange={onEdgesChange}
+                      onConnect={onConnect}
+                      onReconnect={onReconnect}
+                      onNodeDrag={onNodeDrag}
+                      onNodeDragStop={onNodeDragStop}
+                      nodeTypes={NODE_TYPES}
+                      edgeTypes={EDGE_TYPES}
+                      connectionMode={ConnectionMode.Loose}
+                      defaultEdgeOptions={{ type: "default", data: {} }}
+                      nodesDraggable={!metricsStale && canvasInteractive}
+                      nodesConnectable={!metricsStale && canvasInteractive}
+                      edgesReconnectable={!metricsStale && canvasInteractive}
+                      elementsSelectable={!metricsStale && canvasInteractive}
+                      onBeforeDelete={onBeforeDelete}
+                    >
+                      <Background color="var(--probemap-text-faint)" gap={16} />
+                    </ReactFlow>
+                  </div>
+
+                  <MapObjectsBar
+                    onZoomIn={handleZoomIn}
+                    onZoomOut={handleZoomOut}
+                    onFitView={handleFitView}
+                    onUndo={undo}
+                    onRedo={redo}
+                    canUndo={historyTick >= 0 && undoStack.current.length > 0}
+                    canRedo={historyTick >= 0 && redoStack.current.length > 0}
+                    canvasInteractive={!metricsStale && canvasInteractive}
+                    onToggleCanvasInteraction={handleToggleCanvasInteraction}
+                    readOnly={metricsStale}
+                    addBlocked={!metricsStale && !canvasInteractive}
+                    freezeToolbar={metricsStale}
+                  />
+                </div>
+              </EdgeInteractionContext.Provider>
             </div>
-          )}
-          <ReactFlow
-            nodes={displayNodes}
-            edges={displayEdges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onReconnect={onReconnect}
-            onNodeDrag={onNodeDrag}
-            onNodeDragStop={onNodeDragStop}
-            nodeTypes={NODE_TYPES}
-            edgeTypes={EDGE_TYPES}
-            connectionMode={ConnectionMode.Loose}
-            defaultEdgeOptions={{ type: "default", data: {} }}
-            nodesDraggable={!metricsStale && canvasInteractive}
-            nodesConnectable={!metricsStale && canvasInteractive}
-            edgesReconnectable={!metricsStale && canvasInteractive}
-            elementsSelectable={!metricsStale && canvasInteractive}
-            onBeforeDelete={onBeforeDelete}
-          >
-            <Background color="var(--probemap-text-faint)" gap={16} />
-          </ReactFlow>
-        </div>
 
-        <MapObjectsBar
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onFitView={handleFitView}
-          onUndo={undo}
-          onRedo={redo}
-          canUndo={(historyTick >= 0) && undoStack.current.length > 0}
-          canRedo={(historyTick >= 0) && redoStack.current.length > 0}
-          canvasInteractive={!metricsStale && canvasInteractive}
-          onToggleCanvasInteraction={handleToggleCanvasInteraction}
-          readOnly={metricsStale}
-          addBlocked={!metricsStale && !canvasInteractive}
-          freezeToolbar={metricsStale}
-        />
+            <EdgeMetadataModal
+              open={edgeEditId !== null && editingEdge !== null}
+              initial={normalizeLayoutEdgeData(editingEdge?.data)}
+              onSave={handleEdgeMetadataSave}
+              onClose={() => setEdgeEditId(null)}
+            />
 
-      </div>
-        </EdgeInteractionContext.Provider>
-    </div>
-
-    <EdgeMetadataModal
-      open={edgeEditId !== null && editingEdge !== null}
-      initial={normalizeLayoutEdgeData(editingEdge?.data)}
-      onSave={handleEdgeMetadataSave}
-      onClose={() => setEdgeEditId(null)}
-    />
-
-    {confirmDelete && createPortal(
-      <div
-        data-probemap-modal
-        onClick={(e) => { if (e.target === e.currentTarget) { setConfirmDelete(null); setConfirmText(""); } }}
-        style={{
-          position: "fixed", inset: 0, zIndex: 4000,
-          background: "var(--probemap-overlay-scrim)",
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}
-      >
-        <div style={{
-          background: "var(--probemap-modal-bg)", borderRadius: 10, width: 360,
-          maxWidth: "min(360px, calc(100vw - 48px))",
-          boxSizing: "border-box",
-          overflow: "hidden",
-          boxShadow: "0 8px 32px rgba(0,0,0,.18)", padding: "20px 24px",
-        }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: "var(--probemap-text)", marginBottom: 12 }}>
-            {t("removeFromCanvas")}
-          </div>
-          <DeleteConfirmNameHint name={confirmDelete.label} />
-          <input
-            autoFocus
-            value={confirmText}
-            onChange={(e) => setConfirmText(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && confirmText === confirmDelete.label) doConfirmDelete(); if (e.key === "Escape") { setConfirmDelete(null); setConfirmText(""); } }}
-            placeholder={confirmDelete.label}
-            style={{
-              width: "100%", boxSizing: "border-box",
-              padding: "7px 10px", borderRadius: 6, fontSize: 13,
-              border: "1.5px solid var(--probemap-border)", outline: "none", color: "var(--probemap-text)",
-              background: "var(--probemap-input-bg)",
-              marginBottom: 16,
-            }}
-          />
-          <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => { setConfirmDelete(null); setConfirmText(""); }}
-              className="probemap-btn probemap-btn--ghost probemap-btn--sm"
-            >
-              {t("cancel")}
-            </button>
-            <button
-              type="button"
-              onClick={doConfirmDelete}
-              disabled={confirmText !== confirmDelete.label}
-              className="probemap-btn probemap-btn--danger probemap-btn--sm"
-            >
-              {t("delete")}
-            </button>
-          </div>
-        </div>
-      </div>,
-      document.body,
-    )}
-
-    </ServicesContext.Provider>
-    </DragContext.Provider>
-    </CollisionContext.Provider>
+            {confirmDelete &&
+              createPortal(
+                <div
+                  data-probemap-modal
+                  onClick={(e) => {
+                    if (e.target === e.currentTarget) {
+                      setConfirmDelete(null);
+                      setConfirmText("");
+                    }
+                  }}
+                  style={{
+                    position: "fixed",
+                    inset: 0,
+                    zIndex: 4000,
+                    background: "var(--probemap-overlay-scrim)",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <div
+                    style={{
+                      background: "var(--probemap-modal-bg)",
+                      borderRadius: 10,
+                      width: 360,
+                      maxWidth: "min(360px, calc(100vw - 48px))",
+                      boxSizing: "border-box",
+                      overflow: "hidden",
+                      boxShadow: "0 8px 32px rgba(0,0,0,.18)",
+                      padding: "20px 24px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: "var(--probemap-text)",
+                        marginBottom: 12,
+                      }}
+                    >
+                      {t("removeFromCanvas")}
+                    </div>
+                    <DeleteConfirmNameHint name={confirmDelete.label} />
+                    <input
+                      autoFocus
+                      value={confirmText}
+                      onChange={(e) => setConfirmText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (
+                          e.key === "Enter" &&
+                          confirmText === confirmDelete.label
+                        )
+                          doConfirmDelete();
+                        if (e.key === "Escape") {
+                          setConfirmDelete(null);
+                          setConfirmText("");
+                        }
+                      }}
+                      placeholder={confirmDelete.label}
+                      style={{
+                        width: "100%",
+                        boxSizing: "border-box",
+                        padding: "7px 10px",
+                        borderRadius: 6,
+                        fontSize: 13,
+                        border: "1.5px solid var(--probemap-border)",
+                        outline: "none",
+                        color: "var(--probemap-text)",
+                        background: "var(--probemap-input-bg)",
+                        marginBottom: 16,
+                      }}
+                    />
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 8,
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setConfirmDelete(null);
+                          setConfirmText("");
+                        }}
+                        className="probemap-btn probemap-btn--ghost probemap-btn--sm"
+                      >
+                        {t("cancel")}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={doConfirmDelete}
+                        disabled={confirmText !== confirmDelete.label}
+                        className="probemap-btn probemap-btn--danger probemap-btn--sm"
+                      >
+                        {t("delete")}
+                      </button>
+                    </div>
+                  </div>
+                </div>,
+                document.body,
+              )}
+          </ServicesContext.Provider>
+        </DragContext.Provider>
+      </CollisionContext.Provider>
     </TraceContext.Provider>
   );
 }

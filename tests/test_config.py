@@ -1,9 +1,8 @@
 import json
 import pathlib
 
-import pytest
-
 import config as cfg_mod
+import pytest
 
 
 class TestReadConfig:
@@ -11,7 +10,6 @@ class TestReadConfig:
         result = cfg_mod.read_config()
         assert result["probe_jobs"] == []
         assert result["metric_filter_rules"] == []
-        assert result["kind_rules"] == []
         assert result["datasource"] is None
 
     def test_roundtrip(self, data_dir: pathlib.Path) -> None:
@@ -20,7 +18,6 @@ class TestReadConfig:
             "probe_jobs": [{"job": "bx", "enabled": True}],
             "label_map": cfg_mod.DEFAULT_LABEL_MAP,
             "metric_filter_rules": [],
-            "kind_rules": [],
         }
         cfg_mod.write_config(cfg)
         result = cfg_mod.read_config()
@@ -63,7 +60,6 @@ class TestReadConfig:
         result = cfg_mod.read_config()
         assert result["probe_jobs"] == []
         assert result["metric_filter_rules"] == []
-        assert result["kind_rules"] == []
 
 
 class TestWriteConfig:
@@ -81,7 +77,9 @@ class TestWriteConfig:
 
     def test_sanitize_strips_datasource_url_from_env_key(self, data_dir: pathlib.Path) -> None:
         # sanitize_config_write removes the API-only key before persistence
-        sanitized = cfg_mod.sanitize_config_write({"datasource_url_from_env": True, "probe_jobs": []})
+        sanitized = cfg_mod.sanitize_config_write(
+            {"datasource_url_from_env": True, "probe_jobs": []}
+        )
         assert "datasource_url_from_env" not in sanitized
 
     def test_write_config_does_not_strip_datasource_url_key(self, data_dir: pathlib.Path) -> None:
@@ -91,7 +89,7 @@ class TestWriteConfig:
         assert "probe_jobs" in saved
 
     def test_strips_metric_extra_selector(self, data_dir: pathlib.Path) -> None:
-        cfg_mod.write_config({"metric_extra_selector": "env=\"prod\"", "probe_jobs": []})
+        cfg_mod.write_config({"metric_extra_selector": 'env="prod"', "probe_jobs": []})
         saved = json.loads((data_dir / "config.json").read_text())
         assert "metric_extra_selector" not in saved
 

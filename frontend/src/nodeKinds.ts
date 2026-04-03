@@ -10,56 +10,211 @@ export interface NodeKindDef {
   /** Display name */
   label: { en: string; ru: string };
   /** Group for the creation menu */
-  group: "actor" | "network" | "entry" | "cluster" | "service" | "managed" | "other";
+  group:
+    | "actor"
+    | "network"
+    | "entry"
+    | "cluster"
+    | "service"
+    | "managed"
+    | "other";
   /** FA6 icon name for IconRenderer (e.g. "FaUser") */
   icon: string;
   /** Default accent color (CSS value) */
   color?: string;
-  /** Hidden from the «Add component» context menu (still available in kind_rules). */
+  /** Hidden from the «Add component» menu (still available via kind field). */
   menuHidden?: boolean;
 }
 
 export const NODE_KINDS: NodeKindDef[] = [
   // Actors
-  { kind: "user", label: { en: "User", ru: "Пользователь" }, group: "actor", icon: "FaUser" },
-  { kind: "bot", label: { en: "Bot / Automation", ru: "Бот / Автоматизация" }, group: "actor", icon: "FaRobot" },
-  { kind: "external-system", label: { en: "External System", ru: "Внешняя система" }, group: "actor", icon: "FaArrowUpRightFromSquare" },
+  {
+    kind: "user",
+    label: { en: "User", ru: "Пользователь" },
+    group: "actor",
+    icon: "FaUser",
+  },
+  {
+    kind: "bot",
+    label: { en: "Bot / Automation", ru: "Бот / Автоматизация" },
+    group: "actor",
+    icon: "FaRobot",
+  },
+  {
+    kind: "external-system",
+    label: { en: "External System", ru: "Внешняя система" },
+    group: "actor",
+    icon: "FaArrowUpRightFromSquare",
+  },
 
   // Network
-  { kind: "vpn-gateway", label: { en: "VPN Gateway", ru: "VPN-шлюз" }, group: "network", icon: "FaShieldHalved" },
-  { kind: "network-segment", label: { en: "Network Segment", ru: "Сегмент сети" }, group: "network", icon: "FaNetworkWired" },
-  { kind: "vpc", label: { en: "VPC", ru: "VPC" }, group: "network", icon: "FaCloud" },
-  { kind: "interconnect", label: { en: "Interconnect", ru: "Интерконнект" }, group: "network", icon: "FaPlug" },
+  {
+    kind: "vpn-gateway",
+    label: { en: "VPN Gateway", ru: "VPN-шлюз" },
+    group: "network",
+    icon: "FaShieldHalved",
+  },
+  {
+    kind: "network-segment",
+    label: { en: "Network Segment", ru: "Сегмент сети" },
+    group: "network",
+    icon: "FaNetworkWired",
+  },
+  {
+    kind: "vpc",
+    label: { en: "VPC", ru: "VPC" },
+    group: "network",
+    icon: "FaCloud",
+  },
+  {
+    kind: "interconnect",
+    label: { en: "Interconnect", ru: "Интерконнект" },
+    group: "network",
+    icon: "FaPlug",
+  },
 
   // Entry points
-  { kind: "load-balancer", label: { en: "Load Balancer", ru: "Балансировщик" }, group: "entry", icon: "FaScaleBalanced" },
-  { kind: "cdn", label: { en: "CDN", ru: "CDN" }, group: "entry", icon: "FaGlobe" },
-  { kind: "waf", label: { en: "WAF", ru: "WAF" }, group: "entry", icon: "FaShield" },
-  { kind: "api-gateway", label: { en: "API Gateway", ru: "API Gateway" }, group: "entry", icon: "FaRoute" },
+  {
+    kind: "load-balancer",
+    label: { en: "Load Balancer", ru: "Балансировщик" },
+    group: "entry",
+    icon: "FaScaleBalanced",
+  },
+  {
+    kind: "cdn",
+    label: { en: "CDN", ru: "CDN" },
+    group: "entry",
+    icon: "FaGlobe",
+  },
+  {
+    kind: "waf",
+    label: { en: "WAF", ru: "WAF" },
+    group: "entry",
+    icon: "FaShield",
+  },
+  {
+    kind: "api-gateway",
+    label: { en: "API Gateway", ru: "API Gateway" },
+    group: "entry",
+    icon: "FaRoute",
+  },
 
   // Generic cluster — shown in context menu (self-managed or any cluster/resource)
-  { kind: "cluster", label: { en: "Cluster", ru: "Кластер" }, group: "cluster", icon: "FaLayerGroup" },
+  {
+    kind: "cluster",
+    label: { en: "Cluster", ru: "Кластер" },
+    group: "cluster",
+    icon: "FaLayerGroup",
+  },
 
   // Service (default for nodes from metrics)
-  { kind: "service", label: { en: "Service", ru: "Сервис" }, group: "service", icon: "FaGlobe" },
+  {
+    kind: "service",
+    label: { en: "Service", ru: "Сервис" },
+    group: "service",
+    icon: "FaGlobe",
+  },
 
-  // Managed & specific cluster kinds — available for kind_rules, hidden from creation menu
-  { kind: "managed-kubernetes", label: { en: "Managed Kubernetes", ru: "Managed Kubernetes" }, group: "cluster", icon: "FaLayerGroup", menuHidden: true },
-  { kind: "k8s-cluster", label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes" }, group: "cluster", icon: "FaLayerGroup", menuHidden: true },
-  { kind: "managed-postgresql", label: { en: "Managed PostgreSQL", ru: "Managed PostgreSQL" }, group: "managed", icon: "FaDatabase", menuHidden: true },
-  { kind: "managed-mysql", label: { en: "Managed MySQL", ru: "Managed MySQL" }, group: "managed", icon: "FaDatabase", menuHidden: true },
-  { kind: "managed-clickhouse", label: { en: "Managed ClickHouse", ru: "Managed ClickHouse" }, group: "managed", icon: "FaDatabase", menuHidden: true },
-  { kind: "managed-mongodb", label: { en: "Managed MongoDB", ru: "Managed MongoDB" }, group: "managed", icon: "FaDatabase", menuHidden: true },
-  { kind: "managed-redis", label: { en: "Managed Redis", ru: "Managed Redis" }, group: "managed", icon: "FaMicrochip", menuHidden: true },
-  { kind: "managed-opensearch", label: { en: "Managed OpenSearch", ru: "Managed OpenSearch" }, group: "managed", icon: "FaDatabase", menuHidden: true },
-  { kind: "managed-kafka", label: { en: "Managed Kafka", ru: "Managed Kafka" }, group: "managed", icon: "FaTowerBroadcast", menuHidden: true },
-  { kind: "managed-db", label: { en: "Managed Database", ru: "Managed БД" }, group: "managed", icon: "FaDatabase", menuHidden: true },
-  { kind: "managed-cache", label: { en: "Managed Cache", ru: "Managed кеш" }, group: "managed", icon: "FaMicrochip", menuHidden: true },
-  { kind: "object-storage", label: { en: "Object Storage", ru: "Object Storage" }, group: "managed", icon: "FaHardDrive", menuHidden: true },
-  { kind: "dns", label: { en: "DNS", ru: "DNS" }, group: "managed", icon: "FaGlobe", menuHidden: true },
+  // Managed & specific cluster kinds — hidden from creation menu
+  {
+    kind: "managed-kubernetes",
+    label: { en: "Managed Kubernetes", ru: "Managed Kubernetes" },
+    group: "cluster",
+    icon: "FaLayerGroup",
+    menuHidden: true,
+  },
+  {
+    kind: "k8s-cluster",
+    label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes" },
+    group: "cluster",
+    icon: "FaLayerGroup",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-postgresql",
+    label: { en: "Managed PostgreSQL", ru: "Managed PostgreSQL" },
+    group: "managed",
+    icon: "FaDatabase",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-mysql",
+    label: { en: "Managed MySQL", ru: "Managed MySQL" },
+    group: "managed",
+    icon: "FaDatabase",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-clickhouse",
+    label: { en: "Managed ClickHouse", ru: "Managed ClickHouse" },
+    group: "managed",
+    icon: "FaDatabase",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-mongodb",
+    label: { en: "Managed MongoDB", ru: "Managed MongoDB" },
+    group: "managed",
+    icon: "FaDatabase",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-redis",
+    label: { en: "Managed Redis", ru: "Managed Redis" },
+    group: "managed",
+    icon: "FaMicrochip",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-opensearch",
+    label: { en: "Managed OpenSearch", ru: "Managed OpenSearch" },
+    group: "managed",
+    icon: "FaDatabase",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-kafka",
+    label: { en: "Managed Kafka", ru: "Managed Kafka" },
+    group: "managed",
+    icon: "FaTowerBroadcast",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-db",
+    label: { en: "Managed Database", ru: "Managed БД" },
+    group: "managed",
+    icon: "FaDatabase",
+    menuHidden: true,
+  },
+  {
+    kind: "managed-cache",
+    label: { en: "Managed Cache", ru: "Managed кеш" },
+    group: "managed",
+    icon: "FaMicrochip",
+    menuHidden: true,
+  },
+  {
+    kind: "object-storage",
+    label: { en: "Object Storage", ru: "Object Storage" },
+    group: "managed",
+    icon: "FaHardDrive",
+    menuHidden: true,
+  },
+  {
+    kind: "dns",
+    label: { en: "DNS", ru: "DNS" },
+    group: "managed",
+    icon: "FaGlobe",
+    menuHidden: true,
+  },
 
   // Fallback
-  { kind: "custom", label: { en: "Custom", ru: "Произвольный" }, group: "other", icon: "FaBox" },
+  {
+    kind: "custom",
+    label: { en: "Custom", ru: "Произвольный" },
+    group: "other",
+    icon: "FaBox",
+  },
 ];
 
 export const NODE_KIND_MAP = new Map(NODE_KINDS.map((k) => [k.kind, k]));
@@ -70,7 +225,10 @@ export const KIND_GROUPS = [
   { key: "entry" as const, label: { en: "Entry Points", ru: "Точки входа" } },
   { key: "cluster" as const, label: { en: "Cluster", ru: "Кластер" } },
   { key: "service" as const, label: { en: "Services", ru: "Сервисы" } },
-  { key: "managed" as const, label: { en: "Managed Resources", ru: "Managed-ресурсы" } },
+  {
+    key: "managed" as const,
+    label: { en: "Managed Resources", ru: "Managed-ресурсы" },
+  },
   { key: "other" as const, label: { en: "Other", ru: "Прочее" } },
 ] as const;
 
@@ -93,13 +251,13 @@ export interface GroupVisualStyle {
 }
 
 const GROUP_VISUAL: Record<string, GroupVisualStyle> = {
-  service: { accentColor: null,      borderRadius: 8,  minWidth: 140 },
-  managed: { accentColor: "#f59e0b", borderRadius: 8,  minWidth: 140 },
-  entry:   { accentColor: "#8b5cf6", borderRadius: 8,  minWidth: 140 },
-  cluster: { accentColor: "#6366f1", borderRadius: 8,  minWidth: 140 },
+  service: { accentColor: null, borderRadius: 8, minWidth: 140 },
+  managed: { accentColor: "#f59e0b", borderRadius: 8, minWidth: 140 },
+  entry: { accentColor: "#8b5cf6", borderRadius: 8, minWidth: 140 },
+  cluster: { accentColor: "#6366f1", borderRadius: 8, minWidth: 140 },
   network: { accentColor: "#0ea5e9", borderRadius: 10, minWidth: 120 },
-  actor:   { accentColor: null,      borderRadius: 20, minWidth: 100 },
-  other:   { accentColor: null,      borderRadius: 12, minWidth: 120 },
+  actor: { accentColor: null, borderRadius: 20, minWidth: 100 },
+  other: { accentColor: null, borderRadius: 12, minWidth: 120 },
 };
 
 export function getGroupVisual(kind: string | undefined): GroupVisualStyle {
@@ -107,12 +265,16 @@ export function getGroupVisual(kind: string | undefined): GroupVisualStyle {
   return GROUP_VISUAL[group] ?? GROUP_VISUAL.other;
 }
 
-/** Groups where monitoring is optional: no matchServiceId = normal state, not "unknown". */
-const MONITORING_OPTIONAL_GROUPS = new Set<string>(["actor", "network", "other"]);
+/** Groups where monitoring is optional: absence of metrics is a normal state, not "unknown". */
+const MONITORING_OPTIONAL_GROUPS = new Set<string>([
+  "actor",
+  "network",
+  "other",
+]);
 
 /**
  * Returns true if a kind belongs to a group where monitoring is optional.
- * Nodes of these kinds without matchServiceId show no status indicator at all.
+ * Nodes of these kinds without metrics show no status indicator at all.
  */
 export function isMonitoringOptional(kind: string | undefined): boolean {
   return MONITORING_OPTIONAL_GROUPS.has(getKindDef(kind).group);

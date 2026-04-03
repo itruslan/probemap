@@ -52,21 +52,6 @@ async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
         raise RuntimeError(f"VictoriaMetrics request failed: unexpected response: {e}") from e
 
 
-def _apply_kind_rules(labels: dict[str, str], kind_rules: list[dict[str, Any]]) -> str | None:
-    """First-match-wins: return kind if any rule matches the service's consensus labels."""
-    for rule in kind_rules:
-        if not isinstance(rule, dict):
-            continue
-        lb = (rule.get("label") or "").strip()
-        val = str(rule.get("value") or "").strip()
-        kind = (rule.get("kind") or "").strip()
-        if not lb or not val or not kind:
-            continue
-        if labels.get(lb) == val:
-            return kind
-    return None
-
-
 def _service_probe_kind(ports: list[dict[str, Any]]) -> str:
     """Classify a service for catalog grouping based on its probe types.
 
@@ -296,7 +281,6 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         services_map[svc_name]["ports"].append(entry)
 
     deny = _metric_label_denylist(src_l)
-    kind_rules = c.get("kind_rules") or []
     by_svc: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for s in status_series:
         m = s["metric"]
@@ -306,9 +290,6 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         if lbls:
             row["labels"] = lbls
         row["probe_kind"] = _service_probe_kind(row["ports"])
-        matched_kind = _apply_kind_rules(lbls if lbls else {}, kind_rules)
-        if matched_kind:
-            row["kind"] = matched_kind
 
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 

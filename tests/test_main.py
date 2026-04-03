@@ -1,12 +1,11 @@
 import json
 import pathlib
 
+import config as cfg_mod
 import httpx
 import pytest
 import pytest_mock
 from fastapi.testclient import TestClient
-
-import config as cfg_mod
 from main import app
 
 
@@ -30,15 +29,12 @@ class TestGetConfig:
         assert "probe_jobs" in data
         assert "label_map" in data
 
-    def test_returns_saved_config(
-        self, client: TestClient, data_dir: pathlib.Path
-    ) -> None:
+    def test_returns_saved_config(self, client: TestClient, data_dir: pathlib.Path) -> None:
         cfg = {
             "datasource": {"url": "http://vm:8428"},
             "probe_jobs": [{"job": "bx", "enabled": True}],
             "label_map": cfg_mod.DEFAULT_LABEL_MAP,
             "metric_filter_rules": [],
-            "kind_rules": [],
         }
         (data_dir / "config.json").write_text(json.dumps(cfg))
 
@@ -54,15 +50,12 @@ class TestPutConfig:
             "probe_jobs": [],
             "label_map": cfg_mod.DEFAULT_LABEL_MAP,
             "metric_filter_rules": [],
-            "kind_rules": [],
         }
         r = client.put("/api/config", json=payload)
         assert r.status_code == 200
         assert r.json() == {"status": "ok"}
 
-    def test_strips_env_key_before_save(
-        self, client: TestClient, data_dir: pathlib.Path
-    ) -> None:
+    def test_strips_env_key_before_save(self, client: TestClient, data_dir: pathlib.Path) -> None:
         payload = {"datasource_url_from_env": True, "probe_jobs": []}
         client.put("/api/config", json=payload)
         saved = json.loads((data_dir / "config.json").read_text())
