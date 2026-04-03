@@ -256,6 +256,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
                 border: "none",
                 borderBottom: `1.5px solid ${color.border}`,
                 outline: "none",
+                boxShadow: `0 0 0 2px ${color.border}33`,
                 fontSize: 12,
                 fontWeight: 600,
                 color: labelColor,

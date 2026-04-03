@@ -418,7 +418,8 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
               flex: 1, minWidth: 0, fontSize: 13, fontWeight: 700,
               color: "var(--probemap-text)", background: "transparent",
               border: "none", borderBottom: "1.5px solid var(--probemap-interactive-hover-border)",
-              outline: "none", padding: 0, letterSpacing: "-0.01em",
+              outline: "none", boxShadow: "0 0 0 2px var(--probemap-interactive-hover-border, #6366f1)33",
+              padding: 0, letterSpacing: "-0.01em",
             }}
           />
         ) : (
