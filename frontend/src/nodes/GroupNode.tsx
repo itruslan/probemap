@@ -10,6 +10,7 @@ function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
 export interface GroupNodeData {
   label: string;
   color?: string; // hex (#rrggbb) or empty/undefined = no color
+  kind?: string;  // GROUP_KINDS key, e.g. "vm", "postgres-cluster"
 }
 
 // Пресеты: храним hex — bg/border выводятся динамически

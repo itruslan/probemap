@@ -98,6 +98,11 @@ export interface LayoutNode {
   actions?: ServiceAction[];
   /** У custom-узла: порты из метрик после привязки к сервису каталога */
   ports?: Port[];
+  /** ReactFlow parentId — нода является дочерней к группе с этим id */
+  parentId?: string;
+  /** Relative position inside parent (when parentId is set) */
+  relX?: number;
+  relY?: number;
 }
 
 export interface DatasourceStatusResponse {
