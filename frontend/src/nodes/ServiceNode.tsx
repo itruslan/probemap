@@ -350,6 +350,9 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   };
 
   const panelW = 280;
+  // Generous height estimate — same approach as left/right (known width).
+  // Clamps top so the panel always fits fully without scrolling.
+  const PANEL_EST_H = 560;
   const liveRect = visible ? nodeRef.current?.getBoundingClientRect() ?? null : null;
   const panelStyle = liveRect ? (() => {
     const gap = 24;
@@ -357,8 +360,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
       ? liveRect.right + gap
       : liveRect.left - panelW - gap;
     const nodeCenter = liveRect.top + liveRect.height / 2;
-    const panelH = 420;
-    const top = Math.max(8, Math.min(nodeCenter - panelH / 4, window.innerHeight - panelH - 8));
+    const top = Math.max(8, Math.min(nodeCenter - 105, window.innerHeight - PANEL_EST_H - 8));
     return {
       position: "fixed" as const,
       top,
@@ -383,7 +385,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
         boxShadow: locked ? "0 6px 24px rgba(15,23,42,.12)" : "0 4px 16px rgba(0,0,0,.1)",
         padding: "12px 14px",
         fontSize: 12,
-        position: "relative",
+        boxSizing: "border-box",
       }}
     >
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: editingIcon ? 6 : 10 }}>
