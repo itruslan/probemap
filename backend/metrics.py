@@ -41,10 +41,15 @@ async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
         async with httpx.AsyncClient(timeout=10) as client:
             r = await client.get(f"{vm_url}/api/v1/query", params={"query": q})
             r.raise_for_status()
-            return r.json()["data"]["result"]
+            result: list[dict[str, Any]] = r.json()["data"]["result"]
+            _log.debug("query ok url=%s results=%d query=%.120s", vm_url, len(result), q)
+            return result
     except httpx.HTTPError as e:
         _log.warning("query failed url=%s query=%.120s error=%s", vm_url, q, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
+    except (KeyError, ValueError) as e:
+        _log.warning("query bad response url=%s query=%.120s error=%s", vm_url, q, e)
+        raise RuntimeError(f"VictoriaMetrics request failed: unexpected response: {e}") from e
 
 
 def _apply_kind_rules(labels: dict[str, str], kind_rules: list[dict[str, Any]]) -> str | None:
@@ -346,6 +351,7 @@ async def discover_labels_for(vm_url: str) -> list[str]:
             r.raise_for_status()
             return sorted(r.json().get("data", []))
     except httpx.HTTPError as e:
+        _log.warning("labels request failed url=%s error=%s", url, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 
@@ -364,6 +370,7 @@ async def get_filter_values(label: str) -> list[str]:
             r.raise_for_status()
             return sorted(r.json().get("data", []))
     except httpx.HTTPError as e:
+        _log.warning("label values request failed url=%s label=%s error=%s", vm_url, label, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
 
 
