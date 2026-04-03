@@ -299,6 +299,8 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
     const onMouse = (e: MouseEvent) => {
       if (e.target instanceof globalThis.Node && panelRef.current?.contains(e.target)) return;
       if (e.target instanceof globalThis.Node && nodeRef.current?.contains(e.target)) return;
+      // Don't close when clicking inside a portaled modal (e.g. delete-confirm dialog)
+      if (e.target instanceof Element && e.target.closest("[data-probemap-modal]")) return;
       setLocked(false);
       setVisible(false);
     };

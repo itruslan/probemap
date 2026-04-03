@@ -73,24 +73,19 @@ function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
 }
 
 /** BFS через все рёбра (в обе стороны) от startId → множества nodeId и edgeId. */
+/** Returns the clicked node + its immediate neighbours (1 hop).
+ *  BFS was removed: traversing further highlighted edges between third-party
+ *  nodes that are not directly connected to the clicked one. */
 function traceConnected(
   startId: string,
   edges: MapEdge[],
 ): { nodeIds: Set<string>; edgeIds: Set<string> } {
   const nodeIds = new Set<string>([startId]);
   const edgeIds = new Set<string>();
-  const queue = [startId];
-  while (queue.length > 0) {
-    const cur = queue.shift()!;
-    for (const e of edges) {
-      if (e.source !== cur && e.target !== cur) continue;
-      edgeIds.add(e.id);
-      const other = e.source === cur ? e.target : e.source;
-      if (!nodeIds.has(other)) {
-        nodeIds.add(other);
-        queue.push(other);
-      }
-    }
+  for (const e of edges) {
+    if (e.source !== startId && e.target !== startId) continue;
+    edgeIds.add(e.id);
+    nodeIds.add(e.source === startId ? e.target : e.source);
   }
   return { nodeIds, edgeIds };
 }
@@ -1322,6 +1317,7 @@ export function TopologyCanvas({
 
     {confirmDelete && createPortal(
       <div
+        data-probemap-modal
         onClick={(e) => { if (e.target === e.currentTarget) { setConfirmDelete(null); setConfirmText(""); } }}
         style={{
           position: "fixed", inset: 0, zIndex: 4000,
