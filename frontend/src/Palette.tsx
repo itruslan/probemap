@@ -5,7 +5,6 @@ import { useI18n, type I18nKey } from "./i18n";
 import { KIND_GROUPS, NODE_KINDS, type NodeKindDef } from "./nodeKinds";
 import { HoverTooltip } from "./Tooltip";
 import { useIsDraggingOnCanvas } from "./DragContext";
-import { IconRenderer } from "./IconRenderer";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -177,6 +176,16 @@ export function Palette({
 
       {tab === "monitoring" && (
         <>
+          <input
+            className="palette-sidebar__search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("searchPlaceholder")}
+            type="search"
+            autoComplete="off"
+            spellCheck={false}
+          />
+
           <div className="palette-sidebar__header">
             <span className="palette-sidebar__title-wrap">
               <span className="palette-sidebar__title">{t("servicesTitle")}</span>
@@ -192,16 +201,6 @@ export function Palette({
             </span>
             <span className="palette-sidebar__count">{services.length}</span>
           </div>
-
-          <input
-            className="palette-sidebar__search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder={t("searchPlaceholder")}
-            type="search"
-            autoComplete="off"
-            spellCheck={false}
-          />
 
           <div className="palette-sidebar__list">
             {filtered.length === 0 && (
@@ -303,23 +302,20 @@ export function Palette({
                   <div className="palette-sidebar__section-header">
                     {i18nKey ? t(i18nKey as I18nKey) : g.label[lang as "ru" | "en"]}
                   </div>
-                  <div className="palette-objects__grid">
-                    {kinds.map((kindDef) => (
-                      <button
-                        key={kindDef.kind}
-                        type="button"
-                        disabled={readOnly}
-                        className="palette-objects__tile probemap-btn"
-                        title={kindDef.label[lang as "ru" | "en"]}
-                        onClick={() => onAddComponent(kindDef)}
-                      >
-                        <IconRenderer name={kindDef.icon} size={18} />
-                        <span className="palette-objects__tile-label">
-                          {kindDef.label[lang as "ru" | "en"]}
-                        </span>
-                      </button>
-                    ))}
-                  </div>
+                  {kinds.map((kindDef) => (
+                    <button
+                      key={kindDef.kind}
+                      type="button"
+                      disabled={readOnly}
+                      className="palette-row palette-row--missing palette-row--kind"
+                      onClick={() => onAddComponent(kindDef)}
+                    >
+                      <span className="palette-row__name">{kindDef.label[lang as "ru" | "en"]}</span>
+                      <span className="palette-row__add" aria-hidden>
+                        <FaPlus size={11} />
+                      </span>
+                    </button>
+                  ))}
                 </div>
               );
             })}
