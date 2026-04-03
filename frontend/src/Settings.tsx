@@ -39,7 +39,8 @@ const OP_OPTIONS: { value: MetricFilterOp; labelKey: I18nKey }[] = [
 function normalizeLabelMap(
   lm: AppConfig["label_map"] & { zone?: string },
 ): AppConfig["label_map"] {
-  const probe_source = (lm.probe_source || lm.zone || "instance").trim() || "instance";
+  const probe_source =
+    (lm.probe_source || lm.zone || "instance").trim() || "instance";
   return {
     service: lm.service ?? "service",
     port: lm.port ?? "port",
@@ -53,7 +54,9 @@ function normalizeConfig(c: AppConfig): AppConfig {
   const rules = (c.metric_filter_rules ?? []).map((r) => ({
     label: (r.label ?? "").trim(),
     value: (r.value ?? "").trim(),
-    op: (["eq", "re", "ne", "nre"].includes(r.op) ? r.op : "eq") as MetricFilterOp,
+    op: (["eq", "re", "ne", "nre"].includes(r.op)
+      ? r.op
+      : "eq") as MetricFilterOp,
   }));
   const kindRules = (c.kind_rules ?? []).map((r) => ({
     label: (r.label ?? "").trim(),
@@ -63,14 +66,21 @@ function normalizeConfig(c: AppConfig): AppConfig {
   const rawDs = c.datasource;
   const name = (rawDs?.name ?? "").trim() || DEFAULT_DATASOURCE_NAME;
   const datasource: Datasource = rawDs
-    ? { ...rawDs, name, url: rawDs.url ?? "", type: rawDs.type || "victoriametrics" }
+    ? {
+        ...rawDs,
+        name,
+        url: rawDs.url ?? "",
+        type: rawDs.type || "victoriametrics",
+      }
     : { name: DEFAULT_DATASOURCE_NAME, type: "victoriametrics", url: "" };
   return {
     ...c,
     datasource,
     datasource_url_from_env: c.datasource_url_from_env === true,
     settings_targets_saved: c.settings_targets_saved === false ? false : true,
-    label_map: normalizeLabelMap(c.label_map as AppConfig["label_map"] & { zone?: string }),
+    label_map: normalizeLabelMap(
+      c.label_map as AppConfig["label_map"] & { zone?: string },
+    ),
     metric_filter_rules: rules,
     kind_rules: kindRules,
   };
@@ -89,14 +99,20 @@ type CommittedSnapshot = {
 function snapshotFromConfig(c: AppConfig): CommittedSnapshot {
   return {
     ds: {
-      name: (c.datasource?.name ?? DEFAULT_DATASOURCE_NAME).trim() || DEFAULT_DATASOURCE_NAME,
+      name:
+        (c.datasource?.name ?? DEFAULT_DATASOURCE_NAME).trim() ||
+        DEFAULT_DATASOURCE_NAME,
       url: (c.datasource?.url ?? "").trim(),
     },
     datasource_url_from_env: c.datasource_url_from_env === true,
     settings_targets_saved: c.settings_targets_saved !== false,
     probe_jobs: JSON.parse(JSON.stringify(c.probe_jobs)) as ProbeJob[],
-    label_map: JSON.parse(JSON.stringify(c.label_map)) as AppConfig["label_map"],
-    metric_filter_rules: JSON.parse(JSON.stringify(c.metric_filter_rules ?? [])) as MetricFilterRule[],
+    label_map: JSON.parse(
+      JSON.stringify(c.label_map),
+    ) as AppConfig["label_map"],
+    metric_filter_rules: JSON.parse(
+      JSON.stringify(c.metric_filter_rules ?? []),
+    ) as MetricFilterRule[],
     kind_rules: JSON.parse(JSON.stringify(c.kind_rules ?? [])) as KindRule[],
   };
 }
@@ -110,7 +126,8 @@ function restEqualToCommitted(cfg: AppConfig, com: CommittedSnapshot): boolean {
   return (
     probeJobsEqual(cfg.probe_jobs, com.probe_jobs) &&
     JSON.stringify(cfg.label_map) === JSON.stringify(com.label_map) &&
-    JSON.stringify(cfg.metric_filter_rules ?? []) === JSON.stringify(com.metric_filter_rules) &&
+    JSON.stringify(cfg.metric_filter_rules ?? []) ===
+      JSON.stringify(com.metric_filter_rules) &&
     JSON.stringify(cfg.kind_rules ?? []) === JSON.stringify(com.kind_rules)
   );
 }
@@ -126,26 +143,56 @@ const LABEL_FIELD_KEYS: {
   hintKey: I18nKey;
   required: boolean;
 }[] = [
-  { key: "service", titleKey: "labelMapServiceTitle", hintKey: "labelMapServiceHint", required: true },
-  { key: "port", titleKey: "labelMapPortTitle", hintKey: "labelMapPortHint", required: true },
-  { key: "probe_source", titleKey: "labelMapProbeSourceTitle", hintKey: "labelMapProbeSourceHint", required: true },
-  { key: "module", titleKey: "labelMapModuleTitle", hintKey: "labelMapModuleHint", required: true },
-  { key: "endpoint_label", titleKey: "labelMapEndpointTitle", hintKey: "labelMapEndpointHint", required: false },
+  {
+    key: "service",
+    titleKey: "labelMapServiceTitle",
+    hintKey: "labelMapServiceHint",
+    required: true,
+  },
+  {
+    key: "port",
+    titleKey: "labelMapPortTitle",
+    hintKey: "labelMapPortHint",
+    required: true,
+  },
+  {
+    key: "probe_source",
+    titleKey: "labelMapProbeSourceTitle",
+    hintKey: "labelMapProbeSourceHint",
+    required: true,
+  },
+  {
+    key: "module",
+    titleKey: "labelMapModuleTitle",
+    hintKey: "labelMapModuleHint",
+    required: true,
+  },
+  {
+    key: "endpoint_label",
+    titleKey: "labelMapEndpointTitle",
+    hintKey: "labelMapEndpointHint",
+    required: false,
+  },
 ];
 
 export function Settings({ onClose, projectFilterPairs }: Props) {
   const { t, lang } = useI18n();
   const [cfg, setCfg] = useState<AppConfig | null>(null);
   const [committed, setCommitted] = useState<CommittedSnapshot | null>(null);
-  const [testState, setTestState] = useState<"idle" | "testing" | "ok" | "fail">("idle");
+  const [testState, setTestState] = useState<
+    "idle" | "testing" | "ok" | "fail"
+  >("idle");
   const [discoveredJobs, setDiscoveredJobs] = useState<DiscoveredJob[]>([]);
   const [availableLabels, setAvailableLabels] = useState<string[]>([]);
   const [discoveryUrl, setDiscoveryUrl] = useState<string | null>(null);
   const [savingUrl, setSavingUrl] = useState(false);
   const [savingTargets, setSavingTargets] = useState(false);
   const [savingAdvanced, setSavingAdvanced] = useState(false);
-  const [savedFlash, setSavedFlash] = useState<"url" | "targets" | "advanced" | null>(null);
-  const [selectorPreview, setSelectorPreview] = useState<MetricSelectorPreview | null>(null);
+  const [savedFlash, setSavedFlash] = useState<
+    "url" | "targets" | "advanced" | null
+  >(null);
+  const [selectorPreview, setSelectorPreview] =
+    useState<MetricSelectorPreview | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const didBootstrapDiscovery = useRef(false);
   const discoveryRequestId = useRef(0);
@@ -154,13 +201,20 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const [pendingIconName, setPendingIconName] = useState("");
   const [iconNameError, setIconNameError] = useState(false);
   const iconFileRef = useRef<HTMLInputElement>(null);
-  const [settingsHoverTip, setSettingsHoverTip] = useState<{ label: string; el: HTMLElement } | null>(null);
+  const [settingsHoverTip, setSettingsHoverTip] = useState<{
+    label: string;
+    el: HTMLElement;
+  } | null>(null);
   const toggleSettingsTip = (label: string, el: HTMLElement) => {
-    setSettingsHoverTip((prev) => (prev && prev.label === label ? null : { label, el }));
+    setSettingsHoverTip((prev) =>
+      prev && prev.label === label ? null : { label, el },
+    );
   };
 
   useEffect(() => {
-    fetchIcons().then(setCustomIcons).catch(() => {});
+    fetchIcons()
+      .then(setCustomIcons)
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -176,7 +230,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     };
   }, []);
 
-  const fetchDiscoveryMetadata = async (url: string, labelMap: AppConfig["label_map"]) => {
+  const fetchDiscoveryMetadata = async (
+    url: string,
+    labelMap: AppConfig["label_map"],
+  ) => {
     const u = url.trim();
     if (!u) {
       discoveryRequestId.current += 1;
@@ -187,7 +244,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     }
     const id = ++discoveryRequestId.current;
     try {
-      const lm = normalizeLabelMap(labelMap as AppConfig["label_map"] & { zone?: string });
+      const lm = normalizeLabelMap(
+        labelMap as AppConfig["label_map"] & { zone?: string },
+      );
       const [jobs, labels] = await Promise.all([
         discoverJobsForUrl(u, lm),
         discoverLabelsForUrl(u),
@@ -218,7 +277,8 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     if (!cfg) return;
     const handle = window.setTimeout(() => {
       const pairs = (projectFilterPairs ?? []).filter(
-        (p) => p.label?.trim() && p.value != null && String(p.value).trim() !== "",
+        (p) =>
+          p.label?.trim() && p.value != null && String(p.value).trim() !== "",
       );
       previewMetricSelector({
         probe_jobs: cfg.probe_jobs,
@@ -226,7 +286,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         ...(pairs.length > 0 ? { project_filter_pairs: pairs } : {}),
       })
         .then(setSelectorPreview)
-        .catch(() => setSelectorPreview({ selector: "", example: "probe_success" }));
+        .catch(() =>
+          setSelectorPreview({ selector: "", example: "probe_success" }),
+        );
     }, 320);
     return () => window.clearTimeout(handle);
   }, [cfg, projectFilterPairs]);
@@ -256,7 +318,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const showJobs = committed.ds.url.length > 0;
   const showAdvanced = showJobs && targetsSavedOnServer;
 
-  const targetsDirty = showJobs && !targetsSavedOnServer && !probeJobsEqual(cfg.probe_jobs, committed.probe_jobs);
+  const targetsDirty =
+    showJobs &&
+    !targetsSavedOnServer &&
+    !probeJobsEqual(cfg.probe_jobs, committed.probe_jobs);
 
   const advancedDirty = showAdvanced && !restEqualToCommitted(cfg, committed);
 
@@ -289,9 +354,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     if (!url) return;
     setSavingUrl(true);
     try {
-      const lm = normalizeLabelMap(cfg.label_map as AppConfig["label_map"] & { zone?: string });
+      const lm = normalizeLabelMap(
+        cfg.label_map as AppConfig["label_map"] & { zone?: string },
+      );
       const discovered = await discoverJobsForUrl(url, lm);
-      const probe_jobs: ProbeJob[] = discovered.map((d) => ({ job: d.job, enabled: false }));
+      const probe_jobs: ProbeJob[] = discovered.map((d) => ({
+        job: d.job,
+        enabled: false,
+      }));
       await saveConfig({
         ...cfg,
         datasource: {
@@ -302,7 +372,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         },
         probe_jobs,
         settings_targets_saved: false,
-        metric_filter_rules: (cfg.metric_filter_rules ?? []).filter((r) => r.label.trim() && r.value.trim()),
+        metric_filter_rules: (cfg.metric_filter_rules ?? []).filter(
+          (r) => r.label.trim() && r.value.trim(),
+        ),
       });
       const normalized = normalizeConfig(await fetchConfig());
       setCfg(normalized);
@@ -321,7 +393,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       prev
         ? {
             ...prev,
-            probe_jobs: JSON.parse(JSON.stringify(committed.probe_jobs)) as ProbeJob[],
+            probe_jobs: JSON.parse(
+              JSON.stringify(committed.probe_jobs),
+            ) as ProbeJob[],
           }
         : prev,
     );
@@ -340,14 +414,19 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         },
         probe_jobs: cfg.probe_jobs,
         settings_targets_saved: true,
-        metric_filter_rules: (cfg.metric_filter_rules ?? []).filter((r) => r.label.trim() && r.value.trim()),
+        metric_filter_rules: (cfg.metric_filter_rules ?? []).filter(
+          (r) => r.label.trim() && r.value.trim(),
+        ),
       });
       const normalized = normalizeConfig(await fetchConfig());
       setCfg(normalized);
       setCommitted(snapshotFromConfig(normalized));
       setSavedFlash("targets");
       setTimeout(() => setSavedFlash(null), 2000);
-      await fetchDiscoveryMetadata((normalized.datasource?.url ?? "").trim(), normalized.label_map);
+      await fetchDiscoveryMetadata(
+        (normalized.datasource?.url ?? "").trim(),
+        normalized.label_map,
+      );
     } finally {
       setSavingTargets(false);
     }
@@ -387,7 +466,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       setCommitted(snapshotFromConfig(normalized));
       setSavedFlash("advanced");
       setTimeout(() => setSavedFlash(null), 2000);
-      await fetchDiscoveryMetadata((normalized.datasource?.url ?? "").trim(), normalized.label_map);
+      await fetchDiscoveryMetadata(
+        (normalized.datasource?.url ?? "").trim(),
+        normalized.label_map,
+      );
     } finally {
       setSavingAdvanced(false);
     }
@@ -411,7 +493,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       prev
         ? {
             ...prev,
-            metric_filter_rules: (prev.metric_filter_rules ?? []).filter((_, j) => j !== i),
+            metric_filter_rules: (prev.metric_filter_rules ?? []).filter(
+              (_, j) => j !== i,
+            ),
           }
         : prev,
     );
@@ -429,7 +513,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       prev
         ? {
             ...prev,
-            metric_filter_rules: [...(prev.metric_filter_rules ?? []), { label, value, op }],
+            metric_filter_rules: [
+              ...(prev.metric_filter_rules ?? []),
+              { label, value, op },
+            ],
           }
         : prev,
     );
@@ -440,13 +527,24 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const addKindRule = () =>
     setCfg((prev) =>
       prev
-        ? { ...prev, kind_rules: [...(prev.kind_rules ?? []), { label: "", value: "", kind: "" }] }
+        ? {
+            ...prev,
+            kind_rules: [
+              ...(prev.kind_rules ?? []),
+              { label: "", value: "", kind: "" },
+            ],
+          }
         : prev,
     );
 
   const removeKindRule = (i: number) =>
     setCfg((prev) =>
-      prev ? { ...prev, kind_rules: (prev.kind_rules ?? []).filter((_, j) => j !== i) } : prev,
+      prev
+        ? {
+            ...prev,
+            kind_rules: (prev.kind_rules ?? []).filter((_, j) => j !== i),
+          }
+        : prev,
     );
 
   const patchKindRule = (i: number, patch: Partial<KindRule>) =>
@@ -484,10 +582,17 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
 
   const setLabelMap = (key: keyof AppConfig["label_map"], value: string) =>
     setCfg((prev) =>
-      prev ? { ...prev, label_map: { ...prev.label_map, [key]: value || null } } : prev,
+      prev
+        ? { ...prev, label_map: { ...prev.label_map, [key]: value || null } }
+        : prev,
     );
 
-  const testColor = testState === "ok" ? "var(--probemap-status-ok-hover)" : testState === "fail" ? "var(--probemap-danger)" : "var(--probemap-text-muted)";
+  const testColor =
+    testState === "ok"
+      ? "var(--probemap-status-ok-hover)"
+      : testState === "fail"
+        ? "var(--probemap-danger)"
+        : "var(--probemap-text-muted)";
   const testLabel =
     testState === "testing"
       ? t("testChecking")
@@ -501,7 +606,8 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const jobsSectionHelpLabel = [
     `${t("settingsJobsA")}probe_success${t("settingsJobsB")}job${t("settingsJobsC")}`,
     !targetsSavedOnServer ? t("settingsJobsStepHint") : null,
-    (ds.url ?? "").trim() !== "" && (ds.url ?? "").trim() !== (discoveryUrl ?? "").trim()
+    (ds.url ?? "").trim() !== "" &&
+    (ds.url ?? "").trim() !== (discoveryUrl ?? "").trim()
       ? t("settingsNeedRecheckHint")
       : null,
   ]
@@ -581,7 +687,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
 
         <Section title={t("settingsSectionDatasource")}>
           <InlineField label={t("settingsName")}>
-            <input value={ds.name} onChange={(e) => setDs({ name: e.target.value })} style={inputStyle} />
+            <input
+              value={ds.name}
+              onChange={(e) => setDs({ name: e.target.value })}
+              style={inputStyle}
+            />
           </InlineField>
           {urlFromEnv ? (
             <div
@@ -604,7 +714,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               <div
                 style={{ flex: 1, minWidth: 0 }}
                 onMouseEnter={(e) => {
-                  setSettingsHoverTip({ label: datasourceUrlHelpLabel, el: e.currentTarget });
+                  setSettingsHoverTip({
+                    label: datasourceUrlHelpLabel,
+                    el: e.currentTarget,
+                  });
                 }}
                 onMouseLeave={() => setSettingsHoverTip(null)}
               >
@@ -622,7 +735,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   aria-readonly={urlFromEnv || undefined}
                 />
                 {urlDirty ? (
-                  <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 10 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "flex-end",
+                      gap: 10,
+                      marginTop: 10,
+                    }}
+                  >
                     <button
                       type="button"
                       onClick={handleCancelUrl}
@@ -637,7 +757,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       disabled={savingUrl || !(ds.url ?? "").trim()}
                       className={`probemap-btn probemap-btn--primary probemap-btn--md${savedFlash === "url" ? " probemap-btn--success" : ""}`}
                     >
-                      {savedFlash === "url" ? t("saved") : savingUrl ? "…" : t("save")}
+                      {savedFlash === "url"
+                        ? t("saved")
+                        : savingUrl
+                          ? "…"
+                          : t("save")}
                     </button>
                   </div>
                 ) : null}
@@ -662,7 +786,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                 {t("settingsSectionJobs")}
                 <HelpIcon
                   aria={t("tooltipInfoAria")}
-                  onMouseEnter={(el) => setSettingsHoverTip({ label: jobsSectionHelpLabel, el })}
+                  onMouseEnter={(el) =>
+                    setSettingsHoverTip({ label: jobsSectionHelpLabel, el })
+                  }
                   onMouseLeave={() => setSettingsHoverTip(null)}
                   onClick={(el) => toggleSettingsTip(jobsSectionHelpLabel, el)}
                 />
@@ -670,9 +796,17 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
             }
           >
             {cfg.probe_jobs.length === 0 && discoveredJobs.length === 0 ? (
-              <div style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}>{t("settingsJobsLoading")}</div>
+              <div
+                style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}
+              >
+                {t("settingsJobsLoading")}
+              </div>
             ) : cfg.probe_jobs.length === 0 ? (
-              <div style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}>{t("settingsJobsEmptyVm")}</div>
+              <div
+                style={{ fontSize: 12, color: "var(--probemap-text-faint)" }}
+              >
+                {t("settingsJobsEmptyVm")}
+              </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {cfg.probe_jobs.map((j) => {
@@ -680,7 +814,12 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   return (
                     <label
                       key={j.job}
-                      style={{ display: "flex", alignItems: "center", gap: 10, cursor: "pointer" }}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        cursor: "pointer",
+                      }}
                     >
                       <input
                         type="checkbox"
@@ -699,8 +838,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                         {j.job}
                       </span>
                       {info && (
-                        <span style={{ fontSize: 11, color: "var(--probemap-text-faint)" }}>
-                          {t("settingsJobSources")} {info.probe_sources.join(", ") || t("emDash")}
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--probemap-text-faint)",
+                          }}
+                        >
+                          {t("settingsJobSources")}{" "}
+                          {info.probe_sources.join(", ") || t("emDash")}
                         </span>
                       )}
                     </label>
@@ -709,7 +854,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               </div>
             )}
             {showTargetsFooter ? (
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 12 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  marginTop: 12,
+                }}
+              >
                 {targetsDirty ? (
                   <button
                     type="button"
@@ -726,7 +878,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   disabled={savingTargets}
                   className={`probemap-btn probemap-btn--primary probemap-btn--md${savedFlash === "targets" ? " probemap-btn--success" : ""}`}
                 >
-                  {savedFlash === "targets" ? t("saved") : savingTargets ? "…" : t("save")}
+                  {savedFlash === "targets"
+                    ? t("saved")
+                    : savingTargets
+                      ? "…"
+                      : t("save")}
                 </button>
               </div>
             ) : null}
@@ -741,14 +897,28 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   {t("settingsSectionFilter")}
                   <HelpIcon
                     aria={t("tooltipInfoAria")}
-                    onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsFilterIntro"), el })}
+                    onMouseEnter={(el) =>
+                      setSettingsHoverTip({
+                        label: t("settingsFilterIntro"),
+                        el,
+                      })
+                    }
                     onMouseLeave={() => setSettingsHoverTip(null)}
-                    onClick={(el) => toggleSettingsTip(t("settingsFilterIntro"), el)}
+                    onClick={(el) =>
+                      toggleSettingsTip(t("settingsFilterIntro"), el)
+                    }
                   />
                 </span>
               }
             >
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: 10,
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => applyPreset("environment", "prod", "eq")}
@@ -779,13 +949,21 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                 </button>
               </div>
               {(cfg.metric_filter_rules ?? []).length === 0 ? null : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    marginBottom: 10,
+                  }}
+                >
                   {(cfg.metric_filter_rules ?? []).map((row, i) => (
                     <div
                       key={i}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "minmax(100px, 1fr) 130px minmax(100px, 1fr) 36px",
+                        gridTemplateColumns:
+                          "minmax(100px, 1fr) 130px minmax(100px, 1fr) 36px",
                         gap: 8,
                         alignItems: "center",
                       }}
@@ -793,10 +971,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       {availableLabels.length > 0 ? (
                         <select
                           value={row.label}
-                          onChange={(e) => patchFilterRule(i, { label: e.target.value })}
+                          onChange={(e) =>
+                            patchFilterRule(i, { label: e.target.value })
+                          }
                           style={{ ...inputStyle, cursor: "pointer" }}
                         >
-                          <option value="">{t("settingsFilterLabelOption")}</option>
+                          <option value="">
+                            {t("settingsFilterLabelOption")}
+                          </option>
                           {availableLabels.map((l) => (
                             <option key={l} value={l}>
                               {l}
@@ -806,15 +988,25 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       ) : (
                         <input
                           value={row.label}
-                          onChange={(e) => patchFilterRule(i, { label: e.target.value })}
+                          onChange={(e) =>
+                            patchFilterRule(i, { label: e.target.value })
+                          }
                           placeholder={t("placeholderEnvironment")}
                           style={inputStyle}
                         />
                       )}
                       <select
                         value={row.op}
-                        onChange={(e) => patchFilterRule(i, { op: e.target.value as MetricFilterOp })}
-                        style={{ ...inputStyle, cursor: "pointer", fontSize: 11 }}
+                        onChange={(e) =>
+                          patchFilterRule(i, {
+                            op: e.target.value as MetricFilterOp,
+                          })
+                        }
+                        style={{
+                          ...inputStyle,
+                          cursor: "pointer",
+                          fontSize: 11,
+                        }}
                       >
                         {OP_OPTIONS.map((o) => (
                           <option key={o.value} value={o.value}>
@@ -824,7 +1016,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       </select>
                       <input
                         value={row.value}
-                        onChange={(e) => patchFilterRule(i, { value: e.target.value })}
+                        onChange={(e) =>
+                          patchFilterRule(i, { value: e.target.value })
+                        }
                         placeholder={t("settingsFilterValuePlaceholder")}
                         style={inputStyle}
                       />
@@ -870,16 +1064,27 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                     cursor: "pointer",
                   }}
                   onMouseEnter={(e) => {
-                    setSettingsHoverTip({ label: t("settingsSelectorPreviewHint"), el: e.currentTarget });
+                    setSettingsHoverTip({
+                      label: t("settingsSelectorPreviewHint"),
+                      el: e.currentTarget,
+                    });
                   }}
                   onMouseLeave={() => setSettingsHoverTip(null)}
-                  onClick={(e) => toggleSettingsTip(t("settingsSelectorPreviewHint"), e.currentTarget)}
+                  onClick={(e) =>
+                    toggleSettingsTip(
+                      t("settingsSelectorPreviewHint"),
+                      e.currentTarget,
+                    )
+                  }
                   role="button"
                   tabIndex={0}
                   onKeyDown={(e) => {
                     if (e.key === "Enter" || e.key === " ") {
                       e.preventDefault();
-                      toggleSettingsTip(t("settingsSelectorPreviewHint"), e.currentTarget as unknown as HTMLElement);
+                      toggleSettingsTip(
+                        t("settingsSelectorPreviewHint"),
+                        e.currentTarget as unknown as HTMLElement,
+                      );
                     }
                   }}
                 >
@@ -906,67 +1111,87 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   {t("settingsSectionLabelMap")}
                   <HelpIcon
                     aria={t("tooltipInfoAria")}
-                    onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsLabelMapIntro"), el })}
+                    onMouseEnter={(el) =>
+                      setSettingsHoverTip({
+                        label: t("settingsLabelMapIntro"),
+                        el,
+                      })
+                    }
                     onMouseLeave={() => setSettingsHoverTip(null)}
-                    onClick={(el) => toggleSettingsTip(t("settingsLabelMapIntro"), el)}
+                    onClick={(el) =>
+                      toggleSettingsTip(t("settingsLabelMapIntro"), el)
+                    }
                   />
                 </span>
               }
             >
-              {LABEL_FIELD_KEYS.map(({ key, titleKey, hintKey, required }) => (
-                <div
-                  key={key}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "minmax(96px, 40%) minmax(0, 1fr)",
-                    gap: 10,
-                    alignItems: "center",
-                    marginBottom: 8,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--probemap-text-secondary)",
-                      lineHeight: 1.35,
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                    }}
-                  >
-                    {t(titleKey)}
-                    <HelpIcon
-                      aria={t("tooltipInfoAria")}
-                      onMouseEnter={(el) => setSettingsHoverTip({ label: t(hintKey), el })}
-                      onMouseLeave={() => setSettingsHoverTip(null)}
-                    />
-                  </span>
-                  <div style={{ minWidth: 0 }}>
-                    {availableLabels.length > 0 ? (
-                      <select
-                        value={(cfg.label_map[key] as string) ?? ""}
-                        onChange={(e) => setLabelMap(key, e.target.value)}
-                        style={{ ...inputStyle, cursor: "pointer" }}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "8px 12px",
+                }}
+              >
+                {LABEL_FIELD_KEYS.map(
+                  ({ key, titleKey, hintKey, required }) => (
+                    <div key={key} style={{ minWidth: 0 }}>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: "var(--probemap-text-faint)",
+                          lineHeight: 1.3,
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 3,
+                          marginBottom: 3,
+                        }}
                       >
-                        {!required && <option value="">{t("settingsLabelNotSet")}</option>}
-                        {availableLabels.map((l) => (
-                          <option key={l} value={l}>
-                            {l}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        value={(cfg.label_map[key] as string) ?? ""}
-                        onChange={(e) => setLabelMap(key, e.target.value)}
-                        placeholder={String(key)}
-                        style={inputStyle}
-                      />
-                    )}
-                  </div>
-                </div>
-              ))}
+                        {t(titleKey)}
+                        <HelpIcon
+                          aria={t("tooltipInfoAria")}
+                          onMouseEnter={(el) =>
+                            setSettingsHoverTip({ label: t(hintKey), el })
+                          }
+                          onMouseLeave={() => setSettingsHoverTip(null)}
+                        />
+                      </span>
+                      {availableLabels.length > 0 ? (
+                        <select
+                          value={(cfg.label_map[key] as string) ?? ""}
+                          onChange={(e) => setLabelMap(key, e.target.value)}
+                          style={{
+                            ...inputStyle,
+                            cursor: "pointer",
+                            fontSize: 12,
+                            padding: "4px 8px",
+                          }}
+                        >
+                          {!required && (
+                            <option value="">{t("settingsLabelNotSet")}</option>
+                          )}
+                          {availableLabels.map((l) => (
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          value={(cfg.label_map[key] as string) ?? ""}
+                          onChange={(e) => setLabelMap(key, e.target.value)}
+                          placeholder={String(key)}
+                          style={{
+                            ...inputStyle,
+                            fontSize: 12,
+                            padding: "4px 8px",
+                          }}
+                        />
+                      )}
+                    </div>
+                  ),
+                )}
+              </div>
             </Section>
 
             <Section
@@ -975,21 +1200,36 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   {t("settingsSectionKindRules")}
                   <HelpIcon
                     aria={t("tooltipInfoAria")}
-                    onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsKindRulesIntro"), el })}
+                    onMouseEnter={(el) =>
+                      setSettingsHoverTip({
+                        label: t("settingsKindRulesIntro"),
+                        el,
+                      })
+                    }
                     onMouseLeave={() => setSettingsHoverTip(null)}
-                    onClick={(el) => toggleSettingsTip(t("settingsKindRulesIntro"), el)}
+                    onClick={(el) =>
+                      toggleSettingsTip(t("settingsKindRulesIntro"), el)
+                    }
                   />
                 </span>
               }
             >
               {(cfg.kind_rules ?? []).length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 10 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    marginBottom: 10,
+                  }}
+                >
                   {(cfg.kind_rules ?? []).map((row, i) => (
                     <div
                       key={i}
                       style={{
                         display: "grid",
-                        gridTemplateColumns: "minmax(100px, 1fr) 24px minmax(100px, 1fr) minmax(120px, 1fr) 36px",
+                        gridTemplateColumns:
+                          "minmax(100px, 1fr) 24px minmax(100px, 1fr) minmax(120px, 1fr) 36px",
                         gap: 8,
                         alignItems: "center",
                       }}
@@ -997,39 +1237,61 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       {availableLabels.length > 0 ? (
                         <select
                           value={row.label}
-                          onChange={(e) => patchKindRule(i, { label: e.target.value })}
+                          onChange={(e) =>
+                            patchKindRule(i, { label: e.target.value })
+                          }
                           style={{ ...inputStyle, cursor: "pointer" }}
                         >
-                          <option value="">{t("settingsKindRulesLabelPlaceholder")}</option>
+                          <option value="">
+                            {t("settingsKindRulesLabelPlaceholder")}
+                          </option>
                           {availableLabels.map((l) => (
-                            <option key={l} value={l}>{l}</option>
+                            <option key={l} value={l}>
+                              {l}
+                            </option>
                           ))}
                         </select>
                       ) : (
                         <input
                           value={row.label}
-                          onChange={(e) => patchKindRule(i, { label: e.target.value })}
+                          onChange={(e) =>
+                            patchKindRule(i, { label: e.target.value })
+                          }
                           placeholder={t("settingsKindRulesLabelPlaceholder")}
                           style={inputStyle}
                         />
                       )}
-                      <span style={{ textAlign: "center", fontSize: 12, color: "var(--probemap-text-faint)" }}>
+                      <span
+                        style={{
+                          textAlign: "center",
+                          fontSize: 12,
+                          color: "var(--probemap-text-faint)",
+                        }}
+                      >
                         {t("settingsKindRulesArrow")}
                       </span>
                       <input
                         value={row.value}
-                        onChange={(e) => patchKindRule(i, { value: e.target.value })}
+                        onChange={(e) =>
+                          patchKindRule(i, { value: e.target.value })
+                        }
                         placeholder={t("settingsKindRulesValuePlaceholder")}
                         style={inputStyle}
                       />
                       <select
                         value={row.kind}
-                        onChange={(e) => patchKindRule(i, { kind: e.target.value })}
+                        onChange={(e) =>
+                          patchKindRule(i, { kind: e.target.value })
+                        }
                         style={{ ...inputStyle, cursor: "pointer" }}
                       >
-                        <option value="">{t("settingsKindRulesKindPlaceholder")}</option>
+                        <option value="">
+                          {t("settingsKindRulesKindPlaceholder")}
+                        </option>
                         {NODE_KINDS.map((k) => (
-                          <option key={k.kind} value={k.kind}>{k.label[lang as "ru" | "en"] ?? k.label.ru}</option>
+                          <option key={k.kind} value={k.kind}>
+                            {k.label[lang as "ru" | "en"] ?? k.label.ru}
+                          </option>
                         ))}
                       </select>
                       <button
@@ -1053,31 +1315,76 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               </button>
             </Section>
 
-            <Section title={
-              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                {t("iconSectionCustom")}
-                <HelpIcon
-                  aria={t("tooltipInfoAria")}
-                  onMouseEnter={(el) => setSettingsHoverTip({ label: t("iconSectionCustomHint"), el })}
-                  onMouseLeave={() => setSettingsHoverTip(null)}
-                />
-              </span>
-            }>
+            <Section
+              title={
+                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                  {t("iconSectionCustom")}
+                  <HelpIcon
+                    aria={t("tooltipInfoAria")}
+                    onMouseEnter={(el) =>
+                      setSettingsHoverTip({
+                        label: t("iconSectionCustomHint"),
+                        el,
+                      })
+                    }
+                    onMouseLeave={() => setSettingsHoverTip(null)}
+                  />
+                </span>
+              }
+            >
               {/* Icon grid: existing icons + upload button as last cell */}
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {customIcons.map((icon) => (
-                  <div key={icon.name} style={{ position: "relative" }}
-                    onMouseEnter={(e) => { const b = e.currentTarget.querySelector<HTMLElement>(".rm-icon"); if (b) b.style.display = "flex"; }}
-                    onMouseLeave={(e) => { const b = e.currentTarget.querySelector<HTMLElement>(".rm-icon"); if (b) b.style.display = "none"; }}
+                  <div
+                    key={icon.name}
+                    style={{ position: "relative" }}
+                    onMouseEnter={(e) => {
+                      const b =
+                        e.currentTarget.querySelector<HTMLElement>(".rm-icon");
+                      if (b) b.style.display = "flex";
+                    }}
+                    onMouseLeave={(e) => {
+                      const b =
+                        e.currentTarget.querySelector<HTMLElement>(".rm-icon");
+                      if (b) b.style.display = "none";
+                    }}
                   >
-                    <div style={{ width: 36, height: 36, borderRadius: 6, border: "1.5px solid var(--probemap-border)", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--probemap-bg-subtle)" }} title={icon.name}>
-                      <img src={`${BASE}${icon.url}`} style={{ width: 22, height: 22, objectFit: "contain" }} alt={icon.name} />
+                    <div
+                      style={{
+                        width: 36,
+                        height: 36,
+                        borderRadius: 6,
+                        border: "1.5px solid var(--probemap-border)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "var(--probemap-bg-subtle)",
+                      }}
+                      title={icon.name}
+                    >
+                      <img
+                        src={`${BASE}${icon.url}`}
+                        style={{ width: 22, height: 22, objectFit: "contain" }}
+                        alt={icon.name}
+                      />
                     </div>
                     <button
                       className="rm-icon probemap-btn probemap-btn--map-delete"
                       type="button"
-                      onClick={async () => { await deleteIcon(icon.name); setCustomIcons((p) => p.filter((i) => i.name !== icon.name)); }}
-                      style={{ display: "none", position: "absolute", top: -4, right: -4, width: 14, height: 14 }}
+                      onClick={async () => {
+                        await deleteIcon(icon.name);
+                        setCustomIcons((p) =>
+                          p.filter((i) => i.name !== icon.name),
+                        );
+                      }}
+                      style={{
+                        display: "none",
+                        position: "absolute",
+                        top: -4,
+                        right: -4,
+                        width: 14,
+                        height: 14,
+                      }}
                     >
                       <TrashIcon variantOnRed size={8} />
                     </button>
@@ -1091,59 +1398,147 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                       onClick={() => iconFileRef.current?.click()}
                       title={t("iconUpload")}
                       style={{
-                        width: 36, height: 36, borderRadius: 6, flexShrink: 0,
+                        width: 36,
+                        height: 36,
+                        borderRadius: 6,
+                        flexShrink: 0,
                         border: "1.5px dashed var(--probemap-border-strong)",
-                        background: "transparent", color: "var(--probemap-text-faint)",
-                        cursor: "pointer", fontSize: 18, display: "flex", alignItems: "center", justifyContent: "center",
+                        background: "transparent",
+                        color: "var(--probemap-text-faint)",
+                        cursor: "pointer",
+                        fontSize: 18,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       +
                     </button>
-                    <input ref={iconFileRef} type="file" accept=".svg,.png,.webp" style={{ display: "none" }}
-                      onChange={(e) => { const f = e.target.files?.[0]; if (!f) return; setPendingIconFile(f); setPendingIconName(f.name.replace(/\.[^.]+$/, "")); setIconNameError(false); e.target.value = ""; }}
+                    <input
+                      ref={iconFileRef}
+                      type="file"
+                      accept=".svg,.png,.webp"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        if (!f) return;
+                        setPendingIconFile(f);
+                        setPendingIconName(f.name.replace(/\.[^.]+$/, ""));
+                        setIconNameError(false);
+                        e.target.value = "";
+                      }}
                     />
                   </>
                 )}
               </div>
               {/* Pending name form */}
               {pendingIconFile && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <div
+                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
+                >
                   <div style={{ display: "flex", gap: 6 }}>
                     <input
                       autoFocus
                       value={pendingIconName}
-                      onChange={(e) => { setPendingIconName(e.target.value); setIconNameError(false); }}
+                      onChange={(e) => {
+                        setPendingIconName(e.target.value);
+                        setIconNameError(false);
+                      }}
                       onKeyDown={async (e) => {
                         if (e.key === "Enter") {
-                          if (!pendingIconName.trim()) { setIconNameError(true); return; }
-                          const icon = await uploadIcon(pendingIconName.trim(), pendingIconFile);
-                          setCustomIcons((p) => [...p.filter((i) => i.name !== icon.name), icon]);
-                          setPendingIconFile(null); setPendingIconName(""); setIconNameError(false);
+                          if (!pendingIconName.trim()) {
+                            setIconNameError(true);
+                            return;
+                          }
+                          const icon = await uploadIcon(
+                            pendingIconName.trim(),
+                            pendingIconFile,
+                          );
+                          setCustomIcons((p) => [
+                            ...p.filter((i) => i.name !== icon.name),
+                            icon,
+                          ]);
+                          setPendingIconFile(null);
+                          setPendingIconName("");
+                          setIconNameError(false);
                         }
-                        if (e.key === "Escape") { setPendingIconFile(null); setPendingIconName(""); setIconNameError(false); }
+                        if (e.key === "Escape") {
+                          setPendingIconFile(null);
+                          setPendingIconName("");
+                          setIconNameError(false);
+                        }
                       }}
                       placeholder={t("iconNamePlaceholder")}
-                      style={{ flex: 1, border: `1.5px solid ${iconNameError ? "var(--probemap-danger)" : "var(--probemap-border)"}`, borderRadius: 5, padding: "4px 8px", fontSize: 12, outline: "none", background: "var(--probemap-input-bg)", color: "var(--probemap-text)" }}
+                      style={{
+                        flex: 1,
+                        border: `1.5px solid ${iconNameError ? "var(--probemap-danger)" : "var(--probemap-border)"}`,
+                        borderRadius: 5,
+                        padding: "4px 8px",
+                        fontSize: 12,
+                        outline: "none",
+                        background: "var(--probemap-input-bg)",
+                        color: "var(--probemap-text)",
+                      }}
                     />
                     <button
                       type="button"
                       className="probemap-btn probemap-btn--primary probemap-btn--xs"
                       onClick={async () => {
-                        if (!pendingIconName.trim()) { setIconNameError(true); return; }
-                        const icon = await uploadIcon(pendingIconName.trim(), pendingIconFile);
-                        setCustomIcons((p) => [...p.filter((i) => i.name !== icon.name), icon]);
-                        setPendingIconFile(null); setPendingIconName(""); setIconNameError(false);
+                        if (!pendingIconName.trim()) {
+                          setIconNameError(true);
+                          return;
+                        }
+                        const icon = await uploadIcon(
+                          pendingIconName.trim(),
+                          pendingIconFile,
+                        );
+                        setCustomIcons((p) => [
+                          ...p.filter((i) => i.name !== icon.name),
+                          icon,
+                        ]);
+                        setPendingIconFile(null);
+                        setPendingIconName("");
+                        setIconNameError(false);
                       }}
-                    >{t("uiOk")}</button>
-                    <button type="button" className="probemap-btn probemap-btn--ghost probemap-btn--xs" onClick={() => { setPendingIconFile(null); setPendingIconName(""); setIconNameError(false); }}>✕</button>
+                    >
+                      {t("uiOk")}
+                    </button>
+                    <button
+                      type="button"
+                      className="probemap-btn probemap-btn--ghost probemap-btn--xs"
+                      onClick={() => {
+                        setPendingIconFile(null);
+                        setPendingIconName("");
+                        setIconNameError(false);
+                      }}
+                    >
+                      ✕
+                    </button>
                   </div>
-                  {iconNameError && <div style={{ fontSize: 10, color: "var(--probemap-danger)" }}>{t("iconNameRequiredError")}</div>}
+                  {iconNameError && (
+                    <div
+                      style={{ fontSize: 10, color: "var(--probemap-danger)" }}
+                    >
+                      {t("iconNameRequiredError")}
+                    </div>
+                  )}
                 </div>
               )}
             </Section>
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 8 }}>
-              <button type="button" onClick={onClose} className="probemap-btn probemap-btn--ghost probemap-btn--md">
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 8,
+              }}
+            >
+              <button
+                type="button"
+                onClick={onClose}
+                className="probemap-btn probemap-btn--ghost probemap-btn--md"
+              >
                 {t("settingsClose")}
               </button>
               <button
@@ -1153,7 +1548,11 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                 className={`probemap-btn probemap-btn--primary probemap-btn--md${savedFlash === "advanced" ? " probemap-btn--success" : ""}`}
                 style={{ opacity: advancedDirty ? 1 : 0.5 }}
               >
-                {savedFlash === "advanced" ? t("saved") : savingAdvanced ? "…" : t("save")}
+                {savedFlash === "advanced"
+                  ? t("saved")
+                  : savingAdvanced
+                    ? "…"
+                    : t("save")}
               </button>
             </div>
           </>
@@ -1171,7 +1570,13 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   );
 }
 
-function Section({ title, children }: { title: React.ReactNode; children: React.ReactNode }) {
+function Section({
+  title,
+  children,
+}: {
+  title: React.ReactNode;
+  children: React.ReactNode;
+}) {
   return (
     <div style={{ marginBottom: 22 }}>
       <div
@@ -1185,12 +1590,20 @@ function Section({ title, children }: { title: React.ReactNode; children: React.
       >
         {title}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {children}
+      </div>
     </div>
   );
 }
 
-function InlineField({ label, children }: { label: string; children: React.ReactNode }) {
+function InlineField({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
   return (
     <div style={{ display: "flex", alignItems: "flex-start", gap: 12 }}>
       <span
@@ -1220,4 +1633,3 @@ const inputStyle: React.CSSProperties = {
   background: "var(--probemap-input-bg)",
   color: "var(--probemap-text)",
 };
-
