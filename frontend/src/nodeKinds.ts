@@ -11,7 +11,7 @@ export interface NodeKindDef {
   label: { en: string; ru: string };
   /** Group for the creation menu */
   group: "actor" | "network" | "entry" | "cluster" | "service" | "managed" | "other";
-  /** Lucide icon name (used in IconRenderer or as fallback) */
+  /** FA6 icon name for IconRenderer (e.g. "FaUser") */
   icon: string;
   /** Default accent color (CSS value) */
   color?: string;
@@ -21,45 +21,45 @@ export interface NodeKindDef {
 
 export const NODE_KINDS: NodeKindDef[] = [
   // Actors
-  { kind: "user", label: { en: "User", ru: "Пользователь" }, group: "actor", icon: "User" },
-  { kind: "bot", label: { en: "Bot / Automation", ru: "Бот / Автоматизация" }, group: "actor", icon: "Bot" },
-  { kind: "external-system", label: { en: "External System", ru: "Внешняя система" }, group: "actor", icon: "ExternalLink" },
+  { kind: "user", label: { en: "User", ru: "Пользователь" }, group: "actor", icon: "FaUser" },
+  { kind: "bot", label: { en: "Bot / Automation", ru: "Бот / Автоматизация" }, group: "actor", icon: "FaRobot" },
+  { kind: "external-system", label: { en: "External System", ru: "Внешняя система" }, group: "actor", icon: "FaArrowUpRightFromSquare" },
 
   // Network
-  { kind: "vpn-gateway", label: { en: "VPN Gateway", ru: "VPN-шлюз" }, group: "network", icon: "ShieldCheck" },
-  { kind: "network-segment", label: { en: "Network Segment", ru: "Сегмент сети" }, group: "network", icon: "Network" },
-  { kind: "vpc", label: { en: "VPC", ru: "VPC" }, group: "network", icon: "Cloud" },
-  { kind: "interconnect", label: { en: "Interconnect", ru: "Интерконнект" }, group: "network", icon: "Cable" },
+  { kind: "vpn-gateway", label: { en: "VPN Gateway", ru: "VPN-шлюз" }, group: "network", icon: "FaShieldHalved" },
+  { kind: "network-segment", label: { en: "Network Segment", ru: "Сегмент сети" }, group: "network", icon: "FaNetworkWired" },
+  { kind: "vpc", label: { en: "VPC", ru: "VPC" }, group: "network", icon: "FaCloud" },
+  { kind: "interconnect", label: { en: "Interconnect", ru: "Интерконнект" }, group: "network", icon: "FaPlug" },
 
   // Entry points
-  { kind: "load-balancer", label: { en: "Load Balancer", ru: "Балансировщик" }, group: "entry", icon: "Scale" },
-  { kind: "cdn", label: { en: "CDN", ru: "CDN" }, group: "entry", icon: "Globe" },
-  { kind: "waf", label: { en: "WAF", ru: "WAF" }, group: "entry", icon: "Shield" },
-  { kind: "api-gateway", label: { en: "API Gateway", ru: "API Gateway" }, group: "entry", icon: "Router" },
+  { kind: "load-balancer", label: { en: "Load Balancer", ru: "Балансировщик" }, group: "entry", icon: "FaScaleBalanced" },
+  { kind: "cdn", label: { en: "CDN", ru: "CDN" }, group: "entry", icon: "FaGlobe" },
+  { kind: "waf", label: { en: "WAF", ru: "WAF" }, group: "entry", icon: "FaShield" },
+  { kind: "api-gateway", label: { en: "API Gateway", ru: "API Gateway" }, group: "entry", icon: "FaRoute" },
 
   // Generic cluster — shown in context menu (self-managed or any cluster/resource)
-  { kind: "cluster", label: { en: "Cluster", ru: "Кластер" }, group: "cluster", icon: "Container" },
+  { kind: "cluster", label: { en: "Cluster", ru: "Кластер" }, group: "cluster", icon: "FaLayerGroup" },
 
   // Service (default for nodes from metrics)
-  { kind: "service", label: { en: "Service", ru: "Сервис" }, group: "service", icon: "Globe" },
+  { kind: "service", label: { en: "Service", ru: "Сервис" }, group: "service", icon: "FaGlobe" },
 
   // Managed & specific cluster kinds — available for kind_rules, hidden from creation menu
-  { kind: "managed-kubernetes", label: { en: "Managed Kubernetes", ru: "Managed Kubernetes" }, group: "cluster", icon: "Container", menuHidden: true },
-  { kind: "k8s-cluster", label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes" }, group: "cluster", icon: "Container", menuHidden: true },
-  { kind: "managed-postgresql", label: { en: "Managed PostgreSQL", ru: "Managed PostgreSQL" }, group: "managed", icon: "Database", menuHidden: true },
-  { kind: "managed-mysql", label: { en: "Managed MySQL", ru: "Managed MySQL" }, group: "managed", icon: "Database", menuHidden: true },
-  { kind: "managed-clickhouse", label: { en: "Managed ClickHouse", ru: "Managed ClickHouse" }, group: "managed", icon: "Database", menuHidden: true },
-  { kind: "managed-mongodb", label: { en: "Managed MongoDB", ru: "Managed MongoDB" }, group: "managed", icon: "Database", menuHidden: true },
-  { kind: "managed-redis", label: { en: "Managed Redis", ru: "Managed Redis" }, group: "managed", icon: "MemoryStick", menuHidden: true },
-  { kind: "managed-opensearch", label: { en: "Managed OpenSearch", ru: "Managed OpenSearch" }, group: "managed", icon: "Database", menuHidden: true },
-  { kind: "managed-kafka", label: { en: "Managed Kafka", ru: "Managed Kafka" }, group: "managed", icon: "Radio", menuHidden: true },
-  { kind: "managed-db", label: { en: "Managed Database", ru: "Managed БД" }, group: "managed", icon: "Database", menuHidden: true },
-  { kind: "managed-cache", label: { en: "Managed Cache", ru: "Managed кеш" }, group: "managed", icon: "MemoryStick", menuHidden: true },
-  { kind: "object-storage", label: { en: "Object Storage", ru: "Object Storage" }, group: "managed", icon: "HardDrive", menuHidden: true },
-  { kind: "dns", label: { en: "DNS", ru: "DNS" }, group: "managed", icon: "Globe", menuHidden: true },
+  { kind: "managed-kubernetes", label: { en: "Managed Kubernetes", ru: "Managed Kubernetes" }, group: "cluster", icon: "FaLayerGroup", menuHidden: true },
+  { kind: "k8s-cluster", label: { en: "Kubernetes Cluster", ru: "Кластер Kubernetes" }, group: "cluster", icon: "FaLayerGroup", menuHidden: true },
+  { kind: "managed-postgresql", label: { en: "Managed PostgreSQL", ru: "Managed PostgreSQL" }, group: "managed", icon: "FaDatabase", menuHidden: true },
+  { kind: "managed-mysql", label: { en: "Managed MySQL", ru: "Managed MySQL" }, group: "managed", icon: "FaDatabase", menuHidden: true },
+  { kind: "managed-clickhouse", label: { en: "Managed ClickHouse", ru: "Managed ClickHouse" }, group: "managed", icon: "FaDatabase", menuHidden: true },
+  { kind: "managed-mongodb", label: { en: "Managed MongoDB", ru: "Managed MongoDB" }, group: "managed", icon: "FaDatabase", menuHidden: true },
+  { kind: "managed-redis", label: { en: "Managed Redis", ru: "Managed Redis" }, group: "managed", icon: "FaMicrochip", menuHidden: true },
+  { kind: "managed-opensearch", label: { en: "Managed OpenSearch", ru: "Managed OpenSearch" }, group: "managed", icon: "FaDatabase", menuHidden: true },
+  { kind: "managed-kafka", label: { en: "Managed Kafka", ru: "Managed Kafka" }, group: "managed", icon: "FaTowerBroadcast", menuHidden: true },
+  { kind: "managed-db", label: { en: "Managed Database", ru: "Managed БД" }, group: "managed", icon: "FaDatabase", menuHidden: true },
+  { kind: "managed-cache", label: { en: "Managed Cache", ru: "Managed кеш" }, group: "managed", icon: "FaMicrochip", menuHidden: true },
+  { kind: "object-storage", label: { en: "Object Storage", ru: "Object Storage" }, group: "managed", icon: "FaHardDrive", menuHidden: true },
+  { kind: "dns", label: { en: "DNS", ru: "DNS" }, group: "managed", icon: "FaGlobe", menuHidden: true },
 
   // Fallback
-  { kind: "custom", label: { en: "Custom", ru: "Произвольный" }, group: "other", icon: "Box" },
+  { kind: "custom", label: { en: "Custom", ru: "Произвольный" }, group: "other", icon: "FaBox" },
 ];
 
 export const NODE_KIND_MAP = new Map(NODE_KINDS.map((k) => [k.kind, k]));
