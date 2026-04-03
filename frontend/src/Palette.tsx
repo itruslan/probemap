@@ -1,4 +1,4 @@
-import { memo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";
@@ -45,21 +45,28 @@ export const Palette = memo(function Palette({
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
 
-  const sortSvc = (a: Service, b: Service) => {
-    const aOn = onCanvas.has(a.id);
-    const bOn = onCanvas.has(b.id);
-    if (aOn !== bOn) return aOn ? -1 : 1;
-    return a.name.localeCompare(b.name, "ru");
-  };
-
-  const filtered = services.filter((s) =>
-    s.name.toLowerCase().includes(search.toLowerCase()),
+  const sortSvc = useCallback(
+    (a: Service, b: Service) => {
+      const aOn = onCanvas.has(a.id);
+      const bOn = onCanvas.has(b.id);
+      if (aOn !== bOn) return aOn ? -1 : 1;
+      return a.name.localeCompare(b.name, "ru");
+    },
+    [onCanvas],
   );
 
-  const grouped = {
-    service: filtered.filter((s) => (s.probe_kind ?? "service") === "service").sort(sortSvc),
-    resource: filtered.filter((s) => s.probe_kind === "resource").sort(sortSvc),
-  };
+  const filtered = useMemo(
+    () => services.filter((s) => s.name.toLowerCase().includes(search.toLowerCase())),
+    [services, search],
+  );
+
+  const grouped = useMemo(
+    () => ({
+      service: filtered.filter((s) => (s.probe_kind ?? "service") === "service").sort(sortSvc),
+      resource: filtered.filter((s) => s.probe_kind === "resource").sort(sortSvc),
+    }),
+    [filtered, sortSvc],
+  );
   const hasMultipleGroups = grouped.service.length > 0 && grouped.resource.length > 0;
 
   const handleMouseEnter = (svc: Service) => {
@@ -163,7 +170,10 @@ export const Palette = memo(function Palette({
                 return (
                   <div
                     key={svc.id}
+                    role={active ? "button" : undefined}
+                    tabIndex={active ? 0 : undefined}
                     onClick={() => handleClick(svc)}
+                    onKeyDown={active ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleClick(svc); } } : undefined}
                     onMouseEnter={() => handleMouseEnter(svc)}
                     onMouseLeave={handleMouseLeave}
                     className={rowClass}
