@@ -992,13 +992,14 @@ button.palette-row--kind {
   box-shadow: 0 0 0 2px var(--probemap-bg), 0 0 0 3px var(--probemap-interactive-hover-border);
 }
 
-/* GroupNode: resize handles — smooth hover effect */
-.react-flow__resize-control.handle {
-  border: none !important;
-  transition: transform 0.12s ease;
+/* GroupNode resize: edge strips — show subtle tint on hover */
+.react-flow__resize-control.line:hover {
+  background: rgba(99, 102, 241, 0.07) !important;
 }
-.react-flow__resize-control.handle:hover {
-  transform: translate(-50%, -50%) scale(1.4);
+/* GroupNode resize: corner handles are invisible hit-areas only (cursor is set by ReactFlow) */
+.react-flow__resize-control.handle {
+  background: transparent !important;
+  border: none !important;
 }
 
 .probemap-btn--preset {

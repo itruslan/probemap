@@ -154,17 +154,18 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
 
   return (
     <>
+      {/* Edges: 8 px transparent hit-strip → drag from anywhere on the border.
+          Corners: small clean dot, same style as service node handles. */}
       <NodeResizer
-        isVisible={selected}
+        isVisible={selected || showChrome}
         minWidth={120}
         minHeight={80}
-        lineStyle={{ borderColor: color.border, borderWidth: 1 }}
+        lineStyle={{ borderWidth: 8, borderColor: "transparent" }}
         handleStyle={{
-          width: 6,
-          height: 6,
-          borderRadius: 999,
-          background: colorHex ? hexToRgba(colorHex, 0.5) : "rgba(148,163,184,0.5)",
-          border: "1px solid rgba(255,255,255,0.8)",
+          width: 12,
+          height: 12,
+          background: "transparent",
+          border: "none",
         }}
       />
 
@@ -178,8 +179,8 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
         style={{
           width: "100%",
           height: "100%",
-          borderRadius: 10,
-          border: `2px solid ${color.border}`,
+          borderRadius: 4,
+          border: `1.5px solid ${color.border}`,
           background: color.bg,
           backdropFilter: "blur(2px)",
           boxSizing: "border-box",
