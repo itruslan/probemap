@@ -10,6 +10,17 @@ import settings
 
 _log = log.get("probemap.metrics")
 
+# Shared client — reuses TCP connections across requests.
+# Created lazily on first use; lives for the process lifetime.
+_http_client: httpx.AsyncClient | None = None
+
+
+def get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(timeout=10)
+    return _http_client
+
 
 def _get_vm_url() -> str:
     if settings.DATASOURCE_URL:
@@ -39,12 +50,11 @@ def _merge_label_map(raw: dict[str, Any] | None) -> dict[str, Any]:
 
 async def _query(vm_url: str, q: str) -> list[dict[str, Any]]:
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(f"{vm_url}/api/v1/query", params={"query": q})
-            r.raise_for_status()
-            result: list[dict[str, Any]] = r.json()["data"]["result"]
-            _log.debug("query ok url=%s results=%d query=%.120s", vm_url, len(result), q)
-            return result
+        r = await get_http_client().get(f"{vm_url}/api/v1/query", params={"query": q})
+        r.raise_for_status()
+        result: list[dict[str, Any]] = r.json()["data"]["result"]
+        _log.debug("query ok url=%s results=%d query=%.120s", vm_url, len(result), q)
+        return result
     except httpx.HTTPError as e:
         _log.warning("query failed url=%s query=%.120s error=%s", vm_url, q, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
@@ -72,7 +82,7 @@ def _service_probe_kind(ports: list[dict[str, Any]]) -> str:
 
 def _module_to_type(module: str) -> str:
     m = module.lower()
-    if "http" in m or "https" in m:
+    if "http" in m:  # covers both http and https
         return "http"
     if "icmp" in m or "ping" in m:
         return "icmp"
@@ -325,13 +335,12 @@ async def discover_labels_for(vm_url: str) -> list[str]:
     if not url:
         raise RuntimeError("Datasource not configured")
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{url}/api/v1/labels",
-                params={"match[]": "probe_success"},
-            )
-            r.raise_for_status()
-            return sorted(r.json().get("data", []))
+        r = await get_http_client().get(
+            f"{url}/api/v1/labels",
+            params={"match[]": "probe_success"},
+        )
+        r.raise_for_status()
+        return sorted(r.json().get("data", []))
     except httpx.HTTPError as e:
         _log.warning("labels request failed url=%s error=%s", url, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
@@ -344,13 +353,12 @@ async def discover_labels() -> list[str]:
 async def get_filter_values(label: str) -> list[str]:
     vm_url = _get_vm_url()
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            r = await client.get(
-                f"{vm_url}/api/v1/label/{label}/values",
-                params={"match[]": "probe_success"},
-            )
-            r.raise_for_status()
-            return sorted(r.json().get("data", []))
+        r = await get_http_client().get(
+            f"{vm_url}/api/v1/label/{label}/values",
+            params={"match[]": "probe_success"},
+        )
+        r.raise_for_status()
+        return sorted(r.json().get("data", []))
     except httpx.HTTPError as e:
         _log.warning("label values request failed url=%s label=%s error=%s", vm_url, label, e)
         raise RuntimeError(f"VictoriaMetrics request failed: {e}") from e
@@ -361,5 +369,5 @@ async def test_datasource(url: str) -> bool:
         async with httpx.AsyncClient(timeout=5) as client:
             r = await client.get(f"{url.rstrip('/')}/api/v1/query", params={"query": "1"})
             return r.status_code == 200
-    except Exception:
+    except httpx.HTTPError:
         return False

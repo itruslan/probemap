@@ -2,7 +2,6 @@ import json
 import pathlib
 
 import config as cfg_mod
-import pytest
 
 
 class TestReadConfig:

@@ -7,7 +7,7 @@ import {
   type Edge,
   type EdgeProps,
 } from "@xyflow/react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { FaPen } from "react-icons/fa6";
 import type { LayoutEdgeData } from "../api";
 import { useI18n } from "../i18n";
@@ -66,7 +66,7 @@ function summarizeEdge(data: LayoutEdgeData | undefined, noMetaLabel: string): s
   return parts.join(" · ");
 }
 
-export function DeletableEdge({
+export const DeletableEdge = memo(function DeletableEdge({
   id,
   data,
   sourceX,
@@ -198,4 +198,4 @@ export function DeletableEdge({
       </EdgeLabelRenderer>
     </>
   );
-}
+});

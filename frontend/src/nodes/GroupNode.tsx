@@ -1,5 +1,5 @@
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
-import { memo, useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 
 /** Иначе React Flow перехватывает mousedown — начинается drag/selection, срабатывает mouseleave и палитра схлопывается. */
@@ -139,7 +139,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
     );
   };
 
-  const layerOrder = (() => {
+  const layerOrder = useMemo(() => {
     const groups = getNodes()
       .filter((n) => n.type === "group")
       .sort((a, b) => {
@@ -150,7 +150,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
       });
     const idx = groups.findIndex((n) => n.id === id);
     return { idx, total: groups.length };
-  })();
+  }, [getNodes, id]);
 
   return (
     <>

@@ -335,13 +335,7 @@ export function TopologyCanvas({
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const cloneSnapshot = useCallback((): Snapshot => {
-    const n = JSON.parse(JSON.stringify(nodes)) as Node[];
-    const e = JSON.parse(JSON.stringify(edges)) as MapEdge[];
-    const sc = JSON.parse(JSON.stringify(serviceConfigs.current)) as Record<
-      string,
-      ServiceConfig
-    >;
-    return { nodes: n, edges: e, service_configs: sc };
+    return structuredClone({ nodes, edges, service_configs: serviceConfigs.current }) as Snapshot;
   }, [nodes, edges]);
 
   const pushSnapshot = useCallback(() => {

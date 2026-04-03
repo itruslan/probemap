@@ -2,7 +2,6 @@ import json
 import pathlib
 
 import config as cfg_mod
-import httpx
 import pytest
 import pytest_mock
 from fastapi.testclient import TestClient

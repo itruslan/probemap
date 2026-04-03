@@ -1,6 +1,7 @@
 import copy
 import json
 import os
+import pathlib
 import re
 import uuid
 from typing import Any
@@ -84,6 +85,8 @@ def read_config() -> dict[str, Any]:
             data = json.load(f)
     except FileNotFoundError:
         return dict(_DEFAULT_CONFIG)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"config.json is corrupted: {e}") from e
     data.setdefault("probe_jobs", [])
     raw_lm = data.get("label_map") or {}
     lm = {**DEFAULT_LABEL_MAP, **raw_lm}
@@ -144,11 +147,25 @@ def project_creation_allowed() -> tuple[bool, str]:
     return True, ""
 
 
+def _atomic_write_json(path: str, data: object) -> None:
+    """Write JSON atomically: serialise to a temp file, then os.replace() into place.
+
+    os.replace() is atomic on POSIX — a crash mid-write leaves the original intact.
+    """
+    p = pathlib.Path(path)
+    p.parent.mkdir(parents=True, exist_ok=True)
+    tmp = p.with_suffix(".tmp")
+    try:
+        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        os.replace(tmp, p)
+    except Exception:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 def write_config(cfg: dict[str, Any]) -> None:
     out = {k: v for k, v in cfg.items() if k != "metric_extra_selector"}
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(CONFIG_PATH, "w") as f:
-        json.dump(out, f, indent=2)
+    _atomic_write_json(CONFIG_PATH, out)
 
 
 def read_projects() -> list[dict[str, Any]]:
@@ -157,12 +174,12 @@ def read_projects() -> list[dict[str, Any]]:
             return json.load(f)
     except FileNotFoundError:
         return []
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"projects.json is corrupted: {e}") from e
 
 
 def write_projects(projects: list[dict[str, Any]]) -> None:
-    os.makedirs(DATA_DIR, exist_ok=True)
-    with open(PROJECTS_PATH, "w") as f:
-        json.dump(projects, f, indent=2)
+    _atomic_write_json(PROJECTS_PATH, projects)
 
 
 def get_project(project_id: str) -> dict[str, Any] | None:
@@ -210,13 +227,17 @@ def create_project(
     return project
 
 
+_PROJECT_ALLOWED_KEYS = {"name", "filters"}
+
+
 def update_project(project_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
+    safe_patch = {k: v for k, v in patch.items() if k in _PROJECT_ALLOWED_KEYS}
     projects = read_projects()
     for i, p in enumerate(projects):
         if p["id"] == project_id:
-            merged = {**p, **patch, "id": project_id}
-            if "filters" in patch:
-                flist, leg = _normalize_filter_list(patch.get("filters"), None, None)
+            merged = {**p, **safe_patch, "id": project_id}
+            if "filters" in safe_patch:
+                flist, leg = _normalize_filter_list(safe_patch.get("filters"), None, None)
                 merged["filters"] = flist
                 merged["filter"] = leg
             projects[i] = merged

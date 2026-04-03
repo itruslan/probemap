@@ -1,4 +1,5 @@
 import os
+from contextlib import asynccontextmanager
 from typing import Any
 
 import config as cfg_mod
@@ -11,15 +12,39 @@ from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
+
+
+# ---------------------------------------------------------------------------
+# Request models
+# ---------------------------------------------------------------------------
+
+class TestDatasourceBody(BaseModel):
+    url: str = Field(..., min_length=1)
+
+
+class DiscoverForUrlBody(BaseModel):
+    url: str = Field(..., min_length=1)
+    label_map: dict[str, Any] | None = None
+
+
+class CreateProjectBody(BaseModel):
+    name: str = Field(..., min_length=1)
+    filter: dict[str, Any] | None = None
+    filters: list[Any] | None = None
+
+
+class UpdateProjectBody(BaseModel):
+    name: str | None = None
+    filters: list[Any] | None = None
+
 
 log.setup()
 _log = log.get()
 
-app = FastAPI(title="probemap")
 
-
-@app.on_event("startup")
-def _on_startup() -> None:
+@asynccontextmanager
+async def _lifespan(app: FastAPI):  # noqa: ARG001
     c = cfg_mod.read_config()
     ds = c.get("datasource") or {}
     url = settings.DATASOURCE_URL or (ds.get("url") or "").strip()
@@ -30,6 +55,10 @@ def _on_startup() -> None:
         url or "(not configured)",
         settings.LOG_LEVEL,
     )
+    yield
+
+
+app = FastAPI(title="probemap", lifespan=_lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -92,11 +121,8 @@ def preview_metric_selector(body: dict[str, Any]) -> dict[str, str]:
 
 
 @app.post("/api/config/test")
-async def test_config(body: dict[str, Any]) -> dict[str, Any]:
-    url = (body.get("url") or "").strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="url required")
-    ok = await metrics.test_datasource(url)
+async def test_config(body: TestDatasourceBody) -> dict[str, Any]:
+    ok = await metrics.test_datasource(body.url.strip())
     return {"ok": ok}
 
 
@@ -122,14 +148,9 @@ async def discover_jobs() -> list[dict[str, Any]]:
 
 
 @app.post("/api/config/discover/jobs")
-async def discover_jobs_for_url(body: dict[str, Any]) -> list[dict[str, Any]]:
-    url = (body.get("url") or "").strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="url required")
-    raw_lm = body.get("label_map")
-    lm = raw_lm if isinstance(raw_lm, dict) else None
+async def discover_jobs_for_url(body: DiscoverForUrlBody) -> list[dict[str, Any]]:
     try:
-        return await metrics.discover_jobs_for(url, lm)
+        return await metrics.discover_jobs_for(body.url.strip(), body.label_map)
     except RuntimeError as e:
         raise _metrics_http_exception(e) from e
 
@@ -143,12 +164,9 @@ async def discover_labels() -> list[str]:
 
 
 @app.post("/api/config/discover/labels")
-async def discover_labels_for_url(body: dict[str, Any]) -> list[str]:
-    url = (body.get("url") or "").strip()
-    if not url:
-        raise HTTPException(status_code=400, detail="url required")
+async def discover_labels_for_url(body: TestDatasourceBody) -> list[str]:
     try:
-        return await metrics.discover_labels_for(url)
+        return await metrics.discover_labels_for(body.url.strip())
     except RuntimeError as e:
         raise _metrics_http_exception(e) from e
 
@@ -164,22 +182,17 @@ def get_projects() -> list[dict[str, Any]]:
 
 
 @app.post("/api/projects")
-def post_project(body: dict[str, Any]) -> dict[str, Any]:
-    name = (body.get("name") or "").strip()
-    if not name:
-        raise HTTPException(status_code=400, detail="name required")
+def post_project(body: CreateProjectBody) -> dict[str, Any]:
     ok, reason = cfg_mod.project_creation_allowed()
     if not ok:
         raise HTTPException(status_code=400, detail=reason)
-    f = body.get("filter") or {}
-    raw_filters = body.get("filters")
-    flist = raw_filters if isinstance(raw_filters, list) else None
-    return cfg_mod.create_project(name, f.get("label"), f.get("value"), flist)
+    f = body.filter or {}
+    return cfg_mod.create_project(body.name.strip(), f.get("label"), f.get("value"), body.filters)
 
 
 @app.put("/api/projects/{project_id}")
-def put_project(project_id: str, body: dict[str, Any]) -> dict[str, Any]:
-    updated = cfg_mod.update_project(project_id, body)
+def put_project(project_id: str, body: UpdateProjectBody) -> dict[str, Any]:
+    updated = cfg_mod.update_project(project_id, body.model_dump(exclude_none=True))
     if updated is None:
         raise HTTPException(status_code=404, detail="Project not found")
     return updated

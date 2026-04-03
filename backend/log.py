@@ -10,7 +10,6 @@ Override: PROBEMAP_LOG_FORMAT=json|text
 import json
 import logging
 import sys
-import time
 
 import settings
 
