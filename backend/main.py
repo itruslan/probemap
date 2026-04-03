@@ -1,4 +1,4 @@
-import os
+import pathlib
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -10,7 +10,7 @@ import metrics
 import settings
 from fastapi import FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -262,23 +262,30 @@ def project_put_layout(project_id: str, body: dict[str, Any]) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 
 
+_DEPRECATION_HEADERS = {
+    "Deprecation": "true",
+    "Link": '</api/projects>; rel="successor-version"',
+}
+
+
 @app.get("/api/services")
-async def get_services() -> dict[str, Any]:
+async def get_services() -> JSONResponse:
     try:
-        return await metrics.get_services()
+        data = await metrics.get_services()
     except RuntimeError as e:
         raise _metrics_http_exception(e) from e
+    return JSONResponse(content=data, headers=_DEPRECATION_HEADERS)
 
 
 @app.get("/api/layout")
-def get_layout() -> dict[str, Any]:
-    return layout.read("default")
+def get_layout() -> JSONResponse:
+    return JSONResponse(content=layout.read("default"), headers=_DEPRECATION_HEADERS)
 
 
 @app.put("/api/layout")
-def put_layout(body: dict[str, Any]) -> dict[str, str]:
+def put_layout(body: dict[str, Any]) -> JSONResponse:
     layout.write("default", body)
-    return {"status": "ok"}
+    return JSONResponse(content={"status": "ok"}, headers=_DEPRECATION_HEADERS)
 
 
 # ---------------------------------------------------------------------------
@@ -332,5 +339,5 @@ def delete_icon(name: str) -> dict[str, str]:
 # Must be last — catches all non-API routes for SPA fallback.
 # ---------------------------------------------------------------------------
 
-if settings.STATIC_DIR and os.path.isdir(settings.STATIC_DIR):
+if settings.STATIC_DIR and pathlib.Path(settings.STATIC_DIR).is_dir():
     app.mount("/", StaticFiles(directory=settings.STATIC_DIR, html=True), name="static")

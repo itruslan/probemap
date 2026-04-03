@@ -100,7 +100,7 @@ class TestProjects:
     def test_create_and_read(self, data_dir: pathlib.Path) -> None:
         p = cfg_mod.create_project("My Project")
         assert p["name"] == "My Project"
-        assert len(p["id"]) == 8
+        assert len(p["id"]) == 32
         projects = cfg_mod.read_projects()
         assert len(projects) == 1
 

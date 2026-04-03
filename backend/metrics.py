@@ -186,26 +186,27 @@ def _probe_source_label_name(lm: dict[str, Any]) -> str:
     return s if s else "instance"
 
 
-async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dict[str, Any]:
-    vm_url = _get_vm_url()
-    c = cfg_mod.read_config()
-    jobs = [j["job"] for j in c.get("probe_jobs", []) if j.get("enabled")]
-    lm = _label_map()
-    pairs = list(filter_pairs or [])
-    sel = build_probe_success_selector(jobs, pairs, c)
+def _parse_series_maps(
+    status_series: list[dict[str, Any]],
+    duration_series: list[dict[str, Any]],
+    svc_l: str,
+    port_l: str,
+    src_l: str,
+    module_l: str,
+) -> tuple[
+    dict[tuple, int],
+    dict[tuple, float],
+    dict[tuple, set[str]],
+    set[tuple[str, str, str, str]],
+    dict[tuple[str, str, str, str], set[str]],
+    list[str],
+]:
+    """Parse raw VictoriaMetrics series into lookup maps.
 
-    svc_l = lm["service"]
-    port_l = lm["port"]
-    src_l = _probe_source_label_name(lm)
-    module_l = lm["module"]
-
-    status_series, duration_series = await asyncio.gather(
-        _query(vm_url, f"last_over_time(probe_success{sel}[2m])"),
-        _query(vm_url, f"last_over_time(probe_duration_seconds{sel}[2m])"),
-    )
-
+    Returns (status_map, duration_map, probe_types_map,
+             port_tuple_set, port_tuple_sources, probe_sources).
+    """
     def series_key(m: dict[str, Any]) -> tuple[str, str, str, str, str]:
-        """Уникальность серии: сервис, порт, источник пробы, модуль blackbox, job scrape."""
         return (
             m.get(svc_l) or "unknown",
             m.get(port_l) or "unknown",
@@ -215,10 +216,12 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         )
 
     probe_sources = sorted({s["metric"].get(src_l, "") for s in status_series})
-
     status_map: dict[tuple, int] = {}
     duration_map: dict[tuple, float] = {}
     probe_types_map: dict[tuple, set[str]] = defaultdict(set)
+    # Одна запись порта на комбинацию (service, port, module, job)
+    port_tuple_set: set[tuple[str, str, str, str]] = set()
+    port_tuple_sources: dict[tuple[str, str, str, str], set[str]] = defaultdict(set)
 
     for s in status_series:
         m = s["metric"]
@@ -226,19 +229,7 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         status_map[key] = int(float(s["value"][1]))
         if mod := m.get(module_l):
             probe_types_map[key].add(_module_to_type(str(mod)))
-
-    for s in duration_series:
-        m = s["metric"]
-        key = series_key(m)
-        duration_map[key] = round(float(s["value"][1]) * 1000, 1)
-
-    # Одна запись порта на комбинацию (service, port, module, job) — иначе разные blackbox/job затирали друг друга
-    port_tuple_set: set[tuple[str, str, str, str]] = set()
-    # Значения лейбла источника только там, где есть серия для этой пробы
-    port_tuple_sources: dict[tuple[str, str, str, str], set[str]] = defaultdict(set)
-    for s in status_series:
-        m = s["metric"]
-        pt = (
+        pt: tuple[str, str, str, str] = (
             m.get(svc_l) or "unknown",
             m.get(port_l) or "unknown",
             _norm_label(m, module_l),
@@ -247,19 +238,30 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         port_tuple_set.add(pt)
         port_tuple_sources[pt].add(m.get(src_l) or "")
 
+    for s in duration_series:
+        m = s["metric"]
+        duration_map[series_key(m)] = round(float(s["value"][1]) * 1000, 1)
+
+    return status_map, duration_map, probe_types_map, port_tuple_set, port_tuple_sources, probe_sources
+
+
+def _build_services_map(
+    port_tuple_set: set[tuple[str, str, str, str]],
+    port_tuple_sources: dict[tuple[str, str, str, str], set[str]],
+    status_map: dict[tuple, int],
+    duration_map: dict[tuple, float],
+    probe_types_map: dict[tuple, set[str]],
+) -> dict[str, dict]:
+    """Build services_map from aggregated series maps."""
     services_map: dict[str, dict] = {}
-    for svc_name, port, mod, job in sorted(port_tuple_set, key=lambda t: (t[0], t[1], t[2], t[3])):
+    for svc_name, port, mod, job in sorted(port_tuple_set):
         if svc_name not in services_map:
             services_map[svc_name] = {"id": svc_name, "name": svc_name, "ports": []}
-
         pt = (svc_name, port, mod, job)
         sources_here = sorted(port_tuple_sources.get(pt, set()))
-
         all_types: set[str] = set()
         for src in sources_here:
-            sk = (svc_name, port, src, mod, job)
-            all_types |= probe_types_map.get(sk, set())
-
+            all_types |= probe_types_map.get((svc_name, port, src, mod, job), set())
         source_statuses = {
             src: {
                 "success": status_map.get((svc_name, port, src, mod, job)),
@@ -268,7 +270,6 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
             }
             for src in sources_here
         }
-
         successes = [v["success"] for v in source_statuses.values() if v["success"] is not None]
         if not successes:
             overall = "unknown"
@@ -278,7 +279,6 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
             overall = "down"
         else:
             overall = "warn"
-
         entry: dict[str, Any] = {
             "port": port,
             "status": overall,
@@ -290,7 +290,16 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         if job:
             entry["job"] = job
         services_map[svc_name]["ports"].append(entry)
+    return services_map
 
+
+def _attach_labels_and_kind(
+    services_map: dict[str, dict],
+    status_series: list[dict[str, Any]],
+    svc_l: str,
+    src_l: str,
+) -> None:
+    """Attach consensus labels and probe_kind to each service in-place."""
     deny = _metric_label_denylist(src_l)
     by_svc: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for s in status_series:
@@ -301,6 +310,37 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         if lbls:
             row["labels"] = lbls
         row["probe_kind"] = _service_probe_kind(row["ports"])
+
+
+async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dict[str, Any]:
+    # Single config read — was being called 3× before (via _get_vm_url, explicit, _label_map)
+    c = cfg_mod.read_config()
+    ds = c.get("datasource") or {}
+    vm_url = (settings.DATASOURCE_URL or ds.get("url", "")).rstrip("/")
+    if not vm_url:
+        raise RuntimeError("Datasource not configured")
+
+    lm = {**cfg_mod.DEFAULT_LABEL_MAP, **c.get("label_map", {})}
+    jobs = [j["job"] for j in c.get("probe_jobs", []) if j.get("enabled")]
+    sel = build_probe_success_selector(jobs, list(filter_pairs or []), c)
+
+    svc_l: str = lm["service"]
+    port_l: str = lm["port"]
+    src_l = _probe_source_label_name(lm)
+    module_l: str = lm["module"]
+
+    status_series, duration_series = await asyncio.gather(
+        _query(vm_url, f"last_over_time(probe_success{sel}[2m])"),
+        _query(vm_url, f"last_over_time(probe_duration_seconds{sel}[2m])"),
+    )
+
+    status_map, duration_map, probe_types_map, port_tuple_set, port_tuple_sources, probe_sources = (
+        _parse_series_maps(status_series, duration_series, svc_l, port_l, src_l, module_l)
+    )
+    services_map = _build_services_map(
+        port_tuple_set, port_tuple_sources, status_map, duration_map, probe_types_map
+    )
+    _attach_labels_and_kind(services_map, status_series, svc_l, src_l)
 
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 

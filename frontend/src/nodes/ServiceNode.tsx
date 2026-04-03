@@ -208,25 +208,18 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   );
 
   // По источнику (instance): есть ли явный fail (0) и/или ok (1). Нет серии у части blackbox — не «провал».
-  const sourceAgg = useMemo(() => {
+  const { sourceAgg, hasAnyFail, hasAnyOk } = useMemo(() => {
     const m = new Map<string, { hasOk: boolean; hasFail: boolean }>();
+    let anyFail = false;
+    let anyOk = false;
     for (const row of probeRows) {
       const cur = m.get(row.source) ?? { hasOk: false, hasFail: false };
-      if (row.success === 1) cur.hasOk = true;
-      if (row.success === 0) cur.hasFail = true;
+      if (row.success === 1) { cur.hasOk = true; anyOk = true; }
+      if (row.success === 0) { cur.hasFail = true; anyFail = true; }
       m.set(row.source, cur);
     }
-    return m;
+    return { sourceAgg: m, hasAnyFail: anyFail, hasAnyOk: anyOk };
   }, [probeRows]);
-
-  const hasAnyFail = useMemo(
-    () => probeRows.some((r) => r.success === 0),
-    [probeRows],
-  );
-  const hasAnyOk = useMemo(
-    () => probeRows.some((r) => r.success === 1),
-    [probeRows],
-  );
   const totalPresent = sourceAgg.size;
   const okPresent = Array.from(sourceAgg.values()).filter(
     (st) => st.hasOk && !st.hasFail,

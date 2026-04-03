@@ -216,7 +216,7 @@ def create_project(
 ) -> dict[str, Any]:
     flist, legacy = _normalize_filter_list(filters, filter_label, filter_value)
     project: dict[str, Any] = {
-        "id": uuid.uuid4().hex[:8],
+        "id": uuid.uuid4().hex,
         "name": name,
         "filters": flist,
         "filter": legacy,
