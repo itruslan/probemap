@@ -851,6 +851,32 @@ export function TopologyCanvas({
     [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot]
   );
 
+  const addComponentFromPalette = useCallback(
+    (kindDef: NodeKindDef) => {
+      if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
+      const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+      const id = `${kindDef.kind}-${Date.now()}`;
+      setNodes((ns) => {
+        const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+        return [
+          ...ns,
+          {
+            id,
+            type: "service",
+            position,
+            data: {
+              label: kindDef.label[lang as "ru" | "en"],
+              ports: [],
+              kind: kindDef.kind,
+            } satisfies ServiceNodeData,
+          } as Node,
+        ];
+      });
+    },
+    [screenToFlowPosition, setNodes, metricsStale, canvasInteractive, pushSnapshot, lang]
+  );
+
   const addComponentAtScreen = useCallback(
     (kindDef: NodeKindDef, screenX: number, screenY: number) => {
       if (metricsStale || !canvasInteractive) return;
@@ -1049,6 +1075,7 @@ export function TopologyCanvas({
             services={data.services}
             onCanvas={onCanvas}
             onAddService={addServiceFromPalette}
+            onAddComponent={addComponentFromPalette}
             readOnly={metricsStale || !canvasInteractive}
             selectedId={paletteSelectedId}
             onSelect={onPaletteSelect}
