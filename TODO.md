@@ -29,6 +29,8 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-03 — feat(groups): G6 — авто-импорт нод кластера по лейблу.** `GroupNodeData`: `clusterLabel`/`clusterValue` (персист через `LayoutNode`). `GroupNode`: кнопка «↓+» в chrome для cluster-видов открывает попап — дропдаун лейблов из `useServices()`, ввод значения, кнопка «Загрузить»; найденные сервисы добавляются внутрь группы с `parentId`; показывается кол-во добавленных или «Нет совпадений».
+
 - **2026-04-03 — feat(groups): G1–G5 — типизированные группы с parentId.** `GROUP_KINDS` реестр (11 видов: vm, k8s-cluster, 9 DB/infra кластеров) в `nodeKinds.ts`; `GroupNodeData.kind` + `LayoutNode.parentId`. `GroupNode`: иконка вида + подпись в заголовке, `Handle` для cluster-групп. `ServiceNode`: скрытие handles внутри cluster-группы. `TopologyCanvas`: `onNodeDragStop` определяет принадлежность к группе по центру ноды → `parentId` + конвертация relative/absolute; при удалении группы дети освобождаются; `persistLayout`/loadLayout сохраняют и восстанавливают `parentId` и `kind`. `Palette` Objects tab: секция «Группы» c `GROUP_KINDS`, `addGroupFromPalette` с дефолтным цветом из реестра.
 
 - **2026-04-02 — feat(palette): вкладка «Объекты» в левой панели (H1).** `Palette.tsx`: таб-переключатель «Мониторинг»/«Объекты»; вкладка «Объекты» — плитки из `NODE_KINDS` (без `menuHidden`, без группы `service`), сгруппированные по `KIND_GROUPS`, с поиском по имени. Клик добавляет узел в свободную точку слева вьюпорта (`findFreePositionViewportLeftColumn`). `addComponentFromPalette` в `TopologyCanvas.tsx`; CSS `.palette-sidebar__tabs/tab/tab--active` и `.palette-objects__grid/tile/tile-label` в `index.css`.
@@ -78,18 +80,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 - **VM / K8s** — группа без handles, содержит сервисы; стрелки идут напрямую к сервисам внутри
 - **DB / infra кластер** — группа с handles (можно соединить стрелкой с внешним объектом), содержит ноды кластера; сами ноды кластера без handles
 - Движение группы тащит всех детей (parentId в ReactFlow)
-
----
-
-### [ ] G6. Авто-импорт нод кластера по лейблу (позже)
-
-Зависит от G1–G5.
-
-- В панели cluster-группы: поля `clusterLabel` + `clusterValue` (дропдаун лейблов из метрик + ввод значения)
-- По заданным полям: найти все сервисы из уже загруженного каталога с совпадением лейбла
-- Создать для каждого node-карточку внутри группы с `parentId` → cluster-группы
-- Одноразовый импорт (кнопка «Загрузить ноды»), не live-sync
-- **Готово когда:** задал `cluster=postgres-prod` → кнопка → ноды с этим лейблом появились внутри группы
 
 ---
 

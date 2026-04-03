@@ -68,6 +68,13 @@ const STRINGS = {
     kindGroupManaged: "Managed-ресурсы",
     kindGroupOther: "Прочее",
 
+    clusterImportOpen: "Загрузить ноды по лейблу",
+    clusterImportLabel: "Лейбл",
+    clusterImportValue: "Значение",
+    clusterImportBtn: "Загрузить",
+    clusterImportNoMatch: "Нет совпадений",
+    clusterImportAdded: "Добавлено: {n}",
+
     paletteGroupsSection: "Группы",
     groupKindVm: "Виртуальная машина",
     groupKindK8s: "Кластер Kubernetes",
@@ -342,6 +349,13 @@ const STRINGS = {
     kindGroupService: "Services",
     kindGroupManaged: "Managed Resources",
     kindGroupOther: "Other",
+
+    clusterImportOpen: "Import nodes by label",
+    clusterImportLabel: "Label",
+    clusterImportValue: "Value",
+    clusterImportBtn: "Load",
+    clusterImportNoMatch: "No matches",
+    clusterImportAdded: "Added: {n}",
 
     paletteGroupsSection: "Groups",
     groupKindVm: "Virtual Machine",

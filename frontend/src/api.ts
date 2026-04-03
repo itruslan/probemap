@@ -103,6 +103,9 @@ export interface LayoutNode {
   /** Relative position inside parent (when parentId is set) */
   relX?: number;
   relY?: number;
+  /** Для cluster-групп: лейбл и значение для авто-импорта нод */
+  clusterLabel?: string;
+  clusterValue?: string;
 }
 
 export interface DatasourceStatusResponse {

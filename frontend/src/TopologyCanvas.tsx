@@ -649,7 +649,7 @@ export function TopologyCanvas({
               type: "group",
               position: { x: ln.x, y: ln.y },
               style: { width: ln.width ?? 260, height: ln.height ?? 180, zIndex: ln.zIndex ?? -1 },
-              data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color, kind: ln.kind } satisfies GroupNodeData,
+              data: { label: ln.label ?? t("defaultGroupLabel"), color: ln.color, kind: ln.kind, clusterLabel: ln.clusterLabel, clusterValue: ln.clusterValue } satisfies GroupNodeData,
             } as Node;
           }
           const legacyType = ln.type as string | undefined;
@@ -1010,6 +1010,8 @@ export function TopologyCanvas({
             label: (n.data as unknown as GroupNodeData).label,
             color: (n.data as unknown as GroupNodeData).color,
             kind: (n.data as unknown as GroupNodeData).kind,
+            clusterLabel: (n.data as unknown as GroupNodeData).clusterLabel,
+            clusterValue: (n.data as unknown as GroupNodeData).clusterValue,
             width: n.measured?.width ?? (n.style?.width as number) ?? 260,
             height: n.measured?.height ?? (n.style?.height as number) ?? 180,
             zIndex: (n.style?.zIndex as number) ?? -1,
