@@ -288,6 +288,12 @@ html, body {
   text-transform: uppercase;
 }
 
+.palette-sidebar__section-header--with-count {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 /* Строки палитры — заметная рамка у выбранного, как на карте */
 .palette-row {
   display: flex;

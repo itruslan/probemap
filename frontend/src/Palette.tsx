@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from "react";
-import { FaCircleQuestion, FaPlus } from "react-icons/fa6";
+import { FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n, type I18nKey } from "./i18n";
 import { KIND_GROUPS, NODE_KINDS, type NodeKindDef } from "./nodeKinds";
-import { HoverTooltip } from "./Tooltip";
-import { useIsDraggingOnCanvas } from "./DragContext";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -55,40 +53,9 @@ export function Palette({
   statusMap,
 }: PaletteProps) {
   const { t, lang } = useI18n();
-  const dragging = useIsDraggingOnCanvas();
   const [tab, setTab] = useState<Tab>("monitoring");
   const [search, setSearch] = useState("");
   const [hoveredId, setHoveredId] = useState<string | null>(null);
-  const [servicesHelpTarget, setServicesHelpTarget] = useState<HTMLElement | null>(null);
-  const servicesHelpHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const clearServicesHelpHideTimer = () => {
-    if (servicesHelpHideTimer.current) {
-      clearTimeout(servicesHelpHideTimer.current);
-      servicesHelpHideTimer.current = null;
-    }
-  };
-
-  const showServicesHelp = (el: HTMLElement) => {
-    if (dragging) return;
-    clearServicesHelpHideTimer();
-    setServicesHelpTarget(el);
-  };
-
-  const scheduleHideServicesHelp = () => {
-    clearServicesHelpHideTimer();
-    servicesHelpHideTimer.current = setTimeout(() => {
-      setServicesHelpTarget(null);
-      servicesHelpHideTimer.current = null;
-    }, 220);
-  };
-
-  useEffect(() => () => clearServicesHelpHideTimer(), []);
-  useEffect(() => {
-    if (!dragging) return;
-    clearServicesHelpHideTimer();
-    setServicesHelpTarget(null);
-  }, [dragging]);
 
   // Reset search when switching tabs
   useEffect(() => {
@@ -186,19 +153,8 @@ export function Palette({
             spellCheck={false}
           />
 
-          <div className="palette-sidebar__header">
-            <span className="palette-sidebar__title-wrap">
-              <span className="palette-sidebar__title">{t("servicesTitle")}</span>
-              <button
-                type="button"
-                className="probemap-btn palette-sidebar__help"
-                aria-label={t("servicesPaletteHelpAria")}
-                onMouseEnter={(e) => showServicesHelp(e.currentTarget)}
-                onMouseLeave={scheduleHideServicesHelp}
-              >
-                <FaCircleQuestion aria-hidden className="palette-sidebar__help-icon" />
-              </button>
-            </span>
+          <div className="palette-sidebar__section-header palette-sidebar__section-header--with-count">
+            {t("servicesTitle")}
             <span className="palette-sidebar__count">{services.length}</span>
           </div>
 
@@ -264,16 +220,6 @@ export function Palette({
             })}
           </div>
 
-          {servicesHelpTarget && !dragging && (
-            <HoverTooltip
-              targetEl={servicesHelpTarget}
-              label={t("monitoringHint")}
-              multiline
-              placement="below"
-              onInteractiveEnter={clearServicesHelpHideTimer}
-              onInteractiveLeave={scheduleHideServicesHelp}
-            />
-          )}
         </>
       )}
 
