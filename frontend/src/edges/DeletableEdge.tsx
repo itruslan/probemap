@@ -40,6 +40,19 @@ function arrowPoints(x: number, y: number, pos?: Position): string {
   }
 }
 
+/** Offset the path endpoint back by ARROW px so the line stops at the arrowhead base,
+ *  not the tip — prevents the stroke from bleeding through the polygon.
+ *  Arrowhead geometry: tip at (x,y), base is ARROW px away from the node. */
+function pathTarget(x: number, y: number, pos?: Position): [number, number] {
+  switch (pos) {
+    case Position.Top:    return [x, y - ARROW]; // base is above  tip (lower y = further from node)
+    case Position.Bottom: return [x, y + ARROW]; // base is below  tip
+    case Position.Left:   return [x - ARROW, y]; // base is left   of tip
+    case Position.Right:  return [x + ARROW, y]; // base is right  of tip
+    default:              return [x, y];
+  }
+}
+
 function summarizeEdge(data: LayoutEdgeData | undefined, noMetaLabel: string): string {
   const d = data ?? {};
   const parts: string[] = [];
@@ -77,12 +90,13 @@ export function DeletableEdge({
     ? { ...style, strokeDasharray: dashArray }
     : style;
 
+  const [ptX, ptY] = pathTarget(targetX, targetY, targetPosition);
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
-    targetX,
-    targetY,
+    targetX: ptX,
+    targetY: ptY,
     targetPosition,
     borderRadius: 12,
   });
