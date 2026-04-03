@@ -1,5 +1,5 @@
 import { useReactFlow, type NodeProps } from "@xyflow/react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchIcons, type CustomIcon, type Port, type ServiceAction } from "../api";
 import { portProbeChips } from "../probeDisplay";
@@ -216,6 +216,14 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
 
   const groupVisual = getGroupVisual(d.kind);
 
+  // Fixed card width 200px; label area ≈ 156px (minus padding 24 + icon 14 + gap 6).
+  // Scale font-size down proportionally if label doesn't fit; floor at 70% (≈9px).
+  const LABEL_AVAIL_PX = 156;
+  const labelFontPct = Math.min(100, Math.max(70,
+    Math.floor(100 * LABEL_AVAIL_PX / (d.label.length * 6.5)),
+  ));
+
+
   const dotStatusKey = offline ? "unknown" : status;
 
   const nodeTint = unmonitored
@@ -350,9 +358,6 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   };
 
   const panelW = 280;
-  // Generous height estimate — same approach as left/right (known width).
-  // Clamps top so the panel always fits fully without scrolling.
-  const PANEL_EST_H = 560;
   const liveRect = visible ? nodeRef.current?.getBoundingClientRect() ?? null : null;
   const panelStyle = liveRect ? (() => {
     const gap = 24;
@@ -360,7 +365,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
       ? liveRect.right + gap
       : liveRect.left - panelW - gap;
     const nodeCenter = liveRect.top + liveRect.height / 2;
-    const top = Math.max(8, Math.min(nodeCenter - 105, window.innerHeight - PANEL_EST_H - 8));
+    const top = Math.max(8, nodeCenter - 105);
     return {
       position: "fixed" as const,
       top,
@@ -369,10 +374,21 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
     };
   })() : {};
 
+  // After each render, clamp the panel inside the viewport — runs before browser paint
+  // so the user never sees an out-of-bounds position.
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 8) {
+      el.style.top = `${Math.max(8, window.innerHeight - rect.height - 8)}px`;
+    }
+  });
+
   const panel = visible && liveRect ? [
     createPortal(
     <div
-      ref={locked ? panelRef : undefined}
+      ref={panelRef}
       onMouseEnter={() => { if (hideTimer.current) clearTimeout(hideTimer.current); }}
       onMouseLeave={hide}
       onMouseDown={(e) => e.stopPropagation()}
@@ -950,12 +966,14 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
       <div
         onClick={handleNodeClick}
         style={{
-          background: nodeTint.bg,
+          background: "var(--probemap-modal-bg)",
           border: `1.5px solid ${nodeTint.border}`,
           borderRadius: groupVisual.borderRadius,
           padding: groupVisual.accentColor ? "8px 12px 8px 15px" : "8px 12px",
-          minWidth: groupVisual.minWidth,
-          boxShadow: "var(--probemap-node-card-shadow)",
+          width: 200,
+          fontSize: 13,
+          // 3px opaque halo lifts the card off the group background visually
+          boxShadow: `var(--probemap-node-card-shadow), 0 0 0 3px var(--probemap-modal-bg)`,
           position: "relative", cursor: "pointer",
           outline: !colliding && locked ? `2px solid ${nodeTint.ring}` : undefined,
           opacity: colliding ? 0.5 : 1,
@@ -990,7 +1008,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
           <span
             style={{
               fontWeight: 600,
-              fontSize: 13,
+              fontSize: `${labelFontPct}%`,
               color: "var(--probemap-text)",
               flex: 1,
               minWidth: 0,
