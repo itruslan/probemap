@@ -29,6 +29,8 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-03 — feat(groups): G1–G5 — типизированные группы с parentId.** `GROUP_KINDS` реестр (11 видов: vm, k8s-cluster, 9 DB/infra кластеров) в `nodeKinds.ts`; `GroupNodeData.kind` + `LayoutNode.parentId`. `GroupNode`: иконка вида + подпись в заголовке, `Handle` для cluster-групп. `ServiceNode`: скрытие handles внутри cluster-группы. `TopologyCanvas`: `onNodeDragStop` определяет принадлежность к группе по центру ноды → `parentId` + конвертация relative/absolute; при удалении группы дети освобождаются; `persistLayout`/loadLayout сохраняют и восстанавливают `parentId` и `kind`. `Palette` Objects tab: секция «Группы» c `GROUP_KINDS`, `addGroupFromPalette` с дефолтным цветом из реестра.
+
 - **2026-04-02 — feat(palette): вкладка «Объекты» в левой панели (H1).** `Palette.tsx`: таб-переключатель «Мониторинг»/«Объекты»; вкладка «Объекты» — плитки из `NODE_KINDS` (без `menuHidden`, без группы `service`), сгруппированные по `KIND_GROUPS`, с поиском по имени. Клик добавляет узел в свободную точку слева вьюпорта (`findFreePositionViewportLeftColumn`). `addComponentFromPalette` в `TopologyCanvas.tsx`; CSS `.palette-sidebar__tabs/tab/tab--active` и `.palette-objects__grid/tile/tile-label` в `index.css`.
 - **2026-04-03 — fix(metrics): логирование ошибок VM с контекстом.** `_query()`: перехват `KeyError`/`ValueError` при плохом JSON-ответе — `_log.warning` + raise; DEBUG-лог успешного запроса (results count, query). `discover_labels_for()`, `get_filter_values()`: `_log.warning` перед raise при httpx-ошибке. Инфраструктура (`log.py`, `PROBEMAP_LOG_LEVEL`, `PROBEMAP_LOG_FORMAT`) была готова ранее.
 - **2026-04-02 — feat(endpoint): Endpoint на узле.** Поле `endpoint` в `ServiceNodeData`; на карточке — серая строка под названием (если задан); в панели — секция ENDPOINT: ссылка / редактирование (инпут + дропдаун лейблов из метрик). В Settings → LABEL MAPPING добавлено необязательное поле «Endpoint» (`endpoint_label`): лейбл, значение которого автоматически подставляется как endpoint; ручной ввод на узле перекрывает авто; бейдж с именем лейбла и кнопка `✕ override` в панели.
@@ -76,76 +78,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 - **VM / K8s** — группа без handles, содержит сервисы; стрелки идут напрямую к сервисам внутри
 - **DB / infra кластер** — группа с handles (можно соединить стрелкой с внешним объектом), содержит ноды кластера; сами ноды кластера без handles
 - Движение группы тащит всех детей (parentId в ReactFlow)
-
----
-
-### [ ] G1. Реестр видов групп
-
-Основа для всего блока — без этого ничего не работает.
-
-- Добавить `kind` в `GroupNodeData` и `LayoutNode` (api.ts)
-- Создать `GROUP_KINDS` registry в `nodeKinds.ts`:
-  ```
-  vm, k8s-cluster,
-  postgres-cluster, mysql-cluster, oracle-cluster,
-  redis-cluster, kafka-cluster, mongodb-cluster,
-  opensearch-cluster, clickhouse-cluster,
-  generic-cluster
-  ```
-- Для каждого kind: `label {ru/en}`, `icon` (FA6), `hasHandles: boolean`, `defaultColor: string`
-- `vm` и `k8s-cluster` → `hasHandles: false`; все `*-cluster` → `hasHandles: true`
-- i18n ключи `groupKindVm`, `groupKindK8s`, `groupKindPostgres`, … (ru + en)
-- **Готово когда:** реестр экспортируется, тесты на значения `hasHandles` проходят
-
----
-
-### [ ] G2. GroupNode — kind-иконка и handles
-
-Визуальное обновление компонента.
-
-- Читать `d.kind` из данных ноды
-- Показывать иконку (FA6) + название вида рядом с текущим editable-лейблом в заголовке
-- Если `d.kind` не задан — поведение как сейчас (без иконки)
-- Добавить `<Handle>` (top/right/bottom/left) для видов с `hasHandles: true` — аналогично `AllHandles` в ServiceNode
-- Цвет пресета по умолчанию при создании группы берётся из реестра
-- **Готово когда:** postgres-cluster-группа имеет иконку в заголовке и видимые handles; vm-группа — без handles
-
----
-
-### [ ] G3. parentId — ноды двигаются с группой
-
-Самая сложная подзадача. Делать после G1+G2.
-
-- Добавить `parentId?: string` в `LayoutNode` (api.ts) и `ignored_sources` persist
-- В `TopologyCanvas`: при `onNodeDragStop` — проверить, находится ли нода внутри bounds группы; если да — установить `parentId` и пересчитать позицию в relative-координаты группы
-- При перетаскивании ноды за пределы группы — сбросить `parentId`, позицию вернуть в absolute
-- Ноды с `parentId` рендерятся с `extent: "parent"` OFF (чтобы можно было вытащить), но двигаются вместе
-- Сохранение: `persistLayout` пишет `parentId` если задан
-- Загрузка: `loadLayout` восстанавливает `parentId` на нодах
-- **Готово когда:** тащишь VM-группу — сервисы внутри едут вместе; вытащил сервис за границу — отвязался от группы
-
----
-
-### [ ] G4. Handles на нодах внутри cluster-группы
-
-Ноды внутри кластера (parentId → cluster-kind группа) не должны иметь внешних соединений.
-
-- В `ServiceNode` / `AllHandles` — читать `parentId` ноды, находить родительскую группу, проверять её `kind`
-- Если родительская группа имеет `hasHandles: true` (cluster) → `<AllHandles>` скрыты у дочерних нод
-- Если родительская группа `hasHandles: false` (vm, k8s) → handles у сервисов внутри остаются
-- **Готово когда:** ноды внутри postgres-cluster не показывают handles; сервисы внутри VM-группы показывают
-
----
-
-### [ ] G5. Палитра — секция «Группы»
-
-Добавление типизированных групп из палитры Объекты.
-
-- В Objects tab добавить секцию «Группы» (новая `GROUP_KINDS` секция после компонентов)
-- Клик → создать группу с нужным `kind` в свободном месте вьюпорта (аналогично `addComponentFromPalette`)
-- Группа создаётся с дефолтным размером (260×180) и дефолтным цветом из реестра
-- Существующая кнопка «Добавить область» в `MapObjectsBar` — оставить как generic-группу без kind
-- **Готово когда:** из палитры можно добавить «VM», «PostgreSQL кластер» и они отличаются визуально
 
 ---
 

@@ -44,7 +44,7 @@ import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
 import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 import { effectiveServiceIdForNode, probeNodeStatus } from "./probeAlert";
-import type { NodeKindDef } from "./nodeKinds";
+import type { NodeKindDef, GroupKindDef } from "./nodeKinds";
 
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
 const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
@@ -872,6 +872,33 @@ export function TopologyCanvas({
     [setNodes, screenToFlowPosition, t, metricsStale, canvasInteractive, pushSnapshot]
   );
 
+  const addGroupFromPalette = useCallback(
+    (groupKindDef: GroupKindDef) => {
+      if (metricsStale || !canvasInteractive) return;
+      if (!applyingHistory.current) pushSnapshot();
+      const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+      setNodes((ns) => {
+        const position = findFreePositionViewportLeftColumn(ns, screenToFlowPosition, rect);
+        const groupCount = ns.filter((n) => n.type === "group").length;
+        return [
+          {
+            id: `group-${Date.now()}`,
+            type: "group",
+            position,
+            style: { width: 260, height: 180, zIndex: -10 + groupCount },
+            data: {
+              label: groupKindDef.label[lang as "ru" | "en"],
+              color: groupKindDef.defaultColor,
+              kind: groupKindDef.kind,
+            } satisfies GroupNodeData,
+          } as Node,
+          ...ns,
+        ];
+      });
+    },
+    [metricsStale, canvasInteractive, setNodes, screenToFlowPosition, t, pushSnapshot, lang]
+  );
+
   /** Как из палитры: свободная позиция в видимой области холста. */
   const addAreaFromSidebar = useCallback(() => {
     if (metricsStale || !canvasInteractive) return;
@@ -1150,6 +1177,7 @@ export function TopologyCanvas({
             onCanvas={onCanvas}
             onAddService={addServiceFromPalette}
             onAddComponent={addComponentFromPalette}
+            onAddGroup={addGroupFromPalette}
             readOnly={metricsStale || !canvasInteractive}
             selectedId={paletteSelectedId}
             onSelect={onPaletteSelect}

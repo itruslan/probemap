@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n, type I18nKey } from "./i18n";
-import { KIND_GROUPS, NODE_KINDS, type NodeKindDef } from "./nodeKinds";
+import { KIND_GROUPS, NODE_KINDS, GROUP_KINDS, type NodeKindDef, type GroupKindDef } from "./nodeKinds";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "#22c55e",
@@ -29,6 +29,8 @@ interface PaletteProps {
   onAddService: (service: Service) => void;
   /** Добавить произвольный компонент на карту */
   onAddComponent: (kindDef: NodeKindDef) => void;
+  /** Добавить типизированную группу на карту */
+  onAddGroup: (groupKindDef: GroupKindDef) => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Подсветка сервиса на карте при наведении (только если сервис из мониторинга уже на карте) */
@@ -46,6 +48,7 @@ export function Palette({
   onCanvas,
   onAddService,
   onAddComponent,
+  onAddGroup,
   readOnly = false,
   selectedId,
   onSelect,
@@ -116,6 +119,9 @@ export function Palette({
     visibleKinds.filter(
       (k) => k.group === group && k.label[lang as "ru" | "en"].toLowerCase().includes(objectSearch)
     );
+  const filteredGroupKinds = GROUP_KINDS.filter(
+    (k) => k.label[lang as "ru" | "en"].toLowerCase().includes(objectSearch)
+  );
 
   return (
     <aside
@@ -236,7 +242,7 @@ export function Palette({
           />
 
           <div className="palette-sidebar__list">
-            {visibleGroups.every((g) => filteredKinds(g.key).length === 0) && (
+            {visibleGroups.every((g) => filteredKinds(g.key).length === 0) && filteredGroupKinds.length === 0 && (
               <div className="palette-sidebar__empty">{t("nothingFound")}</div>
             )}
             {visibleGroups.map((g) => {
@@ -265,6 +271,28 @@ export function Palette({
                 </div>
               );
             })}
+
+            {filteredGroupKinds.length > 0 && (
+              <div>
+                <div className="palette-sidebar__section-header">
+                  {t("paletteGroupsSection")}
+                </div>
+                {filteredGroupKinds.map((gk) => (
+                  <button
+                    key={gk.kind}
+                    type="button"
+                    disabled={readOnly}
+                    className="palette-row palette-row--missing palette-row--kind"
+                    onClick={() => onAddGroup(gk)}
+                  >
+                    <span className="palette-row__name">{gk.label[lang as "ru" | "en"]}</span>
+                    <span className="palette-row__add" aria-hidden>
+                      <FaPlus size={11} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </>
       )}
