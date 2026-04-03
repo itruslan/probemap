@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n, type I18nKey } from "./i18n";
@@ -45,7 +45,7 @@ interface PaletteProps {
 
 type Tab = "monitoring" | "objects";
 
-export function Palette({
+export const Palette = memo(function Palette({
   services,
   onCanvas,
   onAddService,
@@ -133,9 +133,12 @@ export function Palette({
       style={readOnly ? { opacity: 0.72 } : undefined}
     >
       {/* Tab switcher */}
-      <div className="palette-sidebar__tabs">
+      <div className="palette-sidebar__tabs" role="tablist">
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "monitoring"}
+          aria-controls="palette-panel-monitoring"
           className={`palette-sidebar__tab${tab === "monitoring" ? " palette-sidebar__tab--active" : ""}`}
           onClick={() => setTab("monitoring")}
         >
@@ -143,6 +146,9 @@ export function Palette({
         </button>
         <button
           type="button"
+          role="tab"
+          aria-selected={tab === "objects"}
+          aria-controls="palette-panel-objects"
           className={`palette-sidebar__tab${tab === "objects" ? " palette-sidebar__tab--active" : ""}`}
           onClick={() => setTab("objects")}
         >
@@ -151,7 +157,7 @@ export function Palette({
       </div>
 
       {tab === "monitoring" && (
-        <>
+        <div id="palette-panel-monitoring" role="tabpanel">
           <input
             className="palette-sidebar__search"
             value={search}
@@ -229,11 +235,11 @@ export function Palette({
             })}
           </div>
 
-        </>
+        </div>
       )}
 
       {tab === "objects" && (
-        <>
+        <div id="palette-panel-objects" role="tabpanel">
           <input
             className="palette-sidebar__search"
             value={search}
@@ -310,8 +316,8 @@ export function Palette({
               </div>
             )}
           </div>
-        </>
+        </div>
       )}
     </aside>
   );
-}
+});

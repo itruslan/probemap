@@ -1,5 +1,5 @@
 import { useReactFlow, type NodeProps } from "@xyflow/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { fetchIcons, type CustomIcon, type Port, type ServiceAction } from "../api";
 import { portProbeChips } from "../probeDisplay";
@@ -76,7 +76,7 @@ export interface ServiceNodeData {
   endpoint?: string | null;
 }
 
-export function ServiceNode({ data, id }: NodeProps) {
+export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
   const { updateNodeData, getNode } = useReactFlow();
 
@@ -137,35 +137,44 @@ export function ServiceNode({ data, id }: NodeProps) {
   // Строка на пару порт×зона×job×module; тип пробы для зоны без серии — из агрегата порта (не «TCP» по умолчанию)
   const ignoredSources = useMemo(() => new Set((d.ignored_sources ?? []).filter(Boolean)), [d.ignored_sources]);
 
-  const probeRowsAll = (d.ports ?? []).flatMap((p) =>
-    Object.entries(p.sources ?? {}).map(([source, s]) => {
-      const zt = s.probe_types ?? [];
-      const mergedTypes = zt.length > 0 ? zt : (p.probe_types ?? []);
-      return {
-        port: p.port,
-        job: p.job ?? null,
-        module: p.module ?? null,
-        source,
-        success: s.success,
-        duration_ms: s.duration_ms ?? undefined,
-        probe_types: mergedTypes,
-      };
-    }),
+  const probeRowsAll = useMemo(
+    () =>
+      (d.ports ?? []).flatMap((p) =>
+        Object.entries(p.sources ?? {}).map(([source, s]) => {
+          const zt = s.probe_types ?? [];
+          const mergedTypes = zt.length > 0 ? zt : (p.probe_types ?? []);
+          return {
+            port: p.port,
+            job: p.job ?? null,
+            module: p.module ?? null,
+            source,
+            success: s.success,
+            duration_ms: s.duration_ms ?? undefined,
+            probe_types: mergedTypes,
+          };
+        }),
+      ),
+    [d.ports],
   );
-  const probeRows = probeRowsAll.filter((r) => !ignoredSources.has(r.source));
 
-  probeRows.sort((a, b) => {
-    const dj = (a.job ?? "").localeCompare(b.job ?? "", "ru");
-    if (dj !== 0) return dj;
-    const dm = (a.module ?? "").localeCompare(b.module ?? "", "ru");
-    if (dm !== 0) return dm;
-    const dp = portSortKey(a.port) - portSortKey(b.port);
-    if (dp !== 0) return dp;
-    return a.source.localeCompare(b.source, "ru");
-  });
+  const probeRows = useMemo(
+    () =>
+      probeRowsAll
+        .filter((r) => !ignoredSources.has(r.source))
+        .sort((a, b) => {
+          const dj = (a.job ?? "").localeCompare(b.job ?? "", "ru");
+          if (dj !== 0) return dj;
+          const dm = (a.module ?? "").localeCompare(b.module ?? "", "ru");
+          if (dm !== 0) return dm;
+          const dp = portSortKey(a.port) - portSortKey(b.port);
+          if (dp !== 0) return dp;
+          return a.source.localeCompare(b.source, "ru");
+        }),
+    [probeRowsAll, ignoredSources],
+  );
 
   // По источнику (instance): есть ли явный fail (0) и/или ok (1). Нет серии у части blackbox — не «провал».
-  const sourceAgg = (() => {
+  const sourceAgg = useMemo(() => {
     const m = new Map<string, { hasOk: boolean; hasFail: boolean }>();
     for (const row of probeRows) {
       const cur = m.get(row.source) ?? { hasOk: false, hasFail: false };
@@ -174,10 +183,10 @@ export function ServiceNode({ data, id }: NodeProps) {
       m.set(row.source, cur);
     }
     return m;
-  })();
+  }, [probeRows]);
 
-  const hasAnyFail = probeRows.some((r) => r.success === 0);
-  const hasAnyOk = probeRows.some((r) => r.success === 1);
+  const hasAnyFail = useMemo(() => probeRows.some((r) => r.success === 0), [probeRows]);
+  const hasAnyOk = useMemo(() => probeRows.some((r) => r.success === 1), [probeRows]);
   const totalPresent = sourceAgg.size;
   const okPresent = Array.from(sourceAgg.values()).filter((st) => st.hasOk && !st.hasFail).length;
 
@@ -196,11 +205,11 @@ export function ServiceNode({ data, id }: NodeProps) {
   const presentBb = sourceAgg.size;
 
   /** Список blackbox (instance), в том же порядке что и в API; иначе — из фактических источников по узлу */
-  const blackboxOrder = (() => {
+  const blackboxOrder = useMemo(() => {
     const fromCfg = (probeSourcesGlobal ?? []).filter(Boolean);
     if (fromCfg.length > 0) return fromCfg;
     return Array.from(sourceAgg.keys()).sort((a, b) => a.localeCompare(b, "ru"));
-  })();
+  }, [probeSourcesGlobal, sourceAgg]);
 
   // Для компонентов статус "offline" определяем по наличию портов/проб, а не по id узла.
   // Это позволяет binding через `matchServiceId` показывать live-статус.
@@ -1059,4 +1068,4 @@ export function ServiceNode({ data, id }: NodeProps) {
       )}
     </div>
   );
-}
+});

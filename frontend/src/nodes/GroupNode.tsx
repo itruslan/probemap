@@ -1,5 +1,5 @@
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { IconRenderer } from "../IconRenderer";
 import { getGroupKindDef } from "../nodeKinds";
@@ -67,7 +67,7 @@ const HANDLE_STYLE: React.CSSProperties = {
   zIndex: 10, // выше child-нод внутри группы
 };
 
-export function GroupNode({ id, data, selected }: NodeProps) {
+export const GroupNode = memo(function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
   const { setNodes, getNodes } = useReactFlow();
   const { t } = useI18n();
@@ -706,4 +706,4 @@ export function GroupNode({ id, data, selected }: NodeProps) {
       </div>
     </>
   );
-}
+});

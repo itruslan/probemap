@@ -344,6 +344,7 @@ export function TopologyCanvas({
   const [tracedNodeId, setTracedNodeId] = useState<string | null>(null);
   const [refreshLabelBold, setRefreshLabelBold] = useState(false);
   const refreshBoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistLayoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleToolbarRefresh = useCallback(() => {
     if (refreshBoldTimerRef.current) clearTimeout(refreshBoldTimerRef.current);
@@ -1067,10 +1068,21 @@ export function TopologyCanvas({
   }, [edges, edgeEditId]);
 
   useEffect(() => {
-    if (layoutLoaded.current && !metricsStale) persistLayout();
+    if (!layoutLoaded.current || metricsStale) return;
+    if (persistLayoutTimerRef.current) clearTimeout(persistLayoutTimerRef.current);
+    persistLayoutTimerRef.current = setTimeout(() => {
+      persistLayout();
+      persistLayoutTimerRef.current = null;
+    }, 500);
+    return () => {
+      if (persistLayoutTimerRef.current) clearTimeout(persistLayoutTimerRef.current);
+    };
   }, [nodes, edges, metricsStale, persistLayout]);
 
-  const onCanvas = new Set(nodes.filter((n) => n.type === "service").map((n) => n.id));
+  const onCanvas = useMemo(
+    () => new Set(nodes.filter((n) => n.type === "service").map((n) => n.id)),
+    [nodes],
+  );
 
   const tracedSet = useMemo(() => {
     if (!tracedNodeId) return null;

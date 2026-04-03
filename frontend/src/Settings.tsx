@@ -525,6 +525,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       }}
     >
       <div
+        role="dialog"
+        aria-modal="true"
+        aria-label={t("settings")}
         style={{
           background: "var(--probemap-modal-bg)",
           borderRadius: 12,
@@ -561,6 +564,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           <button
             type="button"
             onClick={onClose}
+            aria-label={t("settingsClose")}
             style={{
               background: "none",
               border: "none",
