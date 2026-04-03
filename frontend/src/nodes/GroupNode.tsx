@@ -1,6 +1,8 @@
-import { NodeResizer, useReactFlow, type NodeProps } from "@xyflow/react";
+import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
+import { IconRenderer } from "../IconRenderer";
+import { getGroupKindDef } from "../nodeKinds";
 
 /** Иначе React Flow перехватывает mousedown — начинается drag/selection, срабатывает mouseleave и палитра схлопывается. */
 function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
@@ -50,10 +52,20 @@ function colorFromHex(hex: string): { bg: string; border: string } {
   return { bg: hexToRgba(hex, 0.22), border: hex };
 }
 
+const HANDLE_STYLE: React.CSSProperties = {
+  width: 8,
+  height: 8,
+  borderRadius: 999,
+  background: "var(--probemap-interactive-hover-border)",
+  border: "2px solid var(--probemap-bg)",
+  opacity: 0,
+  transition: "opacity 0.15s ease",
+};
+
 export function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
   const { setNodes, getNodes } = useReactFlow();
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
   const [colorHex, setColorHex] = useState(() => resolveHex(d.color));
@@ -63,6 +75,9 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   const chromeLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
+
+  const kindDef = getGroupKindDef(d.kind);
+  const hasHandles = kindDef?.hasHandles ?? false;
 
   const clearChromeLeaveTimer = () => {
     if (chromeLeaveTimerRef.current) {
@@ -157,6 +172,17 @@ export function GroupNode({ id, data, selected }: NodeProps) {
           border: "1px solid rgba(255,255,255,0.8)",
         }}
       />
+
+      {/* Handles для кластеров с внешними соединениями */}
+      {hasHandles && (
+        <>
+          <Handle type="source" position={Position.Top}    id="top"    style={HANDLE_STYLE} className="react-flow__handle-visibility" />
+          <Handle type="source" position={Position.Right}  id="right"  style={HANDLE_STYLE} className="react-flow__handle-visibility" />
+          <Handle type="source" position={Position.Bottom} id="bottom" style={HANDLE_STYLE} className="react-flow__handle-visibility" />
+          <Handle type="source" position={Position.Left}   id="left"   style={HANDLE_STYLE} className="react-flow__handle-visibility" />
+        </>
+      )}
+
       <div
         style={{
           width: "100%",
@@ -190,9 +216,17 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             left: 8,
             display: "flex",
             alignItems: "center",
+            gap: 4,
             maxWidth: "calc(100% - 160px)",
           }}
         >
+          {/* Иконка вида группы */}
+          {kindDef && (
+            <span style={{ color: labelColor, opacity: 0.7, flexShrink: 0, lineHeight: 0 }}>
+              <IconRenderer name={kindDef.icon} size={11} />
+            </span>
+          )}
+
           {/* Кнопка открытия палитры цветов */}
           <button
             ref={colorBtnRef}
@@ -202,7 +236,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             onMouseDown={stopFlowPointer}
             title={t("groupColor")}
             className="probemap-btn probemap-btn--icon-tiny"
-            style={{ marginRight: 6 }}
+            style={{ marginRight: 2 }}
           >
             <span
               aria-hidden
@@ -216,6 +250,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               }}
             />
           </button>
+
+          {/* Editable label */}
           {editing ? (
             <input
               autoFocus
@@ -254,6 +290,22 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               }}
             >
               {label}
+            </span>
+          )}
+
+          {/* Kind subtitle — показываем только если есть kind */}
+          {kindDef && !editing && (
+            <span style={{
+              fontSize: 9,
+              color: labelColor,
+              opacity: 0.55,
+              fontWeight: 500,
+              letterSpacing: "0.03em",
+              marginLeft: 2,
+              flexShrink: 0,
+              whiteSpace: "nowrap",
+            }}>
+              {kindDef.label[lang as "ru" | "en"]}
             </span>
           )}
         </div>
@@ -339,7 +391,6 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               zIndex: 10,
             }}
           >
-            {/* Пресеты */}
             {PRESETS.map((p) => (
               <button
                 key={p.hex}
@@ -356,10 +407,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               />
             ))}
 
-            {/* Разделитель */}
             <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
 
-            {/* Произвольный цвет — разноцветный кружок */}
             <div style={{ position: "relative", flexShrink: 0 }}>
               <label
                 title={t("groupColorCustom")}
@@ -403,7 +452,6 @@ export function GroupNode({ id, data, selected }: NodeProps) {
               </label>
             </div>
 
-            {/* Сброс цвета */}
             {colorHex && (
               <>
                 <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
