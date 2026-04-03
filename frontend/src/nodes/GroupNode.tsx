@@ -75,15 +75,15 @@ export function GroupNode({ id, data, selected }: NodeProps) {
   // Закрывать палитру по клику вне неё
   useEffect(() => {
     if (!paletteOpen) return;
-    const handleMouseDown = (e: MouseEvent) => {
+    const handleClick = (e: MouseEvent) => {
       if (
         paletteRef.current?.contains(e.target as Node) ||
         colorBtnRef.current?.contains(e.target as Node)
       ) return;
       setPaletteOpen(false);
     };
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
+    document.addEventListener("click", handleClick, true);
+    return () => document.removeEventListener("click", handleClick, true);
   }, [paletteOpen]);
 
   const color = colorHex
@@ -210,7 +210,8 @@ export function GroupNode({ id, data, selected }: NodeProps) {
                 height: 10,
                 borderRadius: 999,
                 background: colorHex ? color.bg : "transparent",
-                border: colorHex ? `1px solid ${color.border}` : "1px solid var(--probemap-border-strong)",
+                border: colorHex ? `1px solid ${color.border}` : "1px dashed var(--probemap-text-faint)",
+                opacity: colorHex ? 1 : 0.5,
               }}
             />
           </button>
@@ -357,7 +358,7 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             {/* Разделитель */}
             <div style={{ width: 1, height: 16, background: "var(--probemap-border)", flexShrink: 0 }} />
 
-            {/* Произвольный цвет */}
+            {/* Произвольный цвет — разноцветный кружок */}
             <div style={{ position: "relative", flexShrink: 0 }}>
               <label
                 title={t("groupColorCustom")}
@@ -367,12 +368,13 @@ export function GroupNode({ id, data, selected }: NodeProps) {
                   className="probemap-btn probemap-btn--color-swatch"
                   style={{
                     display: "block",
+                    borderRadius: 999,
                     border: colorHex && !PRESETS.some((p) => p.hex === colorHex)
                       ? `2px solid ${colorHex}`
-                      : "2px dashed var(--probemap-border-strong)",
+                      : "2px solid var(--probemap-border-strong)",
                     background: colorHex && !PRESETS.some((p) => p.hex === colorHex)
                       ? hexToRgba(colorHex, 0.22)
-                      : "var(--probemap-bg-subtle)",
+                      : "conic-gradient(#ef4444, #f97316, #fcd34d, #22c55e, #3b82f6, #8b5cf6, #ef4444)",
                     outline: colorHex && !PRESETS.some((p) => p.hex === colorHex)
                       ? `2px solid ${colorHex}`
                       : "none",
@@ -410,28 +412,12 @@ export function GroupNode({ id, data, selected }: NodeProps) {
                   title={t("groupColorReset")}
                   className="probemap-btn probemap-btn--color-swatch"
                   style={{
-                    border: "2px solid var(--probemap-border)",
+                    borderRadius: 999,
+                    border: "2px dashed var(--probemap-text-faint)",
                     background: "transparent",
-                    position: "relative",
-                    overflow: "hidden",
                   }}
                   aria-label={t("groupColorReset")}
-                >
-                  <span
-                    aria-hidden
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 11,
-                      color: "var(--probemap-text-faint)",
-                    }}
-                  >
-                    ×
-                  </span>
-                </button>
+                />
               </>
             )}
           </div>
