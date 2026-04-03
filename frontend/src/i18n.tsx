@@ -68,6 +68,7 @@ const STRINGS = {
     kindGroupManaged: "Managed-ресурсы",
     kindGroupOther: "Прочее",
 
+    paletteArea: "Область",
     clusterImportOpen: "Загрузить ноды по лейблу",
     clusterImportLabel: "Лейбл",
     clusterImportValue: "Значение",
@@ -350,6 +351,7 @@ const STRINGS = {
     kindGroupManaged: "Managed Resources",
     kindGroupOther: "Other",
 
+    paletteArea: "Area",
     clusterImportOpen: "Import nodes by label",
     clusterImportLabel: "Label",
     clusterImportValue: "Value",

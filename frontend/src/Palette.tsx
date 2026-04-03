@@ -31,6 +31,8 @@ interface PaletteProps {
   onAddComponent: (kindDef: NodeKindDef) => void;
   /** Добавить типизированную группу на карту */
   onAddGroup: (groupKindDef: GroupKindDef) => void;
+  /** Добавить generic-область на карту */
+  onAddArea: () => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Подсветка сервиса на карте при наведении (только если сервис из мониторинга уже на карте) */
@@ -49,6 +51,7 @@ export function Palette({
   onAddService,
   onAddComponent,
   onAddGroup,
+  onAddArea,
   readOnly = false,
   selectedId,
   onSelect,
@@ -272,11 +275,24 @@ export function Palette({
               );
             })}
 
-            {filteredGroupKinds.length > 0 && (
+            {(filteredGroupKinds.length > 0 || !objectSearch) && (
               <div>
                 <div className="palette-sidebar__section-header">
                   {t("paletteGroupsSection")}
                 </div>
+                {!objectSearch && (
+                  <button
+                    type="button"
+                    disabled={readOnly}
+                    className="palette-row palette-row--missing palette-row--kind"
+                    onClick={onAddArea}
+                  >
+                    <span className="palette-row__name">{t("paletteArea")}</span>
+                    <span className="palette-row__add" aria-hidden>
+                      <FaPlus size={11} />
+                    </span>
+                  </button>
+                )}
                 {filteredGroupKinds.map((gk) => (
                   <button
                     key={gk.kind}

@@ -1180,6 +1180,7 @@ export function TopologyCanvas({
             onAddService={addServiceFromPalette}
             onAddComponent={addComponentFromPalette}
             onAddGroup={addGroupFromPalette}
+            onAddArea={addAreaFromSidebar}
             readOnly={metricsStale || !canvasInteractive}
             selectedId={paletteSelectedId}
             onSelect={onPaletteSelect}
@@ -1395,7 +1396,6 @@ export function TopologyCanvas({
         </div>
 
         <MapObjectsBar
-          onAddArea={addAreaFromSidebar}
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
           onFitView={handleFitView}

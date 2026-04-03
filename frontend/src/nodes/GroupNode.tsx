@@ -64,12 +64,13 @@ const HANDLE_STYLE: React.CSSProperties = {
   border: "2px solid var(--probemap-bg)",
   opacity: 0,
   transition: "opacity 0.15s ease",
+  zIndex: 10, // выше child-нод внутри группы
 };
 
 export function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
   const { setNodes, getNodes } = useReactFlow();
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const services = useServices();
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
@@ -362,21 +363,6 @@ export function GroupNode({ id, data, selected }: NodeProps) {
             </span>
           )}
 
-          {/* Kind subtitle — показываем только если есть kind */}
-          {kindDef && !editing && (
-            <span style={{
-              fontSize: 9,
-              color: labelColor,
-              opacity: 0.55,
-              fontWeight: 500,
-              letterSpacing: "0.03em",
-              marginLeft: 2,
-              flexShrink: 0,
-              whiteSpace: "nowrap",
-            }}>
-              {kindDef.label[lang as "ru" | "en"]}
-            </span>
-          )}
         </div>
 
         {showChrome && (

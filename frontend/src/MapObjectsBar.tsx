@@ -3,7 +3,6 @@ import {
   FaLock,
   FaMagnifyingGlassMinus,
   FaMagnifyingGlassPlus,
-  FaObjectGroup,
   FaRotateLeft,
   FaRotateRight,
   FaUnlock,
@@ -12,7 +11,6 @@ import { useI18n } from "./i18n";
 import type { ReactNode } from "react";
 
 type Props = {
-  onAddArea: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   onFitView: () => void;
@@ -32,7 +30,6 @@ type Props = {
 };
 
 export function MapObjectsBar({
-  onAddArea,
   onZoomIn,
   onZoomOut,
   onFitView,
@@ -85,14 +82,6 @@ export function MapObjectsBar({
       <div className="map-objects-stack">
         <section className="map-objects-toolbar__panel" aria-label={t("mapCanvasActions")}>
           <div className="map-objects-toolbar__inner" role="toolbar" aria-orientation="vertical">
-            <Btn
-              label={t("contextAddArea")}
-              title={`${t("mapObjectsTitle")}: ${t("contextAddArea")}`}
-              disabled={cannotAdd}
-              onClick={onAddArea}
-            >
-              <FaObjectGroup className="map-objects-toolbar__icon" aria-hidden />
-            </Btn>
             <Btn
               label={t("mapUndo")}
               title={`${t("mapCanvasActions")}: ${t("mapUndo")}`}
