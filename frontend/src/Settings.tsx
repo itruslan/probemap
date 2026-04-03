@@ -673,16 +673,15 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               >
                 <input
                   value={ds.url}
-                  readOnly={urlFromEnv}
+                  disabled={urlFromEnv}
                   onChange={(e) => setDs({ url: e.target.value })}
                   placeholder={t("settingsUrlPlaceholder")}
                   style={{
                     ...inputStyle,
                     ...(urlFromEnv
-                      ? { opacity: 0.92, cursor: "not-allowed" }
+                      ? { opacity: 0.6, cursor: "not-allowed" }
                       : {}),
                   }}
-                  aria-readonly={urlFromEnv || undefined}
                 />
                 {urlDirty ? (
                   <div
@@ -719,7 +718,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               <button
                 type="button"
                 onClick={() => void handleTest()}
-                disabled={!ds.url?.trim() || testState === "testing"}
+                disabled={
+                  !ds.url?.trim() || testState === "testing" || urlFromEnv
+                }
                 className="probemap-btn probemap-btn--outline-dynamic"
                 style={{ borderColor: testColor, color: testColor }}
               >
