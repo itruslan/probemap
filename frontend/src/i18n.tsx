@@ -225,7 +225,7 @@ const STRINGS = {
     deleteFromMapPlaceholder: "подтверждение",
 
     iconSectionBuiltin: "ИКОНКИ",
-    iconSectionCustom: "МОИ ИКОНКИ",
+    iconSectionCustom: "ЗАГРУЖЕННЫЕ ИКОНКИ",
     iconSectionCustomHint:
       "SVG, PNG или WebP. После загрузки иконки появятся в сетке выбора иконки у каждого узла и действия.",
     iconNamePlaceholder: "Название *",
@@ -468,7 +468,7 @@ const STRINGS = {
     deleteFromMapPlaceholder: "confirmation",
 
     iconSectionBuiltin: "ICONS",
-    iconSectionCustom: "MY ICONS",
+    iconSectionCustom: "UPLOADED ICONS",
     iconSectionCustomHint:
       "SVG, PNG or WebP. Uploaded icons appear in the icon picker grid for every node and action.",
     iconNamePlaceholder: "Name *",
