@@ -1,4 +1,5 @@
 import asyncio
+import re
 from collections import defaultdict
 from typing import Any
 
@@ -116,7 +117,7 @@ def build_probe_success_selector(
     """Селектор для `probe_success{...}` или пустая строка."""
     parts: list[str] = []
     if enabled_jobs:
-        job_re = "|".join(enabled_jobs)
+        job_re = "|".join(re.escape(j) for j in enabled_jobs)
         parts.append(f'job=~"{job_re}"')
     for fl, fv in project_pairs:
         if fl and fv:

@@ -1,11 +1,23 @@
 import pathlib
+import re
 
 import settings
 
 ICONS_DIR = settings.ICONS_DIR
 
-_EXTS = [".svg", ".png", ".webp"]
+ALLOWED_EXTS = {".svg", ".png", ".webp"}
+_EXTS = list(ALLOWED_EXTS)
 _MIME = {".svg": "image/svg+xml", ".png": "image/png", ".webp": "image/webp"}
+
+_SAFE_NAME = re.compile(r"^[a-zA-Z0-9_\-]{1,64}$")
+
+
+def sanitize_icon_name(name: str) -> str:
+    """Return name if safe, else empty string. Blocks path traversal and shell chars."""
+    cleaned = name.strip()
+    if _SAFE_NAME.match(cleaned):
+        return cleaned
+    return ""
 
 
 def list_icons() -> list[dict[str, str]]:

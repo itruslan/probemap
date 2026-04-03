@@ -280,22 +280,35 @@ def get_icons() -> dict[str, Any]:
 
 @app.get("/api/icons/{name}")
 def serve_icon(name: str) -> FileResponse:
+    if not icons_mod.sanitize_icon_name(name):
+        raise HTTPException(status_code=400, detail="Invalid icon name")
     path = icons_mod.icon_path(name)
     if path is None:
         raise HTTPException(status_code=404, detail="Icon not found")
     return FileResponse(str(path), media_type=icons_mod.icon_mime(path))
 
 
+_ICON_MAX_BYTES = 512 * 1024  # 512 KB
+
 @app.post("/api/icons")
 async def upload_icon(name: str = Form(...), file: UploadFile = File(...)) -> dict[str, str]:
-    data = await file.read()
     ext = "." + (file.filename or "x.svg").rsplit(".", 1)[-1].lower()
-    icons_mod.save_icon(name, data, ext)
-    return {"name": name, "url": f"/api/icons/{name}"}
+    if ext not in icons_mod.ALLOWED_EXTS:
+        raise HTTPException(status_code=400, detail=f"Unsupported file type: {ext}")
+    data = await file.read(_ICON_MAX_BYTES + 1)
+    if len(data) > _ICON_MAX_BYTES:
+        raise HTTPException(status_code=413, detail="Icon file too large (max 512 KB)")
+    safe_name = icons_mod.sanitize_icon_name(name)
+    if not safe_name:
+        raise HTTPException(status_code=400, detail="Invalid icon name")
+    icons_mod.save_icon(safe_name, data, ext)
+    return {"name": safe_name, "url": f"/api/icons/{safe_name}"}
 
 
 @app.delete("/api/icons/{name}")
 def delete_icon(name: str) -> dict[str, str]:
+    if not icons_mod.sanitize_icon_name(name):
+        raise HTTPException(status_code=400, detail="Invalid icon name")
     if not icons_mod.delete_icon(name):
         raise HTTPException(status_code=404, detail="Icon not found")
     return {"status": "ok"}
