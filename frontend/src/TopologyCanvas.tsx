@@ -75,6 +75,8 @@ function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
     type,
     data: normalizeLayoutEdgeData(raw.data),
   };
+  if (typeof raw.sourceHandle === "string") edge.sourceHandle = raw.sourceHandle;
+  if (typeof raw.targetHandle === "string") edge.targetHandle = raw.targetHandle;
   if (raw.style && typeof raw.style === "object" && raw.style !== null) {
     edge.style = raw.style as MapEdge["style"];
   }
@@ -269,6 +271,8 @@ interface Props {
   ) => void;
   /** Данные мониторинга устарели — затемнение канваса, без правок */
   metricsStale: boolean;
+  /** false = viewer mode: карта только для просмотра, редактирование отключено */
+  isAdmin?: boolean;
   datasourceStatus?: {
     configured: boolean;
     ok: boolean;
@@ -285,6 +289,7 @@ export function TopologyCanvas({
   pollIntervalSec,
   onPollIntervalSecChange,
   metricsStale,
+  isAdmin = true,
   datasourceStatus,
   endpointLabel,
 }: Props) {
@@ -662,7 +667,7 @@ export function TopologyCanvas({
   // Handle Backspace/Delete on selected node (canvas selection or palette selection)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (metricsStale || !canvasInteractive) return;
+      if (metricsStale || !canvasInteractive || !isAdmin) return;
       if (confirmDelete) return;
       if (e.key !== "Backspace" && e.key !== "Delete") return;
       const tag = (e.target as HTMLElement).tagName;
@@ -1171,6 +1176,8 @@ export function TopologyCanvas({
         type: e.type ?? "default",
       };
       if (Object.keys(d).length > 0) row.data = d;
+      if (e.sourceHandle) row.sourceHandle = e.sourceHandle;
+      if (e.targetHandle) row.targetHandle = e.targetHandle;
       if (
         e.style &&
         typeof e.style === "object" &&
@@ -1214,7 +1221,7 @@ export function TopologyCanvas({
   }, [edges, edgeEditId]);
 
   useEffect(() => {
-    if (!layoutLoaded.current || metricsStale) return;
+    if (!layoutLoaded.current || metricsStale || !isAdmin) return;
     if (persistLayoutTimerRef.current)
       clearTimeout(persistLayoutTimerRef.current);
     persistLayoutTimerRef.current = setTimeout(() => {
@@ -1316,7 +1323,7 @@ export function TopologyCanvas({
   }, [store, metricsStale]);
 
   return (
-    <TraceContext.Provider value={{ tracedNodeId, toggleTrace }}>
+    <TraceContext.Provider value={{ tracedNodeId, toggleTrace, canEdit: !metricsStale && isAdmin }}>
       <CollisionContext.Provider value={collidingIds}>
         <DragContext.Provider value={draggingService}>
           <ServicesContext.Provider
@@ -1341,7 +1348,7 @@ export function TopologyCanvas({
                   onAddService={addServiceFromPalette}
                   onAddObject={addObjectFromPalette}
                   onAddArea={addAreaFromSidebar}
-                  readOnly={metricsStale || !canvasInteractive}
+                  readOnly={metricsStale || !canvasInteractive || !isAdmin}
                   selectedId={paletteSelectedId}
                   onSelect={onPaletteSelect}
                   onHoverChange={setPaletteHoverId}
@@ -1351,7 +1358,7 @@ export function TopologyCanvas({
               <EdgeInteractionContext.Provider
                 value={{
                   openEditor: (id) => setEdgeEditId(id),
-                  editable: !metricsStale && canvasInteractive,
+                  editable: !metricsStale && isAdmin && canvasInteractive,
                 }}
               >
                 <div
@@ -1558,9 +1565,9 @@ export function TopologyCanvas({
                       edgeTypes={EDGE_TYPES}
                       connectionMode={ConnectionMode.Loose}
                       defaultEdgeOptions={{ type: "default", data: {} }}
-                      nodesDraggable={!metricsStale && canvasInteractive}
-                      nodesConnectable={!metricsStale && canvasInteractive}
-                      edgesReconnectable={!metricsStale && canvasInteractive}
+                      nodesDraggable={!metricsStale && isAdmin && canvasInteractive}
+                      nodesConnectable={!metricsStale && isAdmin && canvasInteractive}
+                      edgesReconnectable={!metricsStale && isAdmin && canvasInteractive}
                       elementsSelectable={!metricsStale && canvasInteractive}
                       onBeforeDelete={onBeforeDelete}
                     >
@@ -1577,7 +1584,7 @@ export function TopologyCanvas({
                     canUndo={historyTick >= 0 && undoStack.current.length > 0}
                     canRedo={historyTick >= 0 && redoStack.current.length > 0}
                     canvasInteractive={!metricsStale && canvasInteractive}
-                    onToggleCanvasInteraction={handleToggleCanvasInteraction}
+                    onToggleCanvasInteraction={isAdmin ? handleToggleCanvasInteraction : undefined}
                     readOnly={metricsStale}
                     addBlocked={!metricsStale && !canvasInteractive}
                     freezeToolbar={metricsStale}

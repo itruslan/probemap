@@ -20,7 +20,7 @@ type Props = {
   canRedo: boolean;
   /** Как у стандартных Controls: переключение «замка» — перетаскивание, связи, выделение */
   canvasInteractive: boolean;
-  onToggleCanvasInteraction: () => void;
+  onToggleCanvasInteraction?: () => void;
   /** Метрики устарели — панель недоступна */
   readOnly?: boolean;
   /** Замок включён: нельзя добавлять объекты с панели; разблокировка по кнопке замка */
@@ -40,11 +40,10 @@ export function MapObjectsBar({
   canvasInteractive,
   onToggleCanvasInteraction,
   readOnly,
-  addBlocked,
+  addBlocked: _addBlocked,
   freezeToolbar,
 }: Props) {
   const { t } = useI18n();
-  const cannotAdd = Boolean(readOnly || addBlocked);
   const toolbarDead = Boolean(readOnly || freezeToolbar);
 
   const Btn = ({
@@ -122,18 +121,20 @@ export function MapObjectsBar({
             >
               <FaExpand className="map-objects-toolbar__icon" aria-hidden />
             </Btn>
-            <Btn
-              label={canvasInteractive ? t("mapUnlockInteraction") : t("mapLockInteraction")}
-              title={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
-              disabled={readOnly || freezeToolbar}
-              onClick={onToggleCanvasInteraction}
-            >
-              {canvasInteractive ? (
-                <FaUnlock className="map-objects-toolbar__icon" aria-hidden />
-              ) : (
-                <FaLock className="map-objects-toolbar__icon map-objects-toolbar__icon--lock-active" aria-hidden />
-              )}
-            </Btn>
+            {onToggleCanvasInteraction && (
+              <Btn
+                label={canvasInteractive ? t("mapUnlockInteraction") : t("mapLockInteraction")}
+                title={canvasInteractive ? t("mapLockInteraction") : t("mapUnlockInteraction")}
+                disabled={readOnly || freezeToolbar}
+                onClick={onToggleCanvasInteraction}
+              >
+                {canvasInteractive ? (
+                  <FaUnlock className="map-objects-toolbar__icon" aria-hidden />
+                ) : (
+                  <FaLock className="map-objects-toolbar__icon map-objects-toolbar__icon--lock-active" aria-hidden />
+                )}
+              </Btn>
+            )}
           </div>
         </section>
       </div>

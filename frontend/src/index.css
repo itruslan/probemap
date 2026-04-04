@@ -813,6 +813,7 @@ button.palette-row--kind {
   cursor: pointer;
   border-style: solid;
   border-width: 0;
+  border-radius: 6px;
   transition:
     background 0.15s ease,
     color 0.15s ease,

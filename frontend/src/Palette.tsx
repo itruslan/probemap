@@ -1,4 +1,4 @@
-import { memo, useCallback, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { FaPlus } from "react-icons/fa6";
 import type { Service } from "./api";
 import { useI18n } from "./i18n";

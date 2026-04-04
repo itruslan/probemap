@@ -56,7 +56,6 @@ const STRINGS = {
     groupColorCustom: "Свой цвет",
     groupColorReset: "Без цвета",
     paletteArea: "Область",
-    paletteObject: "Объект",
 
     edgeEditTitle: "Связь между компонентами",
     edgeProtocol: "Протокол",
@@ -254,6 +253,13 @@ const STRINGS = {
     pathTraceClearAria: "Сбросить трассировку пути",
     pathTraceAria: "Показать связанные узлы",
     pathTraceLabel: "путь",
+
+    loginModalTitle: "Войти как администратор",
+    loginPasswordPlaceholder: "Пароль",
+    loginSubmit: "Войти",
+    loginError: "Неверный пароль",
+    loginButtonAria: "Войти как администратор",
+    logoutButtonAria: "Выйти из режима администратора",
   },
   en: {
     probemap: "probemap",
@@ -497,6 +503,13 @@ const STRINGS = {
     pathTraceClearAria: "Clear path trace",
     pathTraceAria: "Show connected nodes",
     pathTraceLabel: "trace",
+
+    loginModalTitle: "Log in as admin",
+    loginPasswordPlaceholder: "Password",
+    loginSubmit: "Log in",
+    loginError: "Wrong password",
+    loginButtonAria: "Log in as admin",
+    logoutButtonAria: "Log out from admin",
   },
 } as const;
 

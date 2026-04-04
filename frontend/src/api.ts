@@ -8,13 +8,57 @@ export class ApiError extends Error {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Auth token (module-level, persisted to localStorage)
+// ---------------------------------------------------------------------------
+
+let _token: string | null = localStorage.getItem("probemap_admin_token");
+
+export function setAuthToken(token: string | null): void {
+  _token = token;
+  if (token) localStorage.setItem("probemap_admin_token", token);
+  else localStorage.removeItem("probemap_admin_token");
+}
+
+export function getAuthToken(): string | null {
+  return _token;
+}
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
-  const r = await fetch(url, init);
+  const authHeader: Record<string, string> = _token
+    ? { Authorization: `Bearer ${_token}` }
+    : {};
+  const r = await fetch(url, {
+    ...init,
+    headers: { ...authHeader, ...(init?.headers as Record<string, string> | undefined) },
+  });
+  if (r.status === 401) {
+    // Token revoked or server restarted — clear it
+    setAuthToken(null);
+  }
   if (!r.ok) {
     const text = await r.text().catch(() => "");
     throw new ApiError(r.status, text || `HTTP ${r.status}`);
   }
   return r.json();
+}
+
+export async function fetchAuthStatus(): Promise<{ required: boolean }> {
+  return apiFetch<{ required: boolean }>(`${BASE}/api/auth/status`);
+}
+
+export async function loginAdmin(password: string): Promise<void> {
+  const data = await apiFetch<{ token: string }>(`${BASE}/api/auth/login`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ password }),
+  });
+  setAuthToken(data.token);
+}
+
+export async function logoutAdmin(): Promise<void> {
+  await apiFetch(`${BASE}/api/auth/logout`, { method: "POST" }).catch(() => {});
+  setAuthToken(null);
 }
 
 // ---------------------------------------------------------------------------

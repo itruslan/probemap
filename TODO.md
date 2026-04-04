@@ -28,6 +28,12 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-04 — feat(auth): admin/viewer roles.** `PROBEMAP_ADMIN_PASSWORD` env: не задан — все без ограничений; задан — viewer (read-only) без пароля, admin по паролю. In-memory токены (без БД), Bearer auth. Frontend: `AuthContext`, `LoginModal`, кнопка `admin` в шапке. Все write-эндпоинты защищены `Depends(auth.require_admin)`. Viewer: карта только для просмотра (нельзя соединять, перетаскивать, удалять).
+
+- **2026-04-04 — fix(edges): sourceHandle/targetHandle не сохранялись.** После перезагрузки стрелки всегда оказывались в верхних точках. Добавлено сохранение/загрузка `sourceHandle`/`targetHandle` в `persistLayout` и `layoutRowToMapEdge`.
+
+- **2026-04-04 — refactor(ServiceNode): hover = click.** Карточка при наведении и клике теперь одинакова. Убраны locked-only секции: sources toggle, структурные отличия панели. Кнопка «путь» показывается всегда (не только при locked). Editing через inline-клики (canEdit). Унификация `border-radius` кнопок: `6px` в базовом `.probemap-btn`, `borderRadius: 999` → `6` на кнопке «путь».
+
 - **2026-04-03 — refactor(palette+canvas): убраны ПКМ, вкладки, типизированные группы.** Удалён `ContextMenu.tsx` и весь код ПКМ. Убраны `GROUP_KINDS`/`GroupKindDef`/`getGroupKindDef` — теперь одна универсальная «Область» (`type: "group"`) с handles на всех 4 сторонах. Удалены Objects tab и вкладки из палитры — единая панель: `[+ Область]` `[+ Объект]` → поиск → список сервисов. `GroupNodeData` упрощён до `{label, color}`. `ServiceNode` лейбл редактируется двойным кликом.
 
 - **2026-04-03 — perf+a11y: React.memo, useMemo, debounce, ARIA.** `ServiceNode`/`GroupNode`/`Palette` — `React.memo`. `ServiceNode` — `useMemo` на probeRows, sourceAgg, blackboxOrder. `TopologyCanvas` — `onCanvas` в `useMemo`; `persistLayout` debounced 500ms. `Settings` — `role="dialog"`, ARIA. Tabs в `Palette` — `role="tablist"`, `role="tab"`, `aria-selected`.
@@ -37,6 +43,8 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 - **2026-04-03 — feat(groups): G1–G6 — типизированные группы с parentId + авто-импорт.** (Затем полностью упрощены — см. выше.)
 
 - **2026-04-03 — feat(palette): H1 — вкладка «Объекты».** (Затем заменена единой панелью — см. выше.)
+
+- **2026-04-04 — feat(logging): D2 — structured logging.** `log.py`: JSON/text форматтер, авто-детект TTY. `settings.py`: `PROBEMAP_LOG_LEVEL`, `PROBEMAP_LOG_FORMAT`. `main.py`: `log.setup()` при старте, логирует порт/data_dir/datasource, ошибки VM. `metrics.py`: `_log = log.get("probemap.metrics")`, debug/warning на каждый запрос к VictoriaMetrics.
 
 - **2026-04-03 — fix(metrics): логирование ошибок VM с контекстом.**
 
@@ -75,11 +83,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 ---
 
 ## Блок D — Инфраструктура и эксплуатация
-
-### [ ] D2. Логирование (structured logging)
-
-- **Что сделать:** `logging.getLogger("probemap")` с уровнем из `PROBEMAP_LOG_LEVEL`; логировать запросы к VictoriaMetrics, ошибки JSON, старт с конфигом; JSON-формат (dev — human-readable).
-- **Готово когда:** ошибки VictoriaMetrics логируются с контекстом; уровень настраивается через env.
 
 ### [ ] D3. CI: lint + test
 

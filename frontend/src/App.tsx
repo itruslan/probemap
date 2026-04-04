@@ -17,6 +17,8 @@ import {
   type Project,
   type ProjectFilter,
 } from "./api";
+import { AuthProvider, useAuth } from "./AuthContext";
+import { LoginModal } from "./LoginModal";
 import { TopologyCanvas } from "./TopologyCanvas";
 import { Settings } from "./Settings";
 import { ProjectModal } from "./ProjectModal";
@@ -150,13 +152,56 @@ function ThemeToggleButton() {
 export default function App() {
   return (
     <I18nProvider>
-      <AppContent />
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
     </I18nProvider>
+  );
+}
+
+function AuthButton() {
+  const { isAdmin, authChecking, authRequired, logout } = useAuth();
+  const { t } = useI18n();
+  const [loginOpen, setLoginOpen] = useState(false);
+
+  if (authChecking || !authRequired) return null;
+
+  if (isAdmin) {
+    return (
+      <button
+        type="button"
+        onClick={logout}
+        title={t("logoutButtonAria")}
+        aria-label={t("logoutButtonAria")}
+        className="probemap-outline-hover-btn"
+        style={{ fontSize: 12, fontWeight: 600, padding: "0 10px", height: 32, display: "inline-flex", alignItems: "center" }}
+      >
+        admin
+      </button>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setLoginOpen(true)}
+        title={t("loginButtonAria")}
+        aria-label={t("loginButtonAria")}
+        className="probemap-outline-hover-btn"
+        style={{ fontSize: 12, fontWeight: 600, padding: "0 10px", height: 32, display: "inline-flex", alignItems: "center", opacity: 0.45 }}
+      >
+        admin
+      </button>
+      {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
+    </>
   );
 }
 
 function AppContent() {
   const { t } = useI18n();
+  const { isAdmin, authRequired } = useAuth();
+  const canEdit = !authRequired || isAdmin;
   /** Не включать t в deps у refresh — иначе смена языка пересоздаёт refresh → эффект опроса сбрасывает data и размонтирует карту (fitView). */
   const tRef = useRef(t);
   tRef.current = t;
@@ -395,8 +440,8 @@ function AppContent() {
               projects={projects}
               activeProject={activeProject}
               onChange={setActiveProject}
-              onConfigureProject={(p) => setProjectModal({ project: p })}
-              onCreateProject={() => setProjectModal({})}
+              onConfigureProject={canEdit ? (p) => setProjectModal({ project: p }) : undefined}
+              onCreateProject={canEdit ? () => setProjectModal({}) : undefined}
             />
           )}
         </div>
@@ -432,7 +477,8 @@ function AppContent() {
           >
             <ThemeToggleButton />
             <LanguageToggleButton />
-            <SettingsButton onClick={() => setSettingsOpen(true)} />
+            {canEdit && <SettingsButton onClick={() => setSettingsOpen(true)} />}
+            <AuthButton />
           </div>
         </div>
       </div>
@@ -575,6 +621,7 @@ function AppContent() {
               pollIntervalSec={pollIntervalSec}
               onPollIntervalSecChange={setPollIntervalSecPersist}
               metricsStale={metricsStale}
+              isAdmin={canEdit}
               datasourceStatus={datasourceStatus}
               endpointLabel={appConfigSnapshot?.label_map?.endpoint_label}
             />

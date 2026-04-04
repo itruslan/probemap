@@ -9,6 +9,7 @@ services:
       PROBEMAP_DATASOURCE_URL: ${PROBEMAP_DATASOURCE_URL:-}
       PROBEMAP_CORS_ORIGINS: ${PROBEMAP_CORS_ORIGINS:-*}
       PROBEMAP_LOG_LEVEL: ${PROBEMAP_LOG_LEVEL:-info}
+      PROBEMAP_ADMIN_PASSWORD: ${PROBEMAP_ADMIN_PASSWORD:-}
       # В образе порт приложения 8000 (см. Dockerfile); снаружи — PROBEMAP_HOST_PORT
     restart: unless-stopped
 

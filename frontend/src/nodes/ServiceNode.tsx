@@ -108,7 +108,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const probeSourcesGlobal = useProbeSources();
   const endpointLabel = useEndpointLabel();
   const { t } = useI18n();
-  const { tracedNodeId, toggleTrace } = useTrace();
+  const { tracedNodeId, toggleTrace, canEdit } = useTrace();
   const isTraced = tracedNodeId === id;
 
   const nodeRef = useRef<HTMLDivElement>(null);
@@ -505,11 +505,9 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                 ...panelStyle,
                 zIndex: 3000,
                 background: "var(--probemap-modal-bg)",
-                border: `1.5px solid ${locked ? nodeTint.ring : "var(--probemap-border)"}`,
+                border: "1.5px solid var(--probemap-border)",
                 borderRadius: 10,
-                boxShadow: locked
-                  ? "0 6px 24px rgba(15,23,42,.12)"
-                  : "0 4px 16px rgba(0,0,0,.1)",
+                boxShadow: "0 4px 16px rgba(0,0,0,.1)",
                 padding: "12px 14px",
                 fontSize: 12,
                 boxSizing: "border-box",
@@ -527,7 +525,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   type="button"
                   title={t("changeIconTitle")}
                   onClick={() => {
-                    if (locked) setEditingIcon((v) => !v);
+                    if (canEdit) setEditingIcon((v) => !v);
                   }}
                   style={{
                     flexShrink: 0,
@@ -537,7 +535,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                     border: `1.5px solid ${editingIcon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
                     borderRadius: 6,
                     padding: 3,
-                    cursor: locked ? "pointer" : "default",
+                    cursor: canEdit ? "pointer" : "default",
                     color: "var(--probemap-text-muted)",
                     display: "flex",
                     alignItems: "center",
@@ -598,12 +596,12 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                       cursor: "text",
                     }}
                     title={d.label}
-                    onDoubleClick={() => setEditingLabel(true)}
+                    onDoubleClick={() => { if (canEdit) setEditingLabel(true); }}
                   >
                     {d.label}
                   </div>
                 )}
-                {locked && (
+                {(
                   <button
                     type="button"
                     title={
@@ -613,7 +611,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                     style={{
                       flexShrink: 0,
                       padding: "2px 6px",
-                      borderRadius: 999,
+                      borderRadius: 6,
                       fontSize: 10,
                       fontWeight: 600,
                       border: `1.5px solid ${isTraced ? "var(--probemap-trace-accent)" : "var(--probemap-border)"}`,
@@ -630,7 +628,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   </button>
                 )}
               </div>
-              {editingIcon && locked && (
+              {editingIcon && (
                 <div
                   style={{
                     display: "flex",
@@ -759,55 +757,6 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                 </>
               )}
 
-              {blackboxOrder.length > 0 && locked && (
-                <div style={{ marginBottom: 8, marginTop: -2 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      color: "var(--probemap-text-faint)",
-                      marginBottom: 6,
-                    }}
-                  >
-                    {t("monitoringSourcesToggleHint")}
-                  </div>
-                  <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-                    {blackboxOrder.map((src) => {
-                      const ignored = ignoredSources.has(src);
-                      return (
-                        <button
-                          key={src}
-                          type="button"
-                          className={`probemap-btn probemap-btn--xs ${ignored ? "probemap-btn--ghost" : "probemap-btn--slate"}`}
-                          onClick={() => {
-                            const next = new Set(Array.from(ignoredSources));
-                            if (next.has(src)) next.delete(src);
-                            else next.add(src);
-                            updateNodeData(id, {
-                              ignored_sources: Array.from(next).sort((a, b) =>
-                                a.localeCompare(b, "ru"),
-                              ),
-                            });
-                          }}
-                          title={
-                            ignored
-                              ? t("monitoringIgnoreSourceOff")
-                              : t("monitoringIgnoreSourceOn")
-                          }
-                          style={{
-                            padding: "3px 6px",
-                            fontFamily: "ui-monospace, monospace",
-                            fontSize: 10,
-                            textDecoration: ignored ? "line-through" : "none",
-                            opacity: ignored ? 0.65 : 1,
-                          }}
-                        >
-                          {src}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
               {!unmonitored && probeRows.length > 0
                 ? probeRows.map((row) => {
                     const chips = portProbeChips(
@@ -993,7 +942,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   </span>
                 )}
               </div>
-              {locked && editingEndpoint ? (
+              {editingEndpoint ? (
                 <div
                   ref={endpointEditBoxRef}
                   style={{ display: "flex", flexDirection: "column", gap: 4 }}
@@ -1089,7 +1038,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
               ) : (
                 <div
                   onClick={
-                    locked
+                    canEdit
                       ? () => {
                           setEndpointDraft(d.endpoint ?? "");
                           setEditingEndpoint(true);
@@ -1097,7 +1046,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                       : undefined
                   }
                   style={{
-                    cursor: locked ? "pointer" : "default",
+                    cursor: canEdit ? "pointer" : "default",
                     color: effectiveEndpoint
                       ? "var(--probemap-text)"
                       : "var(--probemap-text-faint)",
@@ -1108,7 +1057,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   }}
                 >
                   {effectiveEndpoint ? (
-                    locked ? (
+                    true ? (
                       <div
                         style={{
                           display: "flex",
@@ -1168,7 +1117,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                         {effectiveEndpoint}
                       </a>
                     )
-                  ) : locked ? (
+                  ) : canEdit ? (
                     t("endpointClickToAdd")
                   ) : (
                     t("emDash")
@@ -1195,7 +1144,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
               >
                 {t("descriptionTitle")}
               </div>
-              {locked && editingDesc ? (
+              {editingDesc ? (
                 <div>
                   <textarea
                     autoFocus
@@ -1279,7 +1228,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
               ) : (
                 <div
                   onClick={
-                    locked
+                    canEdit
                       ? () => {
                           setDescDraft(d.description ?? "");
                           setEditingDesc(true);
@@ -1287,7 +1236,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                       : undefined
                   }
                   style={{
-                    cursor: locked ? "text" : "default",
+                    cursor: canEdit ? "text" : "default",
                     color: d.description
                       ? "var(--probemap-text)"
                       : "var(--probemap-text-faint)",
@@ -1299,7 +1248,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   }}
                 >
                   {d.description ||
-                    (locked ? t("descriptionClickToAdd") : t("emDash"))}
+                    (canEdit ? t("descriptionClickToAdd") : t("emDash"))}
                 </div>
               )}
 
@@ -1335,7 +1284,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                     key={i}
                     style={{ position: "relative" }}
                     onMouseEnter={(e) => {
-                      if (!locked) return;
+                      if (!canEdit) return;
                       const b =
                         e.currentTarget.querySelector<HTMLElement>(".rm-act");
                       if (b) b.style.display = "flex";
@@ -1365,7 +1314,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                     >
                       <IconRenderer name={action.icon} size={14} />
                     </a>
-                    {locked && (
+                    {canEdit && (
                       <button
                         className="rm-act probemap-btn probemap-btn--map-delete"
                         type="button"
@@ -1385,7 +1334,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   </div>
                 ))}
 
-                {locked &&
+                {canEdit &&
                   (addingAction ? (
                     <div
                       style={{
@@ -1524,7 +1473,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
               <ServiceLabelsSection labels={catalogLabels} />
 
               {/* Delete from canvas */}
-              {locked && <DeleteButton nodeId={id} label={d.label} />}
+              {canEdit && <DeleteButton nodeId={id} label={d.label} />}
             </div>,
             document.body,
           ),
