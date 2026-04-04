@@ -81,20 +81,28 @@ function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
   return edge;
 }
 
-/** BFS через все рёбра (в обе стороны) от startId → множества nodeId и edgeId. */
-/** Returns the clicked node + its immediate neighbours (1 hop).
- *  BFS was removed: traversing further highlighted edges between third-party
- *  nodes that are not directly connected to the clicked one. */
+/** BFS по входящим рёбрам от startId вверх по цепочке зависимостей.
+ *  Подсвечивает весь путь к сервису (user → vpn → nlb → service),
+ *  не затрагивая "соседей" промежуточных узлов. */
 function traceConnected(
   startId: string,
   edges: MapEdge[],
 ): { nodeIds: Set<string>; edgeIds: Set<string> } {
   const nodeIds = new Set<string>([startId]);
   const edgeIds = new Set<string>();
-  for (const e of edges) {
-    if (e.source !== startId && e.target !== startId) continue;
-    edgeIds.add(e.id);
-    nodeIds.add(e.source === startId ? e.target : e.source);
+  const queue: string[] = [startId];
+
+  while (queue.length > 0) {
+    const current = queue.shift()!;
+    for (const e of edges) {
+      if (e.target !== current) continue;
+      if (edgeIds.has(e.id)) continue;
+      edgeIds.add(e.id);
+      if (!nodeIds.has(e.source)) {
+        nodeIds.add(e.source);
+        queue.push(e.source);
+      }
+    }
   }
   return { nodeIds, edgeIds };
 }
