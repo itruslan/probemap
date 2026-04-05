@@ -1021,12 +1021,38 @@ button.palette-row--kind {
 }
 /* GroupNode resize: corner handles — невидимые, только для resize-интеракции.
    Визуальные квадратики рендерятся внутри дашед-дива в GroupNode.tsx */
-.react-flow__resize-control.handle {
+.group-resize-handle {
   background: transparent !important;
   border: none !important;
   width: 12px !important;
   height: 12px !important;
-  margin: -6px !important;
+}
+/* Сдвиг каждого углового handle на 6px наружу → центр на углу dashed border (inset:-6).
+   ReactFlow позиционирует ВСЕ handles через top+left, поэтому только margin-top/margin-left работают. */
+.group-resize-handle.top.left  { margin-top: -6px !important; margin-left: -6px !important; }
+.group-resize-handle.top.right { margin-top: -6px !important; margin-left:  6px !important; }
+.group-resize-handle.bottom.left  { margin-top:  6px !important; margin-left: -6px !important; }
+.group-resize-handle.bottom.right { margin-top:  6px !important; margin-left:  6px !important; }
+/* Edge handles (non-corner) — только диагональный resize */
+.group-resize-handle.top:not(.left):not(.right),
+.group-resize-handle.right:not(.top):not(.bottom),
+.group-resize-handle.bottom:not(.left):not(.right),
+.group-resize-handle.left:not(.top):not(.bottom) {
+  pointer-events: none !important;
+}
+/* Cursors для угловых handles */
+.group-resize-handle.top.left,
+.group-resize-handle.bottom.right {
+  cursor: nwse-resize !important;
+}
+.group-resize-handle.top.right,
+.group-resize-handle.bottom.left {
+  cursor: nesw-resize !important;
+}
+/* Старый глобальный rule — оставляем для совместимости, но без margin */
+.react-flow__resize-control.handle {
+  background: transparent !important;
+  border: none !important;
 }
 
 .probemap-btn--preset {

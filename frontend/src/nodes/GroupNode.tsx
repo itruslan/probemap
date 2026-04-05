@@ -169,6 +169,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
         minWidth={120}
         minHeight={80}
         lineStyle={{ borderWidth: 8, borderColor: "transparent" }}
+        handleClassName="group-resize-handle"
       />
 
       <div
@@ -199,10 +200,10 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             }}
           >
             {([
-              { top: -4.25, left: -4.25 },
-              { top: -4.25, right: -4.25 },
-              { bottom: -4.25, left: -4.25 },
-              { bottom: -4.25, right: -4.25 },
+              { top: -3.5, left: -3.5 },
+              { top: -3.5, right: -3.5 },
+              { bottom: -3.5, left: -3.5 },
+              { bottom: -3.5, right: -3.5 },
             ] as React.CSSProperties[]).map((pos, i) => (
               <div
                 key={i}
