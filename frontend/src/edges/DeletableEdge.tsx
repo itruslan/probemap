@@ -15,6 +15,8 @@ import { TrashIcon } from "../TrashIcon";
 import { useEdgeInteraction } from "./edgeInteractionContext";
 
 const ARROW = 7;
+/** Distance from handle center to the outer tip of the rotated diamond (8×8px, border-radius 2, rotate 45°). */
+const DIAMOND_TIP = 5;
 
 /** Maps protocol string → SVG strokeDasharray (undefined = solid). */
 function protocolDash(protocol: string | undefined): string | undefined {
@@ -26,32 +28,43 @@ function protocolDash(protocol: string | undefined): string | undefined {
 }
 
 function arrowPoints(x: number, y: number, pos?: Position): string {
+  // Tip is placed at the outer corner of the diamond (DIAMOND_TIP px from handle center).
+  // Base is ARROW px further from the node than the tip (same direction as edge approach).
   switch (pos) {
-    case Position.Top:
-      return `${x},${y} ${x - ARROW / 2},${y - ARROW} ${x + ARROW / 2},${y - ARROW}`;
-    case Position.Bottom:
-      return `${x},${y} ${x - ARROW / 2},${y + ARROW} ${x + ARROW / 2},${y + ARROW}`;
-    case Position.Left:
-      return `${x},${y} ${x - ARROW},${y - ARROW / 2} ${x - ARROW},${y + ARROW / 2}`;
-    case Position.Right:
-      return `${x},${y} ${x + ARROW},${y - ARROW / 2} ${x + ARROW},${y + ARROW / 2}`;
+    case Position.Top: {
+      const ty = y - DIAMOND_TIP;
+      return `${x},${ty} ${x - ARROW / 2},${ty - ARROW} ${x + ARROW / 2},${ty - ARROW}`;
+    }
+    case Position.Bottom: {
+      const ty = y + DIAMOND_TIP;
+      return `${x},${ty} ${x - ARROW / 2},${ty + ARROW} ${x + ARROW / 2},${ty + ARROW}`;
+    }
+    case Position.Left: {
+      const tx = x - DIAMOND_TIP;
+      return `${tx},${y} ${tx - ARROW},${y - ARROW / 2} ${tx - ARROW},${y + ARROW / 2}`;
+    }
+    case Position.Right: {
+      const tx = x + DIAMOND_TIP;
+      return `${tx},${y} ${tx + ARROW},${y - ARROW / 2} ${tx + ARROW},${y + ARROW / 2}`;
+    }
     default:
-      return `${x},${y} ${x},${y - ARROW} ${x + ARROW * 0.6},${y}`;
+      return `${x},${y - DIAMOND_TIP} ${x},${y - DIAMOND_TIP - ARROW} ${x + ARROW * 0.6},${y - DIAMOND_TIP - ARROW}`;
   }
 }
 
-/** Offset the path endpoint back by ARROW px so the line stops at the arrowhead base,
- *  not the tip — prevents the stroke from bleeding through the polygon.
- *  Arrowhead geometry: tip at (x,y), base is ARROW px away from the node. */
+/** Offset the path endpoint so the line stops at the arrowhead base.
+ *  Tip is DIAMOND_TIP px outside handle center; base is ARROW further back. */
 function pathTarget(x: number, y: number, pos?: Position): [number, number] {
+  const total = DIAMOND_TIP + ARROW;
   switch (pos) {
-    case Position.Top:    return [x, y - ARROW]; // base is above  tip (lower y = further from node)
-    case Position.Bottom: return [x, y + ARROW]; // base is below  tip
-    case Position.Left:   return [x - ARROW, y]; // base is left   of tip
-    case Position.Right:  return [x + ARROW, y]; // base is right  of tip
+    case Position.Top:    return [x, y - total];
+    case Position.Bottom: return [x, y + total];
+    case Position.Left:   return [x - total, y];
+    case Position.Right:  return [x + total, y];
     default:              return [x, y];
   }
 }
+
 
 function summarizeEdge(data: LayoutEdgeData | undefined, noMetaLabel: string): string {
   const d = data ?? {};

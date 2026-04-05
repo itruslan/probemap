@@ -1,13 +1,22 @@
 {
   "nodes": [
     {
+      "id": "group-1775417957556",
+      "x": 445.652700238383,
+      "y": -588.4092823765864,
+      "type": "group",
+      "label": "Area",
+      "width": 775,
+      "height": 362,
+      "zIndex": -10
+    },
+    {
       "id": "anylink-vpn",
       "x": -37.88645554198473,
       "y": -333.8766655469586,
       "type": "service",
       "label": "anylink-vpn",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "argocd",
@@ -15,8 +24,7 @@
       "y": -155.65688208182405,
       "type": "service",
       "label": "argocd",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "debian",
@@ -24,8 +32,7 @@
       "y": -450.0259345688834,
       "type": "service",
       "label": "debian",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "grafana-fh",
@@ -33,8 +40,7 @@
       "y": -607.6877059064225,
       "type": "service",
       "label": "grafana-fh",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "authentik",
@@ -42,8 +48,7 @@
       "y": -772.9885611479265,
       "type": "service",
       "label": "authentik",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "cloudflare-speed",
@@ -51,8 +56,7 @@
       "y": -682.9885611479265,
       "type": "service",
       "label": "cloudflare-speed",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "cloudflare-www",
@@ -60,8 +64,7 @@
       "y": -592.9885611479265,
       "type": "service",
       "label": "cloudflare-www",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "eff",
@@ -69,8 +72,7 @@
       "y": -502.9885611479265,
       "type": "service",
       "label": "eff",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "github-api",
@@ -78,8 +80,7 @@
       "y": -412.9885611479265,
       "type": "service",
       "label": "github-api",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "grafana",
@@ -87,8 +88,7 @@
       "y": -322.9885611479265,
       "type": "service",
       "label": "grafana",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "iana",
@@ -96,8 +96,7 @@
       "y": -232.98856114792648,
       "type": "service",
       "label": "iana",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "rust-lang",
@@ -105,8 +104,7 @@
       "y": -52.988561147926475,
       "type": "service",
       "label": "rust-lang",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "wikipedia",
@@ -114,8 +112,7 @@
       "y": 37.011438852073525,
       "type": "service",
       "label": "wikipedia",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
     },
     {
       "id": "pypi",
@@ -123,8 +120,15 @@
       "y": -418.6461182885033,
       "type": "service",
       "label": "pypi",
-      "kind": "service",
-      "matchServiceId": null
+      "kind": "service"
+    },
+    {
+      "id": "custom-1775417955794",
+      "x": -2353.3320792426334,
+      "y": -1260.9659571859102,
+      "type": "service",
+      "label": "Custom",
+      "kind": "custom"
     }
   ],
   "groups": [],
@@ -163,6 +167,42 @@
       "target": "grafana-fh",
       "type": "default",
       "data": {}
+    },
+    {
+      "id": "xy-edge__group-1775417957556top-debianright",
+      "source": "group-1775417957556",
+      "target": "debian",
+      "type": "default",
+      "data": {},
+      "sourceHandle": "top",
+      "targetHandle": "right"
+    },
+    {
+      "id": "xy-edge__anylink-vpnright-group-1775417957556left",
+      "source": "anylink-vpn",
+      "target": "group-1775417957556",
+      "type": "default",
+      "data": {},
+      "sourceHandle": "right",
+      "targetHandle": "left"
+    },
+    {
+      "id": "xy-edge__group-1775417957556bottom-anylink-vpnbottom",
+      "source": "group-1775417957556",
+      "target": "anylink-vpn",
+      "type": "default",
+      "data": {},
+      "sourceHandle": "bottom",
+      "targetHandle": "bottom"
+    },
+    {
+      "id": "xy-edge__debianbottom-anylink-vpntop",
+      "source": "debian",
+      "target": "anylink-vpn",
+      "type": "default",
+      "data": {},
+      "sourceHandle": "bottom",
+      "targetHandle": "top"
     }
   ],
   "service_configs": {
@@ -185,6 +225,7 @@
       "ignored_sources": []
     },
     "rust-lang": {},
-    "wikipedia": {}
+    "wikipedia": {},
+    "custom-1775417955794": {}
   }
 }

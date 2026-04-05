@@ -200,20 +200,22 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             }}
           >
             {([
-              { top: -3.5, left: -3.5 },
-              { top: -3.5, right: -3.5 },
-              { bottom: -3.5, left: -3.5 },
-              { bottom: -3.5, right: -3.5 },
+              { top: -4, left: -4 },
+              { top: -4, right: -4 },
+              { bottom: -4, left: -4 },
+              { bottom: -4, right: -4 },
             ] as React.CSSProperties[]).map((pos, i) => (
               <div
                 key={i}
                 style={{
                   position: "absolute",
-                  width: 7,
-                  height: 7,
-                  background: "transparent",
-                  border: `1.5px solid ${color.border}`,
+                  width: 8,
+                  height: 8,
+                  background: "var(--probemap-blue)",
+                  border: "1.5px solid var(--probemap-bg)",
                   boxSizing: "border-box",
+                  borderRadius: 2,
+                  transform: "rotate(45deg)",
                   ...pos,
                 }}
               />
