@@ -190,6 +190,10 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const [pendingIconName, setPendingIconName] = useState("");
   const [iconNameError, setIconNameError] = useState(false);
   const iconFileRef = useRef<HTMLInputElement>(null);
+  const [addingFilter, setAddingFilter] = useState(false);
+  const [draftFilterLabel, setDraftFilterLabel] = useState("");
+  const [draftFilterOp, setDraftFilterOp] = useState<MetricFilterOp>("eq");
+  const [draftFilterValue, setDraftFilterValue] = useState("");
   const [settingsHoverTip, setSettingsHoverTip] = useState<{
     label: string;
     el: HTMLElement;
@@ -456,19 +460,6 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     }
   };
 
-  const addFilterRule = () =>
-    setCfg((prev) =>
-      prev
-        ? {
-            ...prev,
-            metric_filter_rules: [
-              ...(prev.metric_filter_rules ?? []),
-              { label: "", value: "", op: "eq" as MetricFilterOp },
-            ],
-          }
-        : prev,
-    );
-
   const removeFilterRule = (i: number) =>
     setCfg((prev) =>
       prev
@@ -481,29 +472,30 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         : prev,
     );
 
-  const patchFilterRule = (i: number, patch: Partial<MetricFilterRule>) =>
-    setCfg((prev) => {
-      if (!prev) return prev;
-      const next = [...(prev.metric_filter_rules ?? [])];
-      next[i] = { ...next[i], ...patch };
-      return { ...prev, metric_filter_rules: next };
-    });
+  const clearFilterRules = () =>
+    setCfg((prev) => (prev ? { ...prev, metric_filter_rules: [] } : prev));
 
-  const applyPreset = (label: string, value: string, op: MetricFilterOp) =>
+  const opSymbol = (op: MetricFilterOp) =>
+    ({ eq: "=", ne: "≠", re: "=~", nre: "!~" })[op] ?? "=";
+
+  const commitDraftFilter = () => {
+    if (!draftFilterLabel.trim() || !draftFilterValue.trim()) return;
     setCfg((prev) =>
       prev
         ? {
             ...prev,
             metric_filter_rules: [
               ...(prev.metric_filter_rules ?? []),
-              { label, value, op },
+              { label: draftFilterLabel.trim(), value: draftFilterValue.trim(), op: draftFilterOp },
             ],
           }
         : prev,
     );
-
-  const clearFilterRules = () =>
-    setCfg((prev) => (prev ? { ...prev, metric_filter_rules: [] } : prev));
+    setDraftFilterLabel("");
+    setDraftFilterOp("eq");
+    setDraftFilterValue("");
+    setAddingFilter(false);
+  };
 
   const setDs = (patch: Partial<typeof ds>) => {
     const nextDs = { ...ds, ...patch };
@@ -552,7 +544,9 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           ? t("testFail")
           : t("testCheck");
 
-  const datasourceUrlHelpLabel = `${t("settingsDatasourceIntro")}\n\n${t("settingsCheckHint")}`;
+  const datasourceUrlHelpLabel = urlFromEnv
+    ? `${t("settingsDatasourceIntro")}\n\n${t("settingsCheckHint")}\n\n${t("settingsUrlFromEnvHint")}`
+    : `${t("settingsDatasourceIntro")}\n\n${t("settingsCheckHint")}`;
   const jobsSectionHelpLabel = [
     `${t("settingsJobsA")}probe_success${t("settingsJobsB")}job${t("settingsJobsC")}`,
     !targetsSavedOnServer ? t("settingsJobsStepHint") : null,
@@ -643,34 +637,19 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
               style={inputStyle}
             />
           </InlineField>
-          {urlFromEnv ? (
-            <div
-              style={{
-                fontSize: 12,
-                lineHeight: 1.45,
-                color: "var(--probemap-text-muted)",
-                marginBottom: 10,
-                padding: "8px 10px",
-                borderRadius: 8,
-                border: "1px solid var(--probemap-border)",
-                background: "var(--probemap-bg-subtle)",
-              }}
-            >
-              {t("settingsUrlFromEnvHint")}
-            </div>
-          ) : null}
-          <InlineField label={t("settingsUrlApi")}>
-            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-              <div
-                style={{ flex: 1, minWidth: 0 }}
-                onMouseEnter={(e) => {
-                  setSettingsHoverTip({
-                    label: datasourceUrlHelpLabel,
-                    el: e.currentTarget,
-                  });
-                }}
+          <InlineField label={
+            <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              {t("settingsUrlApi")}
+              <HelpIcon
+                aria={t("tooltipInfoAria")}
+                onMouseEnter={(el) => setSettingsHoverTip({ label: datasourceUrlHelpLabel, el })}
                 onMouseLeave={() => setSettingsHoverTip(null)}
-              >
+                onClick={(el) => toggleSettingsTip(datasourceUrlHelpLabel, el)}
+              />
+            </span>
+          }>
+            <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
                 <input
                   value={ds.url}
                   disabled={urlFromEnv}
@@ -844,213 +823,142 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
           <>
             <Section
               title={
-                <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  {t("settingsSectionFilter")}
-                  <HelpIcon
-                    aria={t("tooltipInfoAria")}
-                    onMouseEnter={(el) =>
-                      setSettingsHoverTip({
-                        label: t("settingsFilterIntro"),
-                        el,
-                      })
-                    }
-                    onMouseLeave={() => setSettingsHoverTip(null)}
-                    onClick={(el) =>
-                      toggleSettingsTip(t("settingsFilterIntro"), el)
-                    }
-                  />
+                <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    {t("settingsSectionFilter")}
+                    <HelpIcon
+                      aria={t("tooltipInfoAria")}
+                      onMouseEnter={(el) => setSettingsHoverTip({ label: t("settingsFilterIntro"), el })}
+                      onMouseLeave={() => setSettingsHoverTip(null)}
+                      onClick={(el) => toggleSettingsTip(t("settingsFilterIntro"), el)}
+                    />
+                  </span>
+                  {(cfg.metric_filter_rules ?? []).length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearFilterRules}
+                      style={{ background: "none", border: "none", color: "var(--probemap-text-faint)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", padding: 0 }}
+                    >
+                      {t("settingsFilterClear")}
+                    </button>
+                  )}
                 </span>
               }
             >
-              <div
-                style={{
-                  display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  marginBottom: 10,
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={() => applyPreset("environment", "prod", "eq")}
-                  className="probemap-btn probemap-btn--preset"
-                >
-                  {t("settingsPresetEnvProd")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset("environment", "staging", "ne")}
-                  className="probemap-btn probemap-btn--preset"
-                >
-                  {t("settingsPresetEnvStaging")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => applyPreset("team", "platform.*", "re")}
-                  className="probemap-btn probemap-btn--preset"
-                >
-                  {t("settingsPresetTeam")}
-                </button>
-                <button
-                  type="button"
-                  onClick={clearFilterRules}
-                  className="probemap-btn probemap-btn--preset probemap-btn--preset-muted"
-                >
-                  {t("settingsFilterClear")}
-                </button>
-              </div>
-              {(cfg.metric_filter_rules ?? []).length === 0 ? null : (
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: 8,
-                    marginBottom: 10,
-                  }}
-                >
-                  {(cfg.metric_filter_rules ?? []).map((row, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns:
-                          "minmax(100px, 1fr) 130px minmax(100px, 1fr) 36px",
-                        gap: 8,
-                        alignItems: "center",
-                      }}
+              {/* Chips */}
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {(cfg.metric_filter_rules ?? []).map((row, i) => (
+                  <span
+                    key={i}
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 4,
+                      height: 24,
+                      padding: "0 8px",
+                      borderRadius: 6,
+                      border: "1px solid var(--probemap-border)",
+                      background: "var(--probemap-bg-subtle)",
+                      fontSize: 11,
+                      fontFamily: "ui-monospace, monospace",
+                      color: "var(--probemap-text)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    <span style={{ color: "var(--probemap-blue)", fontFamily: "inherit" }}>+</span>
+                    {row.label}{opSymbol(row.op)}{row.value}
+                    <button
+                      type="button"
+                      onClick={() => removeFilterRule(i)}
+                      style={{ background: "none", border: "none", color: "var(--probemap-text-faint)", cursor: "pointer", fontSize: 10, padding: 0, lineHeight: 1, marginLeft: 2 }}
                     >
-                      {availableLabels.length > 0 ? (
-                        <select
-                          value={row.label}
-                          onChange={(e) =>
-                            patchFilterRule(i, { label: e.target.value })
-                          }
-                          style={{ ...inputStyle, cursor: "pointer" }}
-                        >
-                          <option value="">
-                            {t("settingsFilterLabelOption")}
-                          </option>
-                          {availableLabels.map((l) => (
-                            <option key={l} value={l}>
-                              {l}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <input
-                          value={row.label}
-                          onChange={(e) =>
-                            patchFilterRule(i, { label: e.target.value })
-                          }
-                          placeholder={t("placeholderEnvironment")}
-                          style={inputStyle}
-                        />
-                      )}
-                      <select
-                        value={row.op}
-                        onChange={(e) =>
-                          patchFilterRule(i, {
-                            op: e.target.value as MetricFilterOp,
-                          })
-                        }
-                        style={{
-                          ...inputStyle,
-                          cursor: "pointer",
-                          fontSize: 11,
-                        }}
-                      >
-                        {OP_OPTIONS.map((o) => (
-                          <option key={o.value} value={o.value}>
-                            {t(o.labelKey)}
-                          </option>
-                        ))}
-                      </select>
-                      <input
-                        value={row.value}
-                        onChange={(e) =>
-                          patchFilterRule(i, { value: e.target.value })
-                        }
-                        placeholder={t("settingsFilterValuePlaceholder")}
-                        style={inputStyle}
-                      />
-                      <button
-                        type="button"
-                        onClick={() => removeFilterRule(i)}
-                        title={t("delete")}
-                        className="probemap-btn probemap-btn--icon-plain"
-                      >
-                        <TrashIcon size={14} />
-                      </button>
-                    </div>
-                  ))}
+                      ✕
+                    </button>
+                  </span>
+                ))}
+                {!addingFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setAddingFilter(true)}
+                    style={{
+                      height: 24, padding: "0 8px", borderRadius: 6,
+                      border: "1px dashed var(--probemap-border)",
+                      background: "transparent", color: "var(--probemap-blue)",
+                      fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+                    }}
+                  >
+                    {t("settingsFilterAddRule")}
+                  </button>
+                )}
+              </div>
+
+              {/* Inline add form */}
+              {addingFilter && (
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  {availableLabels.length > 0 ? (
+                    <select
+                      autoFocus
+                      value={draftFilterLabel}
+                      onChange={(e) => setDraftFilterLabel(e.target.value)}
+                      style={{ ...inputStyle, flex: 1, minWidth: 100, cursor: "pointer" }}
+                    >
+                      <option value="">{t("settingsFilterLabelOption")}</option>
+                      {availableLabels.map((l) => (
+                        <option key={l} value={l}>{l}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      autoFocus
+                      value={draftFilterLabel}
+                      onChange={(e) => setDraftFilterLabel(e.target.value)}
+                      placeholder={t("placeholderEnvironment")}
+                      style={{ ...inputStyle, flex: 1, minWidth: 100 }}
+                    />
+                  )}
+                  <select
+                    value={draftFilterOp}
+                    onChange={(e) => setDraftFilterOp(e.target.value as MetricFilterOp)}
+                    style={{ ...inputStyle, width: 80, cursor: "pointer", fontSize: 11 }}
+                  >
+                    {OP_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>{t(o.labelKey)}</option>
+                    ))}
+                  </select>
+                  <input
+                    value={draftFilterValue}
+                    onChange={(e) => setDraftFilterValue(e.target.value)}
+                    placeholder={t("settingsFilterValuePlaceholder")}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") commitDraftFilter();
+                      if (e.key === "Escape") { setAddingFilter(false); setDraftFilterLabel(""); setDraftFilterValue(""); }
+                    }}
+                    style={{ ...inputStyle, flex: 1, minWidth: 100 }}
+                  />
+                  <button type="button" onClick={commitDraftFilter} className="probemap-btn probemap-btn--primary probemap-btn--xs">
+                    {t("uiOk")}
+                  </button>
+                  <button type="button" onClick={() => { setAddingFilter(false); setDraftFilterLabel(""); setDraftFilterValue(""); }} className="probemap-btn probemap-btn--ghost probemap-btn--xs">
+                    ✕
+                  </button>
                 </div>
               )}
-              <button
-                type="button"
-                onClick={addFilterRule}
-                className="probemap-btn probemap-btn--preset"
-                style={{ marginBottom: 14 }}
-              >
-                {t("settingsFilterAddRule")}
-              </button>
 
+              {/* Selector preview */}
               <div
                 style={{
                   background: "var(--probemap-bg-muted)",
                   border: "1.5px solid var(--probemap-border)",
                   borderRadius: 8,
-                  padding: "10px 12px",
-                  marginBottom: 14,
+                  padding: "8px 12px",
                 }}
               >
                 <span
-                  className="probemap-settings-tip-title"
-                  style={{
-                    display: "inline-block",
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "var(--probemap-text-faint)",
-                    letterSpacing: "0.06em",
-                    marginBottom: 6,
-                    cursor: "pointer",
-                  }}
-                  onMouseEnter={(e) => {
-                    setSettingsHoverTip({
-                      label: t("settingsSelectorPreviewHint"),
-                      el: e.currentTarget,
-                    });
-                  }}
-                  onMouseLeave={() => setSettingsHoverTip(null)}
-                  onClick={(e) =>
-                    toggleSettingsTip(
-                      t("settingsSelectorPreviewHint"),
-                      e.currentTarget,
-                    )
-                  }
-                  role="button"
-                  tabIndex={0}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter" || e.key === " ") {
-                      e.preventDefault();
-                      toggleSettingsTip(
-                        t("settingsSelectorPreviewHint"),
-                        e.currentTarget as unknown as HTMLElement,
-                      );
-                    }
-                  }}
+                  style={{ fontSize: 10, fontWeight: 700, color: "var(--probemap-text-faint)", letterSpacing: "0.06em", display: "block", marginBottom: 4 }}
                 >
                   {t("settingsSelectorPreviewTitle")}
                 </span>
-                <code
-                  style={{
-                    display: "block",
-                    fontSize: 12,
-                    color: "var(--probemap-text)",
-                    wordBreak: "break-all",
-                    lineHeight: 1.45,
-                    fontFamily: "ui-monospace, monospace",
-                  }}
-                >
+                <code style={{ display: "block", fontSize: 12, color: "var(--probemap-text)", wordBreak: "break-all", lineHeight: 1.45, fontFamily: "ui-monospace, monospace" }}>
                   {selectorPreview?.example ?? t("ellipsis")}
                 </code>
               </div>
@@ -1261,97 +1169,73 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                   </>
                 )}
               </div>
-              {/* Pending name form */}
+              {/* Pending name form — inline row */}
               {pendingIconFile && (
-                <div
-                  style={{ display: "flex", flexDirection: "column", gap: 6 }}
-                >
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <input
-                      autoFocus
-                      value={pendingIconName}
-                      onChange={(e) => {
-                        setPendingIconName(e.target.value);
-                        setIconNameError(false);
-                      }}
-                      onKeyDown={async (e) => {
-                        if (e.key === "Enter") {
-                          if (!pendingIconName.trim()) {
-                            setIconNameError(true);
-                            return;
-                          }
-                          const icon = await uploadIcon(
-                            pendingIconName.trim(),
-                            pendingIconFile,
-                          );
-                          setCustomIcons((p) => [
-                            ...p.filter((i) => i.name !== icon.name),
-                            icon,
-                          ]);
-                          setPendingIconFile(null);
-                          setPendingIconName("");
-                          setIconNameError(false);
-                        }
-                        if (e.key === "Escape") {
-                          setPendingIconFile(null);
-                          setPendingIconName("");
-                          setIconNameError(false);
-                        }
-                      }}
-                      placeholder={t("iconNamePlaceholder")}
-                      style={{
-                        flex: 1,
-                        border: `1.5px solid ${iconNameError ? "var(--probemap-danger)" : "var(--probemap-border)"}`,
-                        borderRadius: 5,
-                        padding: "4px 8px",
-                        fontSize: 12,
-                        outline: "none",
-                        background: "var(--probemap-input-bg)",
-                        color: "var(--probemap-text)",
-                      }}
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8, marginTop: 8,
+                  padding: "7px 10px", borderRadius: 6,
+                  border: "1px solid var(--probemap-border)",
+                  background: "var(--probemap-bg-subtle)",
+                }}>
+                  <div style={{
+                    width: 28, height: 28, borderRadius: 4, flexShrink: 0,
+                    border: "1px solid var(--probemap-border)",
+                    background: "var(--probemap-bg-muted)",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    overflow: "hidden",
+                  }}>
+                    <img
+                      src={URL.createObjectURL(pendingIconFile)}
+                      style={{ width: 20, height: 20, objectFit: "contain" }}
+                      alt=""
                     />
-                    <button
-                      type="button"
-                      className="probemap-btn probemap-btn--primary probemap-btn--xs"
-                      onClick={async () => {
-                        if (!pendingIconName.trim()) {
-                          setIconNameError(true);
-                          return;
-                        }
-                        const icon = await uploadIcon(
-                          pendingIconName.trim(),
-                          pendingIconFile,
-                        );
-                        setCustomIcons((p) => [
-                          ...p.filter((i) => i.name !== icon.name),
-                          icon,
-                        ]);
-                        setPendingIconFile(null);
-                        setPendingIconName("");
-                        setIconNameError(false);
-                      }}
-                    >
-                      {t("uiOk")}
-                    </button>
-                    <button
-                      type="button"
-                      className="probemap-btn probemap-btn--ghost probemap-btn--xs"
-                      onClick={() => {
-                        setPendingIconFile(null);
-                        setPendingIconName("");
-                        setIconNameError(false);
-                      }}
-                    >
-                      ✕
-                    </button>
                   </div>
+                  <input
+                    autoFocus
+                    value={pendingIconName}
+                    onChange={(e) => { setPendingIconName(e.target.value); setIconNameError(false); }}
+                    onKeyDown={async (e) => {
+                      if (e.key === "Enter") {
+                        if (!pendingIconName.trim()) { setIconNameError(true); return; }
+                        const icon = await uploadIcon(pendingIconName.trim(), pendingIconFile);
+                        setCustomIcons((p) => [...p.filter((i) => i.name !== icon.name), icon]);
+                        setPendingIconFile(null); setPendingIconName(""); setIconNameError(false);
+                      }
+                      if (e.key === "Escape") { setPendingIconFile(null); setPendingIconName(""); setIconNameError(false); }
+                    }}
+                    placeholder={t("iconNamePlaceholder")}
+                    style={{
+                      flex: 1, height: 26,
+                      border: `1.5px solid ${iconNameError ? "var(--probemap-danger)" : "var(--probemap-border)"}`,
+                      borderRadius: 5, padding: "0 8px", fontSize: 12,
+                      outline: "none", background: "var(--probemap-input-bg)", color: "var(--probemap-text)",
+                      fontFamily: "inherit",
+                    }}
+                  />
                   {iconNameError && (
-                    <div
-                      style={{ fontSize: 10, color: "var(--probemap-danger)" }}
-                    >
+                    <span style={{ fontSize: 10, color: "var(--probemap-danger)", whiteSpace: "nowrap" }}>
                       {t("iconNameRequiredError")}
-                    </div>
+                    </span>
                   )}
+                  <button
+                    type="button"
+                    className="probemap-btn probemap-btn--primary probemap-btn--xs"
+                    onClick={async () => {
+                      if (!pendingIconName.trim()) { setIconNameError(true); return; }
+                      const icon = await uploadIcon(pendingIconName.trim(), pendingIconFile);
+                      setCustomIcons((p) => [...p.filter((i) => i.name !== icon.name), icon]);
+                      setPendingIconFile(null); setPendingIconName(""); setIconNameError(false);
+                    }}
+                  >
+                    {t("uiOk")}
+                  </button>
+                  <button
+                    type="button"
+                    className="probemap-btn probemap-btn--ghost probemap-btn--xs"
+                    onClick={() => { setPendingIconFile(null); setPendingIconName(""); setIconNameError(false); }}
+                  >
+                    ✕
+                  </button>
                 </div>
               )}
             </Section>
@@ -1431,7 +1315,7 @@ function InlineField({
   label,
   children,
 }: {
-  label: string;
+  label: React.ReactNode;
   children: React.ReactNode;
 }) {
   return (

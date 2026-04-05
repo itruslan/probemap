@@ -1057,7 +1057,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   }}
                 >
                   {effectiveEndpoint ? (
-                    true ? (
+                    (
                       <div
                         style={{
                           display: "flex",
@@ -1102,20 +1102,6 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                           ↗
                         </button>
                       </div>
-                    ) : (
-                      <a
-                        href={effectiveEndpoint}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          color: "var(--probemap-text)",
-                          textDecoration: "underline",
-                          textDecorationColor: "var(--probemap-text-faint)",
-                        }}
-                      >
-                        {effectiveEndpoint}
-                      </a>
                     )
                   ) : canEdit ? (
                     t("endpointClickToAdd")
