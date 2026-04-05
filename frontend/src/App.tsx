@@ -163,36 +163,151 @@ function AuthButton() {
   const { isAdmin, authChecking, authRequired, logout } = useAuth();
   const { t } = useI18n();
   const [loginOpen, setLoginOpen] = useState(false);
+  const [confirmLogout, setConfirmLogout] = useState(false);
+  const pillRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!confirmLogout) return;
+    const onDown = (e: MouseEvent) => {
+      if (pillRef.current && !pillRef.current.contains(e.target as Node)) {
+        setConfirmLogout(false);
+      }
+    };
+    document.addEventListener("mousedown", onDown, true);
+    return () => document.removeEventListener("mousedown", onDown, true);
+  }, [confirmLogout]);
 
   if (authChecking || !authRequired) return null;
 
-  if (isAdmin) {
-    return (
-      <button
-        type="button"
-        onClick={logout}
-        title={t("logoutButtonAria")}
-        aria-label={t("logoutButtonAria")}
-        className="probemap-outline-hover-btn"
-        style={{ fontSize: 12, fontWeight: 600, padding: "0 10px", height: 32, display: "inline-flex", alignItems: "center" }}
-      >
-        admin
-      </button>
-    );
-  }
-
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setLoginOpen(true)}
-        title={t("loginButtonAria")}
-        aria-label={t("loginButtonAria")}
-        className="probemap-outline-hover-btn"
-        style={{ fontSize: 12, fontWeight: 600, padding: "0 10px", height: 32, display: "inline-flex", alignItems: "center", opacity: 0.45 }}
+      <div
+        ref={pillRef}
+        style={{
+          position: "relative",
+          display: "inline-flex",
+          alignItems: "center",
+          height: 32,
+          border: "1.5px solid var(--probemap-border)",
+          borderRadius: 6,
+          overflow: "visible",
+        }}
       >
-        admin
-      </button>
+        {/* Role label */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "0 10px",
+            height: "100%",
+            fontSize: 12,
+            fontWeight: 600,
+            color: isAdmin ? "var(--probemap-text)" : "var(--probemap-text-faint)",
+            borderRight: "1.5px solid var(--probemap-border)",
+            userSelect: "none",
+          }}
+        >
+          <span style={{
+            width: 7, height: 7, borderRadius: "50%", flexShrink: 0,
+            background: isAdmin ? "var(--probemap-status-ok)" : "var(--probemap-text-faint)",
+          }} />
+          {isAdmin ? "admin" : "viewer"}
+        </div>
+
+        {/* Action button */}
+        {isAdmin ? (
+          <button
+            type="button"
+            onClick={() => setConfirmLogout(true)}
+            title={t("logoutButtonAria")}
+            aria-label={t("logoutButtonAria")}
+            style={{
+              height: "100%",
+              padding: "0 10px",
+              background: "none",
+              border: "none",
+              fontSize: 12,
+              color: "var(--probemap-text-faint)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "color 0.15s, background 0.15s",
+              borderRadius: "0 4px 4px 0",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--probemap-danger)";
+              (e.currentTarget as HTMLElement).style.background = "var(--probemap-danger-bg, #fef2f2)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.color = "var(--probemap-text-faint)";
+              (e.currentTarget as HTMLElement).style.background = "none";
+            }}
+          >
+            {t("logoutSubmit")}
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setLoginOpen(true)}
+            title={t("loginButtonAria")}
+            aria-label={t("loginButtonAria")}
+            style={{
+              height: "100%",
+              padding: "0 10px",
+              background: "none",
+              border: "none",
+              fontSize: 12,
+              fontWeight: 600,
+              color: "var(--probemap-blue)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "background 0.15s",
+              borderRadius: "0 4px 4px 0",
+            }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--probemap-interactive-hover-bg)"; }}
+            onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+          >
+            {t("loginSubmit")}
+          </button>
+        )}
+
+        {/* Logout confirm popover */}
+        {confirmLogout && (
+          <div style={{
+            position: "absolute",
+            top: "calc(100% + 6px)",
+            right: 0,
+            background: "var(--probemap-modal-bg)",
+            border: "1.5px solid var(--probemap-border)",
+            borderRadius: 8,
+            padding: "12px 14px",
+            width: 210,
+            zIndex: 3000,
+            boxShadow: "0 4px 16px rgba(0,0,0,.12)",
+          }}>
+            <div style={{ fontSize: 12, color: "var(--probemap-text)", marginBottom: 10, lineHeight: 1.4 }}>
+              {t("logoutConfirmTitle")}
+            </div>
+            <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => setConfirmLogout(false)}
+                className="probemap-btn probemap-btn--ghost probemap-btn--xs"
+              >
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setConfirmLogout(false); void logout(); }}
+                className="probemap-btn probemap-btn--danger probemap-btn--xs"
+              >
+                {t("logoutSubmit")}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
       {loginOpen && <LoginModal onClose={() => setLoginOpen(false)} />}
     </>
   );

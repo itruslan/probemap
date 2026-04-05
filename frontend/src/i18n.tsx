@@ -257,9 +257,11 @@ const STRINGS = {
     loginModalTitle: "Войти как администратор",
     loginPasswordPlaceholder: "Пароль",
     loginSubmit: "Войти",
+    logoutSubmit: "Выйти",
     loginError: "Неверный пароль",
     loginButtonAria: "Войти как администратор",
     logoutButtonAria: "Выйти из режима администратора",
+    logoutConfirmTitle: "Выйти из режима администратора?",
   },
   en: {
     probemap: "probemap",
@@ -507,9 +509,11 @@ const STRINGS = {
     loginModalTitle: "Log in as admin",
     loginPasswordPlaceholder: "Password",
     loginSubmit: "Log in",
+    logoutSubmit: "Log out",
     loginError: "Wrong password",
     loginButtonAria: "Log in as admin",
     logoutButtonAria: "Log out from admin",
+    logoutConfirmTitle: "Exit admin mode?",
   },
 } as const;
 
