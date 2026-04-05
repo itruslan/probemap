@@ -41,24 +41,38 @@ html, body {
   transform: translate(-50%, -50%) rotate(45deg) !important;
 }
 
-.react-flow__node:hover .react-flow__handle-visibility,
-.react-flow__node.selected .react-flow__handle-visibility {
+/* Admin: ромбики всегда видны, синие */
+.react-flow__handle-visibility {
   opacity: 1 !important;
+  background: var(--probemap-blue) !important;
 }
 
 /* Hide diamond handle indicator when an edge is already connected to it —
    the arrowhead serves as the visual marker for that connection point. */
-.react-flow__node:hover .react-flow__handle-visibility.react-flow__handle-connected,
-.react-flow__node.selected .react-flow__handle-visibility.react-flow__handle-connected {
+.react-flow__handle-visibility.react-flow__handle-connected {
   opacity: 0 !important;
 }
 
+/* Hover: зелёный увеличенный ромбик */
 .react-flow__handle-visibility:hover {
   opacity: 1 !important;
-  background: #f59e0b !important;
-  width: 10px !important;
-  height: 10px !important;
-  box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.35) !important;
+  background: var(--probemap-status-ok) !important;
+  width: 11px !important;
+  height: 11px !important;
+  box-shadow: 0 0 0 3px var(--probemap-status-ok-border) !important;
+}
+
+/* Viewer: все ромбики скрыты */
+.probemap--viewer .react-flow__handle-visibility {
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+.probemap--viewer .react-flow__handle-visibility:hover {
+  opacity: 0 !important;
+  background: unset !important;
+  width: 8px !important;
+  height: 8px !important;
+  box-shadow: none !important;
 }
 
 .react-flow__handle.connecting,
@@ -993,14 +1007,26 @@ button.palette-row--kind {
   box-shadow: 0 0 0 2px var(--probemap-bg), 0 0 0 3px var(--probemap-interactive-hover-border);
 }
 
-/* GroupNode resize: edge strips — show subtle tint on hover */
-.react-flow__resize-control.line:hover {
-  background: rgba(99, 102, 241, 0.07) !important;
+/* GroupNode: подавить дефолтный selected-outline React Flow — используем своё выделение */
+.react-flow__node[data-type="group"].selected > div:first-child,
+.react-flow__node[data-type="group"].selected > div:first-child:focus {
+  outline: none !important;
+  box-shadow: none; /* управляется через inline style */
 }
-/* GroupNode resize: corner handles are invisible hit-areas only (cursor is set by ReactFlow) */
+
+/* GroupNode resize: edge strips — no highlight, дашед уже показывает границу */
+.react-flow__resize-control.line,
+.react-flow__resize-control.line:hover {
+  background: transparent !important;
+}
+/* GroupNode resize: corner handles — невидимые, только для resize-интеракции.
+   Визуальные квадратики рендерятся внутри дашед-дива в GroupNode.tsx */
 .react-flow__resize-control.handle {
   background: transparent !important;
   border: none !important;
+  width: 12px !important;
+  height: 12px !important;
+  margin: -6px !important;
 }
 
 .probemap-btn--preset {

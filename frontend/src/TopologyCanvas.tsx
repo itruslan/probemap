@@ -1553,6 +1553,7 @@ export function TopologyCanvas({
                       </div>
                     )}
                     <ReactFlow
+                      className={!isAdmin ? "probemap--viewer" : undefined}
                       nodes={displayNodes}
                       edges={displayEdges}
                       onNodesChange={onNodesChange}

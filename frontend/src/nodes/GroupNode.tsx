@@ -1,6 +1,7 @@
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
+import { useTrace } from "../TraceContext";
 
 /** Иначе React Flow перехватывает mousedown — начинается drag/selection, срабатывает mouseleave и палитра схлопывается. */
 function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
@@ -52,36 +53,32 @@ function colorFromHex(hex: string): { bg: string; border: string } {
 const HANDLE_STYLE: React.CSSProperties = {
   width: 8,
   height: 8,
-  borderRadius: 999,
-  background: "var(--probemap-interactive-hover-border)",
-  border: "2px solid var(--probemap-bg)",
+  background: "var(--probemap-blue)",
+  border: "1.5px solid var(--probemap-bg)",
   opacity: 0,
-  transition: "opacity 0.15s ease",
+  transition: "opacity 0.15s, background 0.15s, width 0.15s, height 0.15s",
   zIndex: 10, // выше child-нод внутри группы
 };
+
 
 export const GroupNode = memo(function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
   const { setNodes, getNodes } = useReactFlow();
   const { t } = useI18n();
+  const { canEdit } = useTrace();
+
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
   const [colorHex, setColorHex] = useState(() => resolveHex(d.color));
-  const [showChrome, setShowChrome] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [layerHint, setLayerHint] = useState<"back" | "front" | null>(null);
-  const chromeLeaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const colorBtnRef = useRef<HTMLButtonElement>(null);
   const paletteRef = useRef<HTMLDivElement>(null);
 
-  const clearChromeLeaveTimer = () => {
-    if (chromeLeaveTimerRef.current) {
-      clearTimeout(chromeLeaveTimerRef.current);
-      chromeLeaveTimerRef.current = null;
-    }
-  };
-
-  useEffect(() => () => clearChromeLeaveTimer(), []);
+  /** Редактирование активно только когда нода выбрана и пользователь — администратор */
+  const isEditMode = !!selected && canEdit;
+  /** Viewer-выделение: нода выбрана, но редактирование недоступно */
+  const isViewerSelected = !!selected && !canEdit;
 
   // Закрывать палитру по клику вне неё
   useEffect(() => {
@@ -101,6 +98,12 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
     ? colorFromHex(colorHex)
     : { bg: "transparent", border: "var(--probemap-border-strong)" };
   const labelColor = colorHex ? "var(--probemap-text)" : "var(--probemap-text-muted)";
+
+  const viewerSelectionShadow = isViewerSelected
+    ? colorHex
+      ? `0 0 0 2px ${colorHex}, 0 0 28px 10px ${hexToRgba(colorHex, 0.28)}, 0 12px 32px ${hexToRgba(colorHex, 0.18)}`
+      : "0 0 0 2px #9ca3af, 0 0 28px 10px rgba(107,114,128,0.22), 0 12px 32px rgba(55,65,81,0.14)"
+    : undefined;
 
   const applyColor = (hex: string) => {
     setColorHex(hex);
@@ -154,26 +157,19 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
 
   return (
     <>
-      {/* Edges: 8 px transparent hit-strip → drag from anywhere on the border.
-          Corners: small clean dot, same style as service node handles. */}
-      <NodeResizer
-        isVisible={selected || showChrome}
-        minWidth={120}
-        minHeight={80}
-        lineStyle={{ borderWidth: 8, borderColor: "transparent" }}
-        handleStyle={{
-          width: 20,
-          height: 20,
-          background: "transparent",
-          border: "none",
-        }}
-      />
-
       {/* Handles для соединений — на всех сторонах */}
       <Handle type="source" position={Position.Top}    id="top"    style={HANDLE_STYLE} className="react-flow__handle-visibility" />
       <Handle type="source" position={Position.Right}  id="right"  style={HANDLE_STYLE} className="react-flow__handle-visibility" />
       <Handle type="source" position={Position.Bottom} id="bottom" style={HANDLE_STYLE} className="react-flow__handle-visibility" />
       <Handle type="source" position={Position.Left}   id="left"   style={HANDLE_STYLE} className="react-flow__handle-visibility" />
+
+      {/* Ресайзер: только в режиме редактирования (выбрана + admin) */}
+      <NodeResizer
+        isVisible={isEditMode}
+        minWidth={120}
+        minHeight={80}
+        lineStyle={{ borderWidth: 8, borderColor: "transparent" }}
+      />
 
       <div
         style={{
@@ -185,20 +181,46 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           backdropFilter: "blur(2px)",
           boxSizing: "border-box",
           position: "relative",
-        }}
-        onMouseEnter={() => {
-          clearChromeLeaveTimer();
-          setShowChrome(true);
-        }}
-        onMouseLeave={() => {
-          clearChromeLeaveTimer();
-          chromeLeaveTimerRef.current = setTimeout(() => {
-            setShowChrome(false);
-            setLayerHint(null);
-            chromeLeaveTimerRef.current = null;
-          }, 220);
+          overflow: "visible",
+          boxShadow: viewerSelectionShadow,
         }}
       >
+        {/* Пунктирная рамка редактирования — снаружи солидного бордера.
+            Угловые квадратики рендерятся как дочерние элементы рамки,
+            чтобы всегда точно попадать на её углы. */}
+        {isEditMode && (
+          <div
+            style={{
+              position: "absolute",
+              inset: -6,
+              border: `1.5px dashed ${color.border}`,
+              borderRadius: 0,
+              pointerEvents: "none",
+            }}
+          >
+            {([
+              { top: -4.25, left: -4.25 },
+              { top: -4.25, right: -4.25 },
+              { bottom: -4.25, left: -4.25 },
+              { bottom: -4.25, right: -4.25 },
+            ] as React.CSSProperties[]).map((pos, i) => (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  width: 7,
+                  height: 7,
+                  background: "transparent",
+                  border: `1.5px solid ${color.border}`,
+                  boxSizing: "border-box",
+                  ...pos,
+                }}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* Заголовок: кнопка цвета (только в edit mode) + лейбл (всегда) */}
         <div
           onPointerDown={stopFlowPointer}
           onMouseDown={stopFlowPointer}
@@ -212,29 +234,30 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             maxWidth: "calc(100% - 160px)",
           }}
         >
-          {/* Кнопка открытия палитры цветов */}
-          <button
-            ref={colorBtnRef}
-            type="button"
-            onClick={() => setPaletteOpen((v) => !v)}
-            onPointerDown={stopFlowPointer}
-            onMouseDown={stopFlowPointer}
-            title={t("groupColor")}
-            className="probemap-btn probemap-btn--icon-tiny"
-            style={{ marginRight: 2 }}
-          >
-            <span
-              aria-hidden
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: 999,
-                background: colorHex ? color.bg : "transparent",
-                border: colorHex ? `1px solid ${color.border}` : "1px dashed var(--probemap-text-faint)",
-                opacity: colorHex ? 1 : 0.5,
-              }}
-            />
-          </button>
+          {isEditMode && (
+            <button
+              ref={colorBtnRef}
+              type="button"
+              onClick={() => setPaletteOpen((v) => !v)}
+              onPointerDown={stopFlowPointer}
+              onMouseDown={stopFlowPointer}
+              title={t("groupColor")}
+              className="probemap-btn probemap-btn--icon-tiny"
+              style={{ marginRight: 2 }}
+            >
+              <span
+                aria-hidden
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: colorHex ? color.bg : "transparent",
+                  border: colorHex ? `1px solid ${color.border}` : "1px dashed var(--probemap-text-faint)",
+                  opacity: colorHex ? 1 : 0.5,
+                }}
+              />
+            </button>
+          )}
 
           {/* Editable label */}
           {editing ? (
@@ -266,22 +289,22 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             />
           ) : (
             <span
-              onDoubleClick={() => setEditing(true)}
+              onDoubleClick={() => { if (isEditMode) setEditing(true); }}
               style={{
                 fontSize: 12,
                 fontWeight: 600,
                 color: labelColor,
-                cursor: "text",
+                cursor: isEditMode ? "text" : "default",
                 userSelect: "none",
               }}
             >
               {label}
             </span>
           )}
-
         </div>
 
-        {showChrome && (
+        {/* Кнопки слоёв — только в режиме редактирования */}
+        {isEditMode && (
           <div
             onPointerDown={stopFlowPointer}
             onMouseDown={stopFlowPointer}

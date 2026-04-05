@@ -3,10 +3,10 @@ import { Handle, Position } from "@xyflow/react";
 const STYLE: React.CSSProperties = {
   width: 8,
   height: 8,
-  background: "var(--probemap-text-faint)",
+  background: "var(--probemap-blue)",
   border: "1.5px solid var(--probemap-bg)",
   opacity: 0,
-  transition: "opacity 0.15s, background 0.15s",
+  transition: "opacity 0.15s, background 0.15s, width 0.15s, height 0.15s",
 };
 
 export function AllHandles() {

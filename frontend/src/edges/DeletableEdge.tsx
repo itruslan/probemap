@@ -125,7 +125,7 @@ export const DeletableEdge = memo(function DeletableEdge({
       {/* Arrowhead drawn as polygon — always 90° to node */}
       <polygon points={arrowPoints(targetX, targetY, targetPosition)} fill={edgeColor} />
       <EdgeLabelRenderer>
-        {hover && (
+        {hover && editable && (
           <div
             style={{
               position: "absolute",
