@@ -491,14 +491,12 @@ export function TopologyCanvas({
         dragStartSnapshot.current = cloneSnapshot();
       }
       setDraggingService(true);
-      if (dragged.parentId) return; // child nodes skip collision detection
       const db = getBounds(dragged);
       const hasOverlap = getNodes()
         .filter(
           (n) =>
             n.id !== dragged.id &&
-            COLLIDABLE.includes(n.type ?? "") &&
-            !n.parentId,
+            COLLIDABLE.includes(n.type ?? ""),
         )
         .some((n) => overlaps(db, getBounds(n)));
       setCollidingIds(hasOverlap ? new Set([dragged.id]) : new Set());
@@ -521,78 +519,11 @@ export function TopologyCanvas({
 
       const allNodes = getNodes();
 
-      // --- Compute absolute position of dragged node ---
-      const absPos = dragged.parentId
-        ? (() => {
-            const pg = allNodes.find((n) => n.id === dragged.parentId);
-            return pg
-              ? {
-                  x: dragged.position.x + pg.position.x,
-                  y: dragged.position.y + pg.position.y,
-                }
-              : dragged.position;
-          })()
-        : dragged.position;
-
-      // --- Find target group: smallest group whose bounds contain node center ---
-      const nw = dragged.measured?.width ?? 140;
-      const nh = dragged.measured?.height ?? 60;
-      const cx = absPos.x + nw / 2;
-      const cy = absPos.y + nh / 2;
-
-      const targetGroup =
-        allNodes
-          .filter((g) => g.type === "group")
-          .filter((g) => {
-            const gw = g.measured?.width ?? (g.style?.width as number) ?? 260;
-            const gh = g.measured?.height ?? (g.style?.height as number) ?? 180;
-            return (
-              cx >= g.position.x &&
-              cx <= g.position.x + gw &&
-              cy >= g.position.y &&
-              cy <= g.position.y + gh
-            );
-          })
-          .sort((a, b) => {
-            const aArea =
-              (a.measured?.width ?? (a.style?.width as number) ?? 260) *
-              (a.measured?.height ?? (a.style?.height as number) ?? 180);
-            const bArea =
-              (b.measured?.width ?? (b.style?.width as number) ?? 260) *
-              (b.measured?.height ?? (b.style?.height as number) ?? 180);
-            return aArea - bArea;
-          })[0] ?? null;
-
-      const newParentId = targetGroup?.id;
-
-      if (newParentId !== dragged.parentId) {
-        // Parent changed — convert position and update
-        setNodes((ns) =>
-          ns.map((n) => {
-            if (n.id !== dragged.id) return n;
-            if (newParentId && targetGroup) {
-              return {
-                ...n,
-                parentId: newParentId,
-                position: {
-                  x: absPos.x - targetGroup.position.x,
-                  y: absPos.y - targetGroup.position.y,
-                },
-              };
-            }
-            return { ...n, parentId: undefined, position: absPos };
-          }),
-        );
-        return; // skip collision resolution when reparenting
-      }
-
-      // --- Collision detection (only for top-level service nodes) ---
-      if (dragged.parentId) return;
+      // --- Collision detection ---
       const others = allNodes.filter(
         (n) =>
           n.id !== dragged.id &&
-          COLLIDABLE.includes(n.type ?? "") &&
-          !n.parentId,
+          COLLIDABLE.includes(n.type ?? ""),
       );
       const db = getBounds(dragged);
       if (!others.some((n) => overlaps(db, getBounds(n)))) return;
@@ -762,20 +693,6 @@ export function TopologyCanvas({
       });
     setNodes((ns) => {
       const filtered = ns.filter((n) => n.id !== confirmDelete.id);
-      // When deleting a group, free its children (convert to absolute positions)
-      if (node?.type === "group") {
-        return filtered.map((n) => {
-          if (n.parentId !== confirmDelete.id) return n;
-          return {
-            ...n,
-            parentId: undefined,
-            position: {
-              x: n.position.x + node.position.x,
-              y: n.position.y + node.position.y,
-            },
-          };
-        });
-      }
       return filtered;
     });
     setEdges((es) =>
@@ -861,9 +778,8 @@ export function TopologyCanvas({
               ln.kind === "k8s-cluster" ? "cluster" : ln.kind;
             const svc = data.services.find((s) => s.id === ln.id) ?? null;
             const cfg = serviceConfigs.current[ln.id] ?? {};
-            const parentId = ln.parentId || undefined;
             if (svc) {
-              const node = serviceToNode(
+              return serviceToNode(
                 svc,
                 { x: ln.x, y: ln.y },
                 cfg.icon,
@@ -872,14 +788,12 @@ export function TopologyCanvas({
                 cfg.ignored_sources,
                 migratedKind,
               );
-              return parentId ? { ...node, parentId } : node;
             }
             // Узел service без метрик: сервис мог исчезнуть во время сохранения
             return {
               id: ln.id,
               type: "service",
               position: { x: ln.x, y: ln.y },
-              ...(parentId ? { parentId } : {}),
               data: {
                 label: ln.label ?? ln.id,
                 ports: [],
@@ -894,7 +808,7 @@ export function TopologyCanvas({
           return null;
         })
         .filter(Boolean) as Node[];
-      // ReactFlow requires parents before children in the nodes array
+      // Groups first so they render behind service nodes
       placed.sort((a, b) => {
         if (a.type === "group" && b.type !== "group") return -1;
         if (a.type !== "group" && b.type === "group") return 1;
@@ -1163,7 +1077,6 @@ export function TopologyCanvas({
             icon: (n.data as unknown as ServiceNodeData).icon,
             description: (n.data as unknown as ServiceNodeData).description,
             actions: (n.data as unknown as ServiceNodeData).actions,
-            ...(n.parentId ? { parentId: n.parentId } : {}),
           }
         : {}),
     }));
