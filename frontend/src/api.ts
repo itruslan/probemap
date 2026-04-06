@@ -125,7 +125,7 @@ export interface LayoutNode {
   id: string;
   x: number;
   y: number;
-  type?: "service" | "group";
+  type?: "service" | "group" | "container";
   label?: string;
   kind?: string;
   icon?: string;
@@ -138,11 +138,17 @@ export interface LayoutNode {
   actions?: ServiceAction[];
   /** У custom-узла: порты из метрик после привязки к сервису каталога */
   ports?: Port[];
-  /** ReactFlow parentId — нода является дочерней к группе с этим id */
+  /** Obsolete: parentId for old area-grouping (kept for migration, ignored on load) */
   parentId?: string;
-  /** Relative position inside parent (when parentId is set) */
   relX?: number;
   relY?: number;
+  /** Container node: ordered list of member node IDs */
+  containerItems?: string[];
+  /** Service node: ID of container it belongs to */
+  containerNode?: string;
+  /** Container metadata */
+  path?: string;
+  endpoint?: string;
 }
 
 export interface DatasourceStatusResponse {

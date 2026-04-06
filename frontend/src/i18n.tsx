@@ -56,6 +56,7 @@ const STRINGS = {
     groupColorCustom: "Свой цвет",
     groupColorReset: "Без цвета",
     paletteArea: "Область",
+    paletteContainer: "Группа",
 
     edgeEditTitle: "Связь между компонентами",
     edgeProtocol: "Протокол",
@@ -216,6 +217,12 @@ const STRINGS = {
 
     defaultGroupLabel: "Область",
     defaultServiceLabel: "Сервис",
+    defaultContainerLabel: "Группа",
+    containerEmpty: "Перетащите сервис или объект сюда",
+    doubleClickToEdit: "Двойной клик — редактировать",
+    tooltipPath: "Путь",
+    tooltipDescription: "Описание",
+    tooltipEndpoint: "Эндпоинт",
 
     deleteConfirmLead: "Введите",
     deleteConfirmTail: "для подтверждения:",
@@ -311,6 +318,7 @@ const STRINGS = {
     groupColorCustom: "Custom color",
     groupColorReset: "No color",
     paletteArea: "Area",
+    paletteContainer: "Group",
 
     edgeEditTitle: "Link between components",
     edgeProtocol: "Protocol",
@@ -468,6 +476,12 @@ const STRINGS = {
 
     defaultGroupLabel: "Area",
     defaultServiceLabel: "Service",
+    defaultContainerLabel: "Group",
+    containerEmpty: "Drag a service or object here",
+    doubleClickToEdit: "Double-click to edit",
+    tooltipPath: "Path",
+    tooltipDescription: "Description",
+    tooltipEndpoint: "Endpoint",
 
     deleteConfirmLead: "Type",
     deleteConfirmTail: "to confirm:",

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Группа — макет v3</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #eef2f7;
+    color: #0f172a;
+    padding: 40px;
+    display: flex;
+    flex-direction: column;
+    gap: 56px;
+  }
+  h2 { font-size: 12px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: .06em; margin-bottom: 16px; }
+  .note { font-size: 11px; color: #94a3b8; margin-top: 8px; }
+
+  .canvas {
+    background: #f1f5f9;
+    background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+    background-size: 20px 20px;
+    border-radius: 12px;
+    padding: 48px;
+    display: flex;
+    gap: 48px;
+    flex-wrap: wrap;
+    align-items: flex-start;
+  }
+
+  /* handle diamonds */
+  .handle {
+    position: absolute;
+    width: 8px; height: 8px;
+    background: #3b82f6;
+    border: 1.5px solid #fff;
+    border-radius: 2px;
+    transform: rotate(45deg);
+    opacity: 0;
+    transition: opacity .15s;
+  }
+  .handle.top    { top: -4px;    left: 50%; margin-left: -4px; }
+  .handle.bottom { bottom: -4px; left: 50%; margin-left: -4px; }
+  .handle.left   { left: -4px;   top: 50%;  margin-top: -4px; }
+  .handle.right  { right: -4px;  top: 50%;  margin-top: -4px; }
+
+  /* ── ServiceNode card ── */
+  .service-node {
+    width: 220px;
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.10);
+    padding: 10px 12px 9px;
+    display: flex; align-items: center; gap: 8px;
+    position: relative; flex-shrink: 0;
+  }
+  .svc-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .svc-text  { flex: 1; min-width: 0; }
+  .svc-name  { font-size: 13px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .svc-sub   { font-size: 10px; color: #64748b; margin-top: 1px; }
+  .svc-dots  { display: flex; gap: 4px; align-items: center; flex-shrink: 0; }
+  .dot       { width: 7px; height: 7px; border-radius: 50%; }
+  .dot.ok    { background: #22c55e; }
+  .dot.warn  { background: #f97316; }
+  .dot.unk   { background: #9ca3af; }
+
+  /* ── GroupNode ── */
+  /*
+    Outer padding = 16px on sides so that an arrowhead (tip ~5px + body ~7px = 12px)
+    fits between the group border and the inner card edge.
+    Top/bottom also 16px to leave room for horizontal arrows.
+  */
+  .group-node {
+    background: #fff;
+    border: 1px solid #e2e8f0;
+    border-radius: 10px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.10);
+    position: relative;
+    /* 220px card + 16px * 2 sides = 252px; we round to 256 for breathing room */
+    width: 256px;
+  }
+
+  .group-header {
+    padding: 9px 12px 8px;
+    display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .group-icon {
+    width: 28px; height: 28px; border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; flex-shrink: 0;
+  }
+  .group-name { font-size: 13px; font-weight: 600; color: #0f172a; flex: 1; min-width: 0; }
+
+  /* items + slots container — 16px side padding = arrowhead gap */
+  .group-body {
+    padding: 10px 16px 10px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+
+  /* inner card overrides — full-width, no extra shadow */
+  .group-body .service-node {
+    width: 100%;
+    box-shadow: none;
+  }
+
+  /* ── drop slot — same height as a card ── */
+  .drop-slot {
+    width: 100%;
+    height: 48px;      /* matches card height */
+    border: 1.5px dashed #93c5fd;
+    border-radius: 10px;
+    background: #eff6ff88;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; color: #93c5fd;
+    transition: background .15s, border-color .15s;
+  }
+  .drop-slot.active {
+    border-color: #3b82f6;
+    background: #eff6ff;
+    color: #3b82f6;
+  }
+
+  /* drag-over group highlight */
+  .group-node.drag-over {
+    border-color: #93c5fd;
+    box-shadow: 0 0 0 2px #3b82f644, 0 1px 8px rgba(15,23,42,.10);
+  }
+
+  /* ── Arrow illustration ── */
+  .arrow-label {
+    font-size: 10px; color: #94a3b8; text-align: center;
+    position: absolute;
+    white-space: nowrap;
+  }
+
+  /* ── Tooltip ── */
+  .tooltip {
+    position: absolute; left: calc(100% + 10px); top: 0;
+    width: 210px;
+    background: #1e293b; border-radius: 8px;
+    padding: 10px 12px;
+    box-shadow: 0 4px 18px rgba(15,23,42,.3);
+    font-size: 11px; color: #f1f5f9; line-height: 1.5;
+    pointer-events: none; z-index: 10;
+  }
+  .tooltip::before {
+    content: '';
+    position: absolute; left: -5px; top: 14px;
+    border: 5px solid transparent;
+    border-right-color: #1e293b;
+  }
+  .tt-row { display: flex; gap: 6px; margin-bottom: 4px; }
+  .tt-row:last-child { margin-bottom: 0; }
+  .tt-key { color: #64748b; flex-shrink: 0; }
+  .tt-val { color: #e2e8f0; word-break: break-all; }
+
+  /* annotation boxes */
+  .ann {
+    font-size: 10px; color: #3b82f6;
+    background: #eff6ff; border: 1px solid #bfdbfe;
+    border-radius: 6px; padding: 3px 7px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════ 1. PADDING GAP FOR ARROWS -->
+<div>
+  <h2>1 — Зазор под наконечник стрелки</h2>
+  <div class="canvas" style="align-items:center; gap: 0; padding: 64px 48px;">
+
+    <!-- standalone service with arrow coming in -->
+    <div style="position:relative; flex-shrink:0;">
+      <!-- arrow going INTO standalone service -->
+      <svg width="80" height="48" style="position:absolute; left:-80px; top:50%; margin-top:-24px" overflow="visible">
+        <line x1="4" y1="24" x2="64" y2="24" stroke="#b1b1b7" stroke-width="1.5"/>
+        <!-- diamond at source -->
+        <rect x="0" y="20" width="8" height="8" rx="2" fill="#3b82f6" transform="rotate(45 4 24)"/>
+        <!-- arrowhead at target (right side of service) -->
+        <polygon points="69,24 62,20 62,28" fill="#b1b1b7"/>
+      </svg>
+      <div class="service-node" style="position:relative">
+        <div class="handle top" style="opacity:1"></div>
+        <div class="handle bottom" style="opacity:1"></div>
+        <div class="handle left" style="opacity:1"></div>
+        <div class="handle right" style="opacity:1"></div>
+        <div class="svc-icon" style="background:#eff6ff;border:1px solid #bfdbfe;color:#3b82f6">🌐</div>
+        <div class="svc-text"><div class="svc-name">nginx</div><div class="svc-sub">web · :443</div></div>
+        <div class="svc-dots"><div class="dot ok"></div></div>
+      </div>
+      <div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px">Сервис отдельно</div>
+    </div>
+
+    <!-- spacer -->
+    <div style="width:100px; flex-shrink:0"></div>
+
+    <!-- group with arrow going through group border into inner service -->
+    <div style="position:relative; flex-shrink:0;">
+
+      <!-- arrow: enters group from left, tip lands just inside group border -->
+      <svg style="position:absolute; left:-80px; top:50%; margin-top:-8px" width="80" height="16" overflow="visible">
+        <line x1="4" y1="8" x2="60" y2="8" stroke="#b1b1b7" stroke-width="1.5"/>
+        <!-- diamond at source -->
+        <rect x="0" y="4" width="8" height="8" rx="2" fill="#3b82f6" transform="rotate(45 4 8)"/>
+        <!-- arrowhead tip: stops just after group outer border (group border + 5px tip offset + gap) -->
+        <polygon points="65,8 58,4.5 58,11.5" fill="#b1b1b7"/>
+      </svg>
+
+      <!-- bracket annotation: 16px gap between group border and card -->
+      <svg style="position:absolute; left:-1px; top:50%; margin-top:-20px; z-index:5" width="20" height="40" overflow="visible">
+        <line x1="1" y1="0" x2="1" y2="40" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3 2"/>
+        <line x1="1" y1="0" x2="6" y2="0" stroke="#3b82f6" stroke-width="1"/>
+        <line x1="1" y1="40" x2="6" y2="40" stroke="#3b82f6" stroke-width="1"/>
+        <text x="8" y="22" font-size="9" fill="#3b82f6" font-family="sans-serif">16px</text>
+      </svg>
+
+      <div class="group-node" style="position:relative">
+        <div class="handle top" style="opacity:1"></div>
+        <div class="handle bottom" style="opacity:1"></div>
+        <div class="handle left" style="opacity:1"></div>
+        <div class="handle right" style="opacity:1"></div>
+        <div class="group-header">
+          <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+          <div class="group-name">Auth сервисы</div>
+        </div>
+        <div class="group-body">
+          <div class="service-node" style="position:relative">
+            <div class="handle top" style="opacity:1"></div>
+            <div class="handle bottom" style="opacity:1"></div>
+            <div class="handle left" style="opacity:1"></div>
+            <div class="handle right" style="opacity:1"></div>
+            <div class="svc-icon" style="background:#eff6ff;border:1px solid #bfdbfe;color:#3b82f6">🌐</div>
+            <div class="svc-text"><div class="svc-name">nginx</div><div class="svc-sub">web · :443</div></div>
+            <div class="svc-dots"><div class="dot ok"></div></div>
+          </div>
+          <div class="service-node" style="position:relative">
+            <div class="handle top" style="opacity:1"></div>
+            <div class="handle bottom" style="opacity:1"></div>
+            <div class="handle left" style="opacity:1"></div>
+            <div class="handle right" style="opacity:1"></div>
+            <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+            <div class="svc-dots"><div class="dot warn"></div></div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:10px;color:#94a3b8;text-align:center;margin-top:6px">Стрелка → в сервис внутри группы<br><span style="color:#3b82f6">16px зазор = наконечник (12px) + 4px отступ</span></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ 2. DRAG OUT TO REMOVE -->
+<div>
+  <h2>2 — Удаление из группы: перетащить наружу</h2>
+  <div class="canvas" style="align-items:center; gap: 60px">
+
+    <!-- normal state -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">Нормальное состояние</div>
+      <div class="group-node">
+        <div class="handle top"></div><div class="handle bottom"></div>
+        <div class="handle left"></div><div class="handle right"></div>
+        <div class="group-header">
+          <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+          <div class="group-name">Auth сервисы</div>
+        </div>
+        <div class="group-body">
+          <div class="service-node">
+            <div class="svc-icon" style="background:#eff6ff;border:1px solid #bfdbfe;color:#3b82f6">🌐</div>
+            <div class="svc-text"><div class="svc-name">nginx-gateway</div><div class="svc-sub">web · :443</div></div>
+            <div class="svc-dots"><div class="dot ok"></div></div>
+          </div>
+          <div class="service-node">
+            <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+            <div class="svc-dots"><div class="dot warn"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- dragging card out — card is ghost inside, real card moving outside -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">Перетаскивание карточки наружу</div>
+      <div style="position:relative">
+        <div class="group-node">
+          <div class="handle top"></div><div class="handle bottom"></div>
+          <div class="handle left"></div><div class="handle right"></div>
+          <div class="group-header">
+            <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="group-name">Auth сервисы</div>
+          </div>
+          <div class="group-body">
+            <!-- ghost placeholder where card was -->
+            <div style="width:100%; height:48px; border:1.5px dashed #e2e8f0; border-radius:10px; background:#f8fafc; opacity:.5;"></div>
+            <div class="service-node">
+              <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+              <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+              <div class="svc-dots"><div class="dot warn"></div></div>
+            </div>
+          </div>
+        </div>
+        <!-- dragged card floating above, outside the group bounds -->
+        <div class="service-node" style="
+          position:absolute; top:-24px; left: 280px;
+          box-shadow: 0 8px 24px rgba(15,23,42,.18), 0 0 0 1.5px #3b82f644;
+          opacity:.95; transform: rotate(2deg);
+          border-color: #93c5fd;
+          z-index:10;
+        ">
+          <div class="svc-icon" style="background:#eff6ff;border:1px solid #bfdbfe;color:#3b82f6">🌐</div>
+          <div class="svc-text"><div class="svc-name">nginx-gateway</div><div class="svc-sub">web · :443</div></div>
+          <div class="svc-dots"><div class="dot ok"></div></div>
+        </div>
+        <div style="font-size:10px;color:#3b82f6;text-align:center;margin-top:6px">← тянем за пределы группы</div>
+      </div>
+    </div>
+
+    <!-- result: card freed -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">После отпускания</div>
+      <div style="display:flex; flex-direction:column; gap:12px; align-items:flex-start">
+        <div class="service-node">
+          <div class="handle top"></div><div class="handle bottom"></div>
+          <div class="handle left"></div><div class="handle right"></div>
+          <div class="svc-icon" style="background:#eff6ff;border:1px solid #bfdbfe;color:#3b82f6">🌐</div>
+          <div class="svc-text"><div class="svc-name">nginx-gateway</div><div class="svc-sub">web · :443</div></div>
+          <div class="svc-dots"><div class="dot ok"></div></div>
+        </div>
+        <div class="group-node">
+          <div class="handle top"></div><div class="handle bottom"></div>
+          <div class="handle left"></div><div class="handle right"></div>
+          <div class="group-header">
+            <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="group-name">Auth сервисы</div>
+          </div>
+          <div class="group-body">
+            <div class="service-node">
+              <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+              <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+              <div class="svc-dots"><div class="dot warn"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════ 3. DROP SLOTS -->
+<div>
+  <h2>3 — Зоны вставки: по размеру карточки, вставка в конкретную позицию</h2>
+  <div class="canvas" style="gap: 40px; align-items: flex-start">
+
+    <!-- empty: 1 slot -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">Пустая — 1 слот</div>
+      <div class="group-node drag-over">
+        <div class="handle top"></div><div class="handle bottom"></div>
+        <div class="handle left"></div><div class="handle right"></div>
+        <div class="group-header">
+          <div class="group-icon" style="background:#f8fafc;border:1px solid #e2e8f0;color:#94a3b8">📦</div>
+          <div class="group-name" style="color:#94a3b8">Группа</div>
+        </div>
+        <div class="group-body">
+          <div class="drop-slot active">+ перетащи сюда</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 1 item + dragging: 2 slots appear (before and after) -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">1 элемент — 2 слота (до / после)</div>
+      <div class="group-node drag-over">
+        <div class="handle top"></div><div class="handle bottom"></div>
+        <div class="handle left"></div><div class="handle right"></div>
+        <div class="group-header">
+          <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+          <div class="group-name">Auth сервисы</div>
+        </div>
+        <div class="group-body">
+          <div class="drop-slot">вставить сюда</div>
+          <div class="service-node">
+            <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+            <div class="svc-dots"><div class="dot warn"></div></div>
+          </div>
+          <div class="drop-slot">вставить сюда</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 items + hovering over top slot: item being dropped, others shift down -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">2 элемента — слот активен сверху (нажат)</div>
+      <div class="group-node drag-over">
+        <div class="handle top"></div><div class="handle bottom"></div>
+        <div class="handle left"></div><div class="handle right"></div>
+        <div class="group-header">
+          <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+          <div class="group-name">Auth сервисы</div>
+        </div>
+        <div class="group-body">
+          <!-- dropping nginx-gateway at top -->
+          <div class="drop-slot active">+ nginx-gateway</div>
+          <!-- existing items shift down -->
+          <div class="service-node" style="opacity:.55; transform: translateY(2px); transition: transform .15s">
+            <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+            <div class="svc-dots"><div class="dot warn"></div></div>
+          </div>
+          <div class="service-node" style="opacity:.55; transform: translateY(2px); transition: transform .15s">
+            <div class="svc-icon" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a">🗄️</div>
+            <div class="svc-text"><div class="svc-name">postgres-auth</div><div class="svc-sub">объект</div></div>
+            <div class="svc-dots"><div class="dot unk"></div></div>
+          </div>
+          <div class="drop-slot" style="opacity:.4">вставить сюда</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 items + hovering over MIDDLE slot -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;margin-bottom:8px;text-align:center">Слот активен в середине</div>
+      <div class="group-node drag-over">
+        <div class="handle top"></div><div class="handle bottom"></div>
+        <div class="handle left"></div><div class="handle right"></div>
+        <div class="group-header">
+          <div class="group-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+          <div class="group-name">Auth сервисы</div>
+        </div>
+        <div class="group-body">
+          <div class="drop-slot" style="opacity:.4">вставить сюда</div>
+          <div class="service-node" style="opacity:.55">
+            <div class="svc-icon" style="background:#faf5ff;border:1px solid #e9d5ff;color:#7c3aed">🔐</div>
+            <div class="svc-text"><div class="svc-name">keycloak</div><div class="svc-sub">tcp · :8443</div></div>
+            <div class="svc-dots"><div class="dot warn"></div></div>
+          </div>
+          <!-- active slot in middle -->
+          <div class="drop-slot active">+ nginx-gateway</div>
+          <div class="service-node" style="opacity:.55; transform: translateY(2px)">
+            <div class="svc-icon" style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a">🗄️</div>
+            <div class="svc-text"><div class="svc-name">postgres-auth</div><div class="svc-sub">объект</div></div>
+            <div class="svc-dots"><div class="dot unk"></div></div>
+          </div>
+          <div class="drop-slot" style="opacity:.4">вставить сюда</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  <div class="note">Слоты появляются только когда пользователь тянет карточку над группой. В нормальном состоянии не видны.</div>
+</div>
+
+</body>
+</html>

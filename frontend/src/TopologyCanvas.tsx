@@ -38,6 +38,20 @@ import {
 import { POLL_INTERVAL_OPTIONS_SEC } from "./pollInterval";
 import { ServiceNode, type ServiceNodeData } from "./nodes/ServiceNode";
 import { GroupNode, type GroupNodeData } from "./nodes/GroupNode";
+import {
+  ContainerNode,
+  type ContainerNodeData,
+  CONTAINER_WIDTH,
+  CONTAINER_INNER_W,
+  CONTAINER_SIDE_PAD,
+  CONTAINER_HEADER_H,
+  CONTAINER_TOP_PAD,
+  CONTAINER_CARD_H,
+  CONTAINER_CARD_GAP,
+  containerHeight,
+  slotTopInContainer,
+} from "./nodes/ContainerNode";
+import { ContainerDropContext, type ContainerDropState } from "./ContainerDropContext";
 import { DeletableEdge } from "./edges/DeletableEdge";
 import { EdgeMetadataModal } from "./edges/EdgeMetadataModal";
 import { EdgeInteractionContext } from "./edges/edgeInteractionContext";
@@ -55,7 +69,7 @@ import { NODE_KIND_MAP, type NodeKindDef } from "./nodeKinds";
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
 const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
 
-const NODE_TYPES = { service: ServiceNode, group: GroupNode };
+const NODE_TYPES = { service: ServiceNode, group: GroupNode, container: ContainerNode };
 const EDGE_TYPES = { default: DeletableEdge };
 
 type MapEdge = Edge<LayoutEdgeData>;
@@ -414,6 +428,8 @@ export function TopologyCanvas({
 
   const [collidingIds, setCollidingIds] = useState<Set<string>>(new Set());
   const [draggingService, setDraggingService] = useState(false);
+  const [pendingContainerDrop, setPendingContainerDrop] =
+    useState<ContainerDropState | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<{
     id: string;
     label: string;
@@ -480,8 +496,40 @@ export function TopologyCanvas({
     b: ReturnType<typeof getBounds>,
   ) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
+  /** Compute which container slot the dragged node center falls into. */
+  const getContainerInsertIndex = useCallback(
+    (dragged: Node, container: Node): number => {
+      const items = (container.data as ContainerNodeData).items;
+      const dcy =
+        dragged.position.y + (dragged.measured?.height ?? CONTAINER_CARD_H) / 2;
+      const bodyTop =
+        container.position.y + CONTAINER_HEADER_H + CONTAINER_TOP_PAD;
+      const rel = dcy - bodyTop;
+      return Math.max(
+        0,
+        Math.min(
+          Math.round(rel / (CONTAINER_CARD_H + CONTAINER_CARD_GAP)),
+          items.length,
+        ),
+      );
+    },
+    [],
+  );
+
   const onNodeDrag = useCallback(
     (_: React.MouseEvent, dragged: Node) => {
+      // ── Container drag: items move automatically via parentId ──────────────
+      if (dragged.type === "container") {
+        if (
+          !dragStartSnapshot.current &&
+          !applyingHistory.current &&
+          layoutLoaded.current
+        ) {
+          dragStartSnapshot.current = cloneSnapshot();
+        }
+        return;
+      }
+
       if (!COLLIDABLE.includes(dragged.type ?? "")) return;
       if (
         !dragStartSnapshot.current &&
@@ -491,23 +539,80 @@ export function TopologyCanvas({
         dragStartSnapshot.current = cloneSnapshot();
       }
       setDraggingService(true);
+
+      const allNodes = getNodes();
+
+      // ── If dragged node belongs to a container: track drag-out ─────────────
+      const ownContainerId = (dragged.data as ServiceNodeData & { containerNode?: string })
+        .containerNode;
+      if (ownContainerId) {
+        // We just let it drag; detach decision is made on dragStop
+        return;
+      }
+
+      // ── Check if dragged node is hovering over a container ─────────────────
+      const dw = dragged.measured?.width ?? CONTAINER_INNER_W;
+      const dh = dragged.measured?.height ?? CONTAINER_CARD_H;
+      const dcx = dragged.position.x + dw / 2;
+      const dcy = dragged.position.y + dh / 2;
+
+      const targetContainer = allNodes.find((n) => {
+        if (n.type !== "container") return false;
+        const cItems = (n.data as ContainerNodeData).items;
+        if (cItems.includes(dragged.id)) return false; // already a member
+        const ch = containerHeight(cItems.length);
+        return (
+          dcx >= n.position.x &&
+          dcx <= n.position.x + CONTAINER_WIDTH &&
+          dcy >= n.position.y &&
+          dcy <= n.position.y + ch
+        );
+      }) ?? null;
+
+      if (targetContainer) {
+        const insertIndex = getContainerInsertIndex(dragged, targetContainer);
+        const nodeLabel = (dragged.data as ServiceNodeData).label ?? dragged.id;
+        setPendingContainerDrop({
+          containerId: targetContainer.id,
+          insertIndex,
+          nodeLabel,
+        });
+      } else {
+        setPendingContainerDrop(null);
+      }
+
+      // ── Service-service collision detection ────────────────────────────────
       const db = getBounds(dragged);
-      const hasOverlap = getNodes()
+      const hasOverlap = allNodes
         .filter(
           (n) =>
             n.id !== dragged.id &&
-            COLLIDABLE.includes(n.type ?? ""),
+            COLLIDABLE.includes(n.type ?? "") &&
+            !(n.data as ServiceNodeData & { containerNode?: string }).containerNode,
         )
         .some((n) => overlaps(db, getBounds(n)));
       setCollidingIds(hasOverlap ? new Set([dragged.id]) : new Set());
     },
-    [getNodes, cloneSnapshot],
+    [getNodes, setNodes, cloneSnapshot, getContainerInsertIndex],
   );
 
   const onNodeDragStop = useCallback(
     (_: React.MouseEvent, dragged: Node) => {
       setCollidingIds(new Set());
       setDraggingService(false);
+
+      // ── Container drag stop ────────────────────────────────────────────────
+      if (dragged.type === "container") {
+        if (!applyingHistory.current && dragStartSnapshot.current) {
+          undoStack.current.push(dragStartSnapshot.current);
+          if (undoStack.current.length > HISTORY_MAX) undoStack.current.shift();
+          redoStack.current = [];
+          setHistoryTick((x) => x + 1);
+        }
+        dragStartSnapshot.current = null;
+        return;
+      }
+
       if (!COLLIDABLE.includes(dragged.type ?? "")) return;
       if (!applyingHistory.current && dragStartSnapshot.current) {
         undoStack.current.push(dragStartSnapshot.current);
@@ -519,11 +624,138 @@ export function TopologyCanvas({
 
       const allNodes = getNodes();
 
-      // --- Collision detection ---
+      // ── Drop into container ───────────────────────────────────────────────
+      if (pendingContainerDrop) {
+        const { containerId, insertIndex } = pendingContainerDrop;
+        setPendingContainerDrop(null);
+        const container = allNodes.find((n) => n.id === containerId);
+        if (container) {
+          const containerData = container.data as ContainerNodeData;
+          const newItems = [...containerData.items];
+          newItems.splice(insertIndex, 0, dragged.id);
+          setNodes((ns) =>
+            ns.map((n) => {
+              if (n.id === containerId) {
+                return {
+                  ...n,
+                  data: { ...n.data, items: newItems } as ContainerNodeData,
+                };
+              }
+              // Reposition all members (including newly added) with RELATIVE positions
+              const idx = newItems.indexOf(n.id);
+              if (idx === -1) return n;
+              return {
+                ...n,
+                parentId: containerId,
+                position: {
+                  x: CONTAINER_SIDE_PAD,
+                  y: slotTopInContainer(idx),
+                },
+                style: { ...n.style, width: CONTAINER_INNER_W },
+                selectable: false,
+                data: { ...n.data, containerNode: containerId },
+              };
+            }),
+          );
+          return; // skip collision resolution
+        }
+      }
+      setPendingContainerDrop(null);
+
+      // ── Drag-out from container ───────────────────────────────────────────
+      const ownContainerId = (dragged.data as ServiceNodeData & { containerNode?: string })
+        .containerNode;
+      if (ownContainerId) {
+        const container = allNodes.find((n) => n.id === ownContainerId);
+        if (container) {
+          const ch = containerHeight(
+            (container.data as ContainerNodeData).items.length,
+          );
+          // dragged.position is relative to container (parentId)
+          const dw = dragged.measured?.width ?? CONTAINER_INNER_W;
+          const dh = dragged.measured?.height ?? CONTAINER_CARD_H;
+          const relCx = dragged.position.x + dw / 2;
+          const relCy = dragged.position.y + dh / 2;
+          const isStillInside =
+            relCx >= 0 &&
+            relCx <= CONTAINER_WIDTH &&
+            relCy >= 0 &&
+            relCy <= ch;
+
+          if (!isStillInside) {
+            // Detach — convert relative position back to absolute
+            const absPos = {
+              x: container.position.x + dragged.position.x,
+              y: container.position.y + dragged.position.y,
+            };
+            const updatedItems = (container.data as ContainerNodeData).items.filter(
+              (id) => id !== dragged.id,
+            );
+            setNodes((ns) =>
+              ns.map((n) => {
+                if (n.id === ownContainerId) {
+                  return {
+                    ...n,
+                    data: { ...n.data, items: updatedItems } as ContainerNodeData,
+                  };
+                }
+                if (n.id === dragged.id) {
+                  const { containerNode: _cn, ...restData } = n.data as ServiceNodeData & {
+                    containerNode?: string;
+                  };
+                  void _cn;
+                  return {
+                    ...n,
+                    parentId: undefined,
+                    data: restData,
+                    style: { ...n.style, width: undefined },
+                    selectable: true,
+                    position: absPos,
+                  };
+                }
+                // Reposition remaining members (already have parentId, relative positions)
+                const idx = updatedItems.indexOf(n.id);
+                if (idx === -1) return n;
+                return {
+                  ...n,
+                  position: {
+                    x: CONTAINER_SIDE_PAD,
+                    y: slotTopInContainer(idx),
+                  },
+                };
+              }),
+            );
+            return;
+          } else {
+            // Snap back to slot (relative position)
+            const items = (container.data as ContainerNodeData).items;
+            const idx = items.indexOf(dragged.id);
+            if (idx !== -1) {
+              setNodes((ns) =>
+                ns.map((n) =>
+                  n.id === dragged.id
+                    ? {
+                        ...n,
+                        position: {
+                          x: CONTAINER_SIDE_PAD,
+                          y: slotTopInContainer(idx),
+                        },
+                      }
+                    : n,
+                ),
+              );
+            }
+            return;
+          }
+        }
+      }
+
+      // ── Collision detection for free nodes ────────────────────────────────
       const others = allNodes.filter(
         (n) =>
           n.id !== dragged.id &&
-          COLLIDABLE.includes(n.type ?? ""),
+          COLLIDABLE.includes(n.type ?? "") &&
+          !(n.data as ServiceNodeData & { containerNode?: string }).containerNode,
       );
       const db = getBounds(dragged);
       if (!others.some((n) => overlaps(db, getBounds(n)))) return;
@@ -557,7 +789,7 @@ export function TopologyCanvas({
         ns.map((n) => (n.id === dragged.id ? { ...n, position: pos } : n)),
       );
     },
-    [getNodes, setNodes],
+    [getNodes, setNodes, pendingContainerDrop],
   );
 
   const onNodesChange: typeof onNodesChangeRaw = useCallback(
@@ -693,6 +925,21 @@ export function TopologyCanvas({
       });
     setNodes((ns) => {
       const filtered = ns.filter((n) => n.id !== confirmDelete.id);
+      // When deleting a container: free all its member nodes
+      if (node?.type === "container") {
+        return filtered.map((n) => {
+          const nd = n.data as ServiceNodeData & { containerNode?: string };
+          if (nd.containerNode !== confirmDelete.id) return n;
+          const { containerNode: _cn, ...restData } = nd;
+          void _cn;
+          return {
+            ...n,
+            data: restData,
+            style: { ...n.style, width: undefined },
+            selectable: true,
+          };
+        });
+      }
       return filtered;
     });
     setEdges((es) =>
@@ -751,6 +998,26 @@ export function TopologyCanvas({
               } satisfies GroupNodeData,
             } as Node;
           }
+          if (ln.type === "container") {
+            const items = ln.containerItems ?? [];
+            return {
+              id: ln.id,
+              type: "container",
+              position: { x: ln.x, y: ln.y },
+              style: {
+                width: CONTAINER_WIDTH,
+                height: containerHeight(items.length),
+              },
+              data: {
+                label: ln.label ?? t("defaultContainerLabel"),
+                icon: ln.icon,
+                path: ln.path,
+                description: ln.description,
+                endpoint: ln.endpoint,
+                items,
+              } satisfies ContainerNodeData,
+            } as Node;
+          }
           const legacyType = ln.type as string | undefined;
           if (legacyType === "custom") {
             // Migrate legacy custom nodes to service type
@@ -778,8 +1045,12 @@ export function TopologyCanvas({
               ln.kind === "k8s-cluster" ? "cluster" : ln.kind;
             const svc = data.services.find((s) => s.id === ln.id) ?? null;
             const cfg = serviceConfigs.current[ln.id] ?? {};
+            const inContainer = ln.containerNode ?? undefined;
+            const baseNode: Partial<Node> = inContainer
+              ? { selectable: false, style: { width: CONTAINER_INNER_W }, parentId: inContainer }
+              : {};
             if (svc) {
-              return serviceToNode(
+              const n = serviceToNode(
                 svc,
                 { x: ln.x, y: ln.y },
                 cfg.icon,
@@ -788,12 +1059,20 @@ export function TopologyCanvas({
                 cfg.ignored_sources,
                 migratedKind,
               );
+              return inContainer
+                ? {
+                    ...n,
+                    ...baseNode,
+                    data: { ...n.data, containerNode: inContainer },
+                  }
+                : n;
             }
             // Узел service без метрик: сервис мог исчезнуть во время сохранения
             return {
               id: ln.id,
               type: "service",
               position: { x: ln.x, y: ln.y },
+              ...baseNode,
               data: {
                 label: ln.label ?? ln.id,
                 ports: [],
@@ -802,16 +1081,19 @@ export function TopologyCanvas({
                 actions: cfg.actions,
                 ignored_sources: cfg.ignored_sources,
                 kind: migratedKind ?? "service",
-              } satisfies ServiceNodeData,
+                ...(inContainer ? { containerNode: inContainer } : {}),
+              } satisfies ServiceNodeData & { containerNode?: string },
             } as Node;
           }
           return null;
         })
         .filter(Boolean) as Node[];
-      // Groups first so they render behind service nodes
+      // Groups and containers first so they render behind service nodes
       placed.sort((a, b) => {
-        if (a.type === "group" && b.type !== "group") return -1;
-        if (a.type !== "group" && b.type === "group") return 1;
+        const aBack = a.type === "group" || a.type === "container";
+        const bBack = b.type === "group" || b.type === "container";
+        if (aBack && !bBack) return -1;
+        if (!aBack && bBack) return 1;
         return 0;
       });
       const seenServiceIds = new Set<string>();
@@ -978,6 +1260,41 @@ export function TopologyCanvas({
     pushSnapshot,
   ]);
 
+  const addContainerFromSidebar = useCallback(() => {
+    if (metricsStale || !canvasInteractive) return;
+    if (!applyingHistory.current) pushSnapshot();
+    const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+    setNodes((ns) => {
+      const rawPos = findFreePositionViewportLeftColumn(
+        ns,
+        screenToFlowPosition,
+        rect,
+      );
+      // Container is wider than NEW_NODE_W — shift right so it doesn't hug the left edge
+      const position = { x: rawPos.x + (CONTAINER_WIDTH - NEW_NODE_W), y: rawPos.y };
+      return [
+        {
+          id: `container-${Date.now()}`,
+          type: "container",
+          position,
+          style: { width: CONTAINER_WIDTH, height: containerHeight(0) },
+          data: {
+            label: t("defaultContainerLabel"),
+            items: [],
+          } satisfies ContainerNodeData,
+        } as Node,
+        ...ns,
+      ];
+    });
+  }, [
+    metricsStale,
+    canvasInteractive,
+    setNodes,
+    screenToFlowPosition,
+    t,
+    pushSnapshot,
+  ]);
+
   const addServiceFromPalette = useCallback(
     (svc: Service) => {
       if (metricsStale || !canvasInteractive) return;
@@ -1060,7 +1377,7 @@ export function TopologyCanvas({
       id: n.id,
       x: n.position.x,
       y: n.position.y,
-      type: (n.type as "service" | "group") ?? "service",
+      type: (n.type as "service" | "group" | "container") ?? "service",
       ...(n.type === "group"
         ? {
             label: (n.data as unknown as GroupNodeData).label,
@@ -1070,6 +1387,16 @@ export function TopologyCanvas({
             zIndex: (n.style?.zIndex as number) ?? -1,
           }
         : {}),
+      ...(n.type === "container"
+        ? {
+            label: (n.data as unknown as ContainerNodeData).label,
+            icon: (n.data as unknown as ContainerNodeData).icon,
+            path: (n.data as unknown as ContainerNodeData).path,
+            description: (n.data as unknown as ContainerNodeData).description,
+            endpoint: (n.data as unknown as ContainerNodeData).endpoint,
+            containerItems: (n.data as unknown as ContainerNodeData).items,
+          }
+        : {}),
       ...(n.type === "service"
         ? {
             label: (n.data as unknown as ServiceNodeData).label,
@@ -1077,6 +1404,14 @@ export function TopologyCanvas({
             icon: (n.data as unknown as ServiceNodeData).icon,
             description: (n.data as unknown as ServiceNodeData).description,
             actions: (n.data as unknown as ServiceNodeData).actions,
+            ...((n.data as unknown as ServiceNodeData & { containerNode?: string })
+              .containerNode
+              ? {
+                  containerNode: (
+                    n.data as unknown as ServiceNodeData & { containerNode: string }
+                  ).containerNode,
+                }
+              : {}),
           }
         : {}),
     }));
@@ -1239,6 +1574,7 @@ export function TopologyCanvas({
     <TraceContext.Provider value={{ tracedNodeId, toggleTrace, canEdit: !metricsStale && isAdmin }}>
       <CollisionContext.Provider value={collidingIds}>
         <DragContext.Provider value={draggingService}>
+          <ContainerDropContext.Provider value={pendingContainerDrop}>
           <ServicesContext.Provider
             value={{
               services: data.services,
@@ -1261,6 +1597,7 @@ export function TopologyCanvas({
                   onAddService={addServiceFromPalette}
                   onAddObject={addObjectFromPalette}
                   onAddArea={addAreaFromSidebar}
+                  onAddContainer={addContainerFromSidebar}
                   readOnly={metricsStale || !canvasInteractive || !isAdmin}
                   selectedId={paletteSelectedId}
                   onSelect={onPaletteSelect}
@@ -1478,7 +1815,7 @@ export function TopologyCanvas({
                       nodeTypes={NODE_TYPES}
                       edgeTypes={EDGE_TYPES}
                       connectionMode={ConnectionMode.Loose}
-                      defaultEdgeOptions={{ type: "default", data: {} }}
+                      defaultEdgeOptions={{ type: "default", data: {}, zIndex: 1 }}
                       nodesDraggable={!metricsStale && isAdmin && canvasInteractive}
                       nodesConnectable={!metricsStale && isAdmin && canvasInteractive}
                       edgesReconnectable={!metricsStale && isAdmin && canvasInteractive}
@@ -1617,6 +1954,7 @@ export function TopologyCanvas({
                 document.body,
               )}
           </ServicesContext.Provider>
+          </ContainerDropContext.Provider>
         </DragContext.Provider>
       </CollisionContext.Provider>
     </TraceContext.Provider>

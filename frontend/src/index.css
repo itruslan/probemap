@@ -8,6 +8,172 @@
   padding: 0 !important;
 }
 
+/* ── ContainerNode ── */
+.react-flow__node-container {
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.container-node {
+  width: 100%;
+  height: 100%;
+  background: var(--probemap-bg);
+  border: 1px solid var(--probemap-border);
+  border-radius: 10px;
+  box-shadow: var(--probemap-node-card-shadow);
+  position: relative;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+.container-node__header {
+  padding: 9px 12px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid var(--probemap-bg-subtle);
+}
+
+.container-node__icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--probemap-bg-subtle);
+  border: 1px solid var(--probemap-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.container-node__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--probemap-text);
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.container-node__label-input {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--probemap-text);
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid var(--probemap-blue);
+  outline: none;
+  padding: 0;
+}
+
+.container-node__count {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--probemap-text-muted);
+  background: var(--probemap-bg-subtle);
+  border-radius: 999px;
+  padding: 1px 6px;
+  flex-shrink: 0;
+}
+
+.container-node__body {
+  position: relative;
+}
+
+.container-node__empty {
+  padding: 14px 16px;
+  font-size: 11px;
+  color: var(--probemap-text-faint);
+  text-align: center;
+}
+
+/* Drop slots — shown only during drag-over */
+.container-node__slot {
+  border: 1.5px dashed var(--probemap-border-strong);
+  border-radius: 10px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 0.12s, background 0.12s;
+  pointer-events: none;
+}
+
+.container-node__slot--active {
+  border-color: var(--probemap-blue);
+  background: color-mix(in srgb, var(--probemap-blue) 6%, transparent);
+}
+
+.container-node__slot-label {
+  font-size: 11px;
+  color: var(--probemap-blue);
+  pointer-events: none;
+}
+
+/* Tooltip — appears on hover via CSS */
+.container-node__tooltip {
+  display: none;
+  position: absolute;
+  left: calc(100% + 12px);
+  top: 0;
+  width: 210px;
+  background: var(--probemap-tooltip-bg);
+  border-radius: 8px;
+  padding: 10px 12px;
+  box-shadow: 0 4px 18px rgba(15, 23, 42, 0.3);
+  font-size: 11px;
+  color: var(--probemap-tooltip-text);
+  line-height: 1.5;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.container-node:hover .container-node__tooltip {
+  display: block;
+}
+
+.container-node__tooltip::before {
+  content: '';
+  position: absolute;
+  left: -5px;
+  top: 14px;
+  border: 5px solid transparent;
+  border-right-color: var(--probemap-tooltip-bg);
+}
+
+.container-node__tooltip-icon {
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.container-node__tooltip-row {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.container-node__tooltip-row:last-child {
+  margin-bottom: 0;
+}
+
+.container-node__tooltip-key {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.container-node__tooltip-val {
+  color: var(--probemap-tooltip-text);
+  opacity: 0.9;
+  word-break: break-all;
+}
+
 html, body {
   margin: 0;
   padding: 0;

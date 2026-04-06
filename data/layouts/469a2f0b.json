@@ -1,6 +1,17 @@
 {
   "nodes": [
     {
+      "id": "container-1775423257594",
+      "x": -1614.339689502125,
+      "y": -913.7272591669184,
+      "type": "container",
+      "label": "Group",
+      "containerItems": [
+        "authentik",
+        "custom-1775417955794"
+      ]
+    },
+    {
       "id": "group-1775417957556",
       "x": 445.652700238383,
       "y": -588.4092823765864,
@@ -44,11 +55,12 @@
     },
     {
       "id": "authentik",
-      "x": -1207.0327848006339,
-      "y": -772.9885611479265,
+      "x": -1598.339689502125,
+      "y": -857.7272591669184,
       "type": "service",
       "label": "authentik",
-      "kind": "service"
+      "kind": "service",
+      "containerNode": "container-1775423257594"
     },
     {
       "id": "cloudflare-speed",
@@ -124,11 +136,12 @@
     },
     {
       "id": "custom-1775417955794",
-      "x": -2353.3320792426334,
-      "y": -1260.9659571859102,
+      "x": -1598.339689502125,
+      "y": -803.7272591669184,
       "type": "service",
       "label": "Custom",
-      "kind": "custom"
+      "kind": "custom",
+      "containerNode": "container-1775423257594"
     }
   ],
   "groups": [],
