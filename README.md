@@ -65,8 +65,7 @@ docker compose up --build
 | [.claude/architecture.md](.claude/architecture.md) | потоки данных, модули, label map |
 | [.claude/smells/backend.smells.md](.claude/smells/backend.smells.md) | известные технические долги backend |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | как участвовать и что проверять перед PR |
-| [GITHUB_SETUP_PLAN.md](GITHUB_SETUP_PLAN.md) | план оформления репозитория под GitHub |
 
 ## Лицензия
 
-Файл `LICENSE` в репозитории не задан — при публикации на GitHub добавьте лицензию по выбору владельца проекта.
+[MIT](LICENSE)

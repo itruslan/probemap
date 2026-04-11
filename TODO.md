@@ -28,6 +28,10 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-11 — P1: MIT LICENSE.** `LICENSE` в корне, README обновлён.
+
+- **2026-04-11 — D3: CI lint + test.** `.github/workflows/ci.yml` — backend (ruff check, ruff format --check, pytest) + frontend (npm ci, npm run lint, npm run build). Триггеры: push/PR в main/master.
+
 - **2026-04-04 — feat(auth): admin/viewer roles.** `PROBEMAP_ADMIN_PASSWORD` env: не задан — все без ограничений; задан — viewer (read-only) без пароля, admin по паролю. In-memory токены (без БД), Bearer auth. Frontend: `AuthContext`, `LoginModal`, кнопка `admin` в шапке. Все write-эндпоинты защищены `Depends(auth.require_admin)`. Viewer: карта только для просмотра (нельзя соединять, перетаскивать, удалять).
 
 - **2026-04-04 — fix(edges): sourceHandle/targetHandle не сохранялись.** После перезагрузки стрелки всегда оказывались в верхних точках. Добавлено сохранение/загрузка `sourceHandle`/`targetHandle` в `persistLayout` и `layoutRowToMapEdge`.
@@ -58,6 +62,33 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ---
 
+## Блок P — Подготовка к публикации
+
+> P1 закрыт — см. «Сделано».
+
+### [ ] P2. Вычистить `data/` из git
+
+Каталог `data/` — runtime-состояние (config, layouts, projects, icons). Сейчас трекается в git, `config.json` содержит реальный URL `victoriametrics.itruslan.ru`.
+
+- **Что сделать:** добавить `data/` в `.gitignore`; удалить из индекса (`git rm -r --cached data/`); добавить `data/.gitkeep` или `data/config.example.json` с placeholder URL.
+- **Готово когда:** `git ls-files data/` пуст; `.gitignore` содержит `data/`; есть пример конфигурации.
+
+### [ ] P3. Вычистить AI-артефакты из git
+
+`.qoder/`, `.qwen/`, `.tool-versions` трекаются в git — это артефакты AI-ассистентов, не нужны в публичном репо.
+
+- **Что сделать:** добавить в `.gitignore`: `.qoder/`, `.qwen/`, `.tool-versions`; удалить из индекса.
+- **Готово когда:** `git ls-files .qoder/ .qwen/ .tool-versions` пуст.
+
+### [ ] P4. Убрать внутренние planning-документы
+
+`GITHUB_SETUP_PLAN.md` — внутренний план, не нужен в публичном репо.
+
+- **Что сделать:** удалить `GITHUB_SETUP_PLAN.md` из репо; убрать ссылку из README.md.
+- **Готово когда:** файл не в git; README не ссылается на него.
+
+---
+
 ## Блок V — Визуальные баги
 
 ### [ ] V1. Смещение кончика стрелки / начала линии от handle
@@ -70,30 +101,22 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ---
 
-## Блок B — Каталог и палитра
-
-> B1–B2 закрыты — см. «Сделано».
-
----
-
-## Блок C — Визуализация пути
-
-> C1–C2 закрыты — см. «Сделано».
-
----
-
 ## Блок D — Инфраструктура и эксплуатация
 
-### [ ] D3. CI: lint + test
-
-- **Что сделать:** `.github/workflows/ci.yml` — backend (`ruff check`, `pytest`) + frontend (`npm run lint`, `npm run build`).
-- **Готово когда:** PR в main запускает проверки.
+> D3 (CI: lint + test) — закрыт, см. «Сделано».
 
 ### [ ] D4. CI: Docker build + push
 
 - **Что сделать:** при push тега `v*` — собрать образ и push в GHCR.
-- **Зависимость:** D3.
+- **Зависимость:** D3 (сделан).
 - **Готово когда:** `git tag v0.2.0 && git push --tags` → образ в registry.
+
+### [ ] D5. Frontend code-splitting
+
+Frontend бандл — 2.1 MB (один чанк). Vite выдаёт warning.
+
+- **Что сделать:** `React.lazy` + `Suspense` для Settings, dynamic import для ReactFlow.
+- **Готово когда:** ни один чанк не превышает 500 KB; build без warning.
 
 ---
 

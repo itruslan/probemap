@@ -10,3 +10,12 @@ __pycache__/
 .env.*.local
 
 frontend/dist/
+frontend/node_modules/
+
+# Runtime data (config, projects, layouts, icons) — не хранится в git
+data/
+
+# AI-ассистенты
+.qoder/
+.qwen/
+.tool-versions
