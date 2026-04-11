@@ -39,6 +39,8 @@ const STRINGS = {
       "В настройках сохраните URL, выберите нужные job и нажмите «Сохранить» на шаге таргетов. Пока мастер не завершён, создавать проект нельзя — на карте не на что опираться.",
     onboardingBlockedMetrics:
       "Источник не указан, не сохранён в конфиге или сейчас не отвечает. Откройте настройки, проверьте URL кнопкой «Проверить» и сохраните конфигурацию.",
+    onboardingViewerTitle: "Проектов пока нет",
+    onboardingViewerBody: "Создавать проекты может только администратор. Когда проект появится — он отобразится здесь автоматически.",
     monitoringHint:
       "Слева — сервисы из мониторинга. Добавьте на карту кнопкой «Добавить».\nПКМ по пустому месту карты — область и сервис.\nПлавающая панель на карте — инструменты и масштаб.",
 
@@ -301,6 +303,8 @@ const STRINGS = {
       "In settings, save the URL, pick the jobs you need, and click «Save» on the targets step. Until the setup wizard is finished you cannot create a project — there is no metric data to build on.",
     onboardingBlockedMetrics:
       "The datasource is missing, not saved in config, or not responding. Open settings, verify the URL with «Check», and save the configuration.",
+    onboardingViewerTitle: "No projects yet",
+    onboardingViewerBody: "Only an administrator can create projects. Once a project is created it will appear here automatically.",
     monitoringHint:
       "Monitored services on the left. Use «Add» to place one on the map.\nRight‑click empty canvas for area and service.\nThe floating toolbar — tools and zoom.",
 

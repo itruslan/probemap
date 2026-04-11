@@ -665,10 +665,34 @@ export function TopologyCanvas({
               _relCy >= 0 && _relCy <= _ch;
             if (!stillInside) {
               // Node dragged out of container — detach it
-              const absPos = {
+              let absPos = {
                 x: container.position.x + dragged.position.x,
                 y: container.position.y + dragged.position.y,
               };
+              // Resolve collisions with free nodes
+              const freeNodesR = allNodes.filter(
+                (n) =>
+                  n.id !== dragged.id &&
+                  n.id !== containerId &&
+                  COLLIDABLE.includes(n.type ?? "") &&
+                  !(n.data as ServiceNodeData & { containerNode?: string }).containerNode,
+              );
+              const rBounds = { x: absPos.x, y: absPos.y, w: 200, h: CONTAINER_CARD_H };
+              if (freeNodesR.some((n) => overlaps(rBounds, getBounds(n)))) {
+                const step = 20;
+                outer2: for (let r = 1; r <= 15; r++) {
+                  for (const [dx, dy] of [
+                    [r, 0], [0, r], [r, r], [-r, 0],
+                    [0, -r], [r, -r], [-r, r], [-r, -r],
+                  ] as [number, number][]) {
+                    const candidate = { x: absPos.x + dx * step, y: absPos.y + dy * step };
+                    if (!freeNodesR.some((n) => overlaps({ ...rBounds, ...candidate }, getBounds(n)))) {
+                      absPos = candidate;
+                      break outer2;
+                    }
+                  }
+                }
+              }
               const updatedItems = containerData.items.filter((itemId) => itemId !== dragged.id);
               setNodes((ns) =>
                 ns.map((n) => {
@@ -776,10 +800,36 @@ export function TopologyCanvas({
 
           if (!isStillInside) {
             // Detach — convert relative position back to absolute
-            const absPos = {
+            let absPos = {
               x: container.position.x + dragged.position.x,
               y: container.position.y + dragged.position.y,
             };
+            // Resolve collisions with other free nodes (same spiral as free-node drag)
+            const freeNodes = allNodes.filter(
+              (n) =>
+                n.id !== dragged.id &&
+                n.id !== ownContainerId &&
+                COLLIDABLE.includes(n.type ?? "") &&
+                !(n.data as ServiceNodeData & { containerNode?: string }).containerNode,
+            );
+            const detachW = 200;
+            const detachH = CONTAINER_CARD_H;
+            const detachBounds = { x: absPos.x, y: absPos.y, w: detachW, h: detachH };
+            if (freeNodes.some((n) => overlaps(detachBounds, getBounds(n)))) {
+              const step = 20;
+              outer: for (let r = 1; r <= 15; r++) {
+                for (const [dx, dy] of [
+                  [r, 0], [0, r], [r, r], [-r, 0],
+                  [0, -r], [r, -r], [-r, r], [-r, -r],
+                ] as [number, number][]) {
+                  const candidate = { x: absPos.x + dx * step, y: absPos.y + dy * step };
+                  if (!freeNodes.some((n) => overlaps({ ...detachBounds, ...candidate }, getBounds(n)))) {
+                    absPos = candidate;
+                    break outer;
+                  }
+                }
+              }
+            }
             const updatedItems = containerItems.filter((id) => id !== dragged.id);
             setNodes((ns) =>
               ns.map((n) => {

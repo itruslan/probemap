@@ -9,8 +9,8 @@
       "icon": "FaCubes",
       "containerItems": [
         "custom-1775417955794",
-        "rust-lang",
         "grafana-fh",
+        "rust-lang",
         "authentik"
       ]
     },
@@ -51,7 +51,7 @@
     {
       "id": "grafana-fh",
       "x": 24,
-      "y": 212,
+      "y": 134,
       "type": "service",
       "label": "grafana-fh",
       "kind": "service",
@@ -118,7 +118,7 @@
     {
       "id": "rust-lang",
       "x": 24,
-      "y": 134,
+      "y": 212,
       "type": "service",
       "label": "rust-lang",
       "kind": "service",

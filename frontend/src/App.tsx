@@ -685,6 +685,28 @@ function AppContent() {
         {projectsLoaded && !error && !needsSetup && projects.length === 0 && (
           (!data && fetching) ? (
             <div style={{ padding: 20, fontSize: 13, color: "var(--probemap-text-faint)" }}>{t("loading")}</div>
+          ) : !canEdit && onboardingReady ? (
+            <div
+              style={{
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                minHeight: 0,
+                padding: 32,
+                boxSizing: "border-box",
+              }}
+            >
+              <div style={{ textAlign: "center", maxWidth: 320 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--probemap-text)", marginBottom: 8 }}>
+                  {t("onboardingViewerTitle")}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--probemap-text-muted)", lineHeight: 1.5 }}>
+                  {t("onboardingViewerBody")}
+                </div>
+              </div>
+            </div>
           ) : (
             <div
               style={{
