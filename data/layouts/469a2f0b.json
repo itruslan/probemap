@@ -2,8 +2,8 @@
   "nodes": [
     {
       "id": "container-1775423257594",
-      "x": -848.5798239569286,
-      "y": -1053.1745423711889,
+      "x": -676.1811241516266,
+      "y": -1165.0650576104767,
       "type": "container",
       "label": "Group",
       "icon": "FaCubes",
@@ -13,16 +13,6 @@
         "rust-lang",
         "authentik"
       ]
-    },
-    {
-      "id": "group-1775417957556",
-      "x": 445.652700238383,
-      "y": -588.4092823765864,
-      "type": "group",
-      "label": "Area",
-      "width": 775,
-      "height": 362,
-      "zIndex": -10
     },
     {
       "id": "anylink-vpn",
@@ -148,6 +138,14 @@
       "label": "Custom",
       "kind": "custom",
       "containerNode": "container-1775423257594"
+    },
+    {
+      "id": "fh-vps",
+      "x": 602.8099577188746,
+      "y": -984.5268093792015,
+      "type": "service",
+      "label": "fh-vps",
+      "kind": "service"
     }
   ],
   "groups": [],
@@ -188,33 +186,6 @@
       "data": {}
     },
     {
-      "id": "xy-edge__group-1775417957556top-debianright",
-      "source": "group-1775417957556",
-      "target": "debian",
-      "type": "default",
-      "data": {},
-      "sourceHandle": "top",
-      "targetHandle": "right"
-    },
-    {
-      "id": "xy-edge__anylink-vpnright-group-1775417957556left",
-      "source": "anylink-vpn",
-      "target": "group-1775417957556",
-      "type": "default",
-      "data": {},
-      "sourceHandle": "right",
-      "targetHandle": "left"
-    },
-    {
-      "id": "xy-edge__group-1775417957556bottom-anylink-vpnbottom",
-      "source": "group-1775417957556",
-      "target": "anylink-vpn",
-      "type": "default",
-      "data": {},
-      "sourceHandle": "bottom",
-      "targetHandle": "bottom"
-    },
-    {
       "id": "xy-edge__debianbottom-anylink-vpntop",
       "source": "debian",
       "target": "anylink-vpn",
@@ -247,6 +218,7 @@
     },
     "rust-lang": {},
     "wikipedia": {},
-    "custom-1775417955794": {}
+    "custom-1775417955794": {},
+    "fh-vps": {}
   }
 }

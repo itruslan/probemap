@@ -13,9 +13,12 @@
   "label_map": {
     "service": "service",
     "port": "port",
-    "probe_source": "zone",
+    "probe_source": "instance",
     "module": "module",
-    "endpoint_label": "service"
+    "endpoint_label": "service",
+    "name_labels": [
+      "zone"
+    ]
   },
   "metric_filter_rules": [],
   "settings_targets_saved": true

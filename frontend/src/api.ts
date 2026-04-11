@@ -217,6 +217,8 @@ export interface LabelMap {
   module: string;
   /** Лейбл метрики, значение которого автоматически подставляется как endpoint узла */
   endpoint_label?: string | null;
+  /** Несколько лейблов для формирования составного ID/имени узла (например service + component) */
+  name_labels?: string[] | null;
 }
 
 /** Оператор сравнения лейбла в PromQL */

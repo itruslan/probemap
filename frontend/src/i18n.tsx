@@ -185,6 +185,9 @@ const STRINGS = {
     labelMapEndpointTitle: "Конечная точка",
     labelMapEndpointHint:
       "Необязательно. Лейбл метрики, значение которого автоматически подставляется как адрес конечной точки на карте. Например: target, instance, url. Если у сервиса такого лейбла нет — адрес можно задать вручную на узле.",
+    labelMapNameLabelsHint:
+      "Необязательно. Дополнительные лейблы для составного имени узла. Значения объединяются через « · ». Например: service + component → auth · api. По умолчанию используется только лейбл «Сервис».",
+    labelMapNameLabelsAdd: "Добавить лейбл",
 
     opEq: "= равно",
     opRe: "=~ regex",
@@ -447,6 +450,9 @@ const STRINGS = {
     labelMapEndpointTitle: "Endpoint",
     labelMapEndpointHint:
       "Optional. The metric label whose value is automatically used as the node's endpoint on the map. E.g.: target, instance, url. If a service lacks this label, the endpoint can be set manually on the node.",
+    labelMapNameLabelsHint:
+      "Optional. Extra labels to form a composite node name. Values are joined with \" · \". E.g.: service + component → auth · api. By default only the Service label is used.",
+    labelMapNameLabelsAdd: "Add label",
 
     opEq: "= equals",
     opRe: "=~ regex",

@@ -186,6 +186,22 @@ def _probe_source_label_name(lm: dict[str, Any]) -> str:
     return s if s else "instance"
 
 
+def _composite_name(m: dict[str, Any], svc_l: str, name_labels: list[str]) -> str:
+    """Build the service node ID/name from one or more metric labels.
+
+    If name_labels is non-empty, the primary svc_l is always prepended (deduplicated),
+    then name_labels values are appended. Non-empty parts are joined with " · ".
+    Falls back to the primary svc_l value (or "unknown") when the result is empty.
+    """
+    if name_labels:
+        all_labels = [svc_l] + [l for l in name_labels if l != svc_l]
+        parts = [str(m.get(l) or "") for l in all_labels]
+        joined = " · ".join(p for p in parts if p)
+        if joined:
+            return joined
+    return m.get(svc_l) or "unknown"
+
+
 def _parse_series_maps(
     status_series: list[dict[str, Any]],
     duration_series: list[dict[str, Any]],
@@ -193,6 +209,7 @@ def _parse_series_maps(
     port_l: str,
     src_l: str,
     module_l: str,
+    name_labels: list[str] | None = None,
 ) -> tuple[
     dict[tuple, int],
     dict[tuple, float],
@@ -206,9 +223,11 @@ def _parse_series_maps(
     Returns (status_map, duration_map, probe_types_map,
              port_tuple_set, port_tuple_sources, probe_sources).
     """
+    nl = name_labels or []
+
     def series_key(m: dict[str, Any]) -> tuple[str, str, str, str, str]:
         return (
-            m.get(svc_l) or "unknown",
+            _composite_name(m, svc_l, nl),
             m.get(port_l) or "unknown",
             m.get(src_l) or "",
             _norm_label(m, module_l),
@@ -230,7 +249,7 @@ def _parse_series_maps(
         if mod := m.get(module_l):
             probe_types_map[key].add(_module_to_type(str(mod)))
         pt: tuple[str, str, str, str] = (
-            m.get(svc_l) or "unknown",
+            _composite_name(m, svc_l, nl),
             m.get(port_l) or "unknown",
             _norm_label(m, module_l),
             m.get("job") or "",
@@ -298,13 +317,15 @@ def _attach_labels_and_kind(
     status_series: list[dict[str, Any]],
     svc_l: str,
     src_l: str,
+    name_labels: list[str] | None = None,
 ) -> None:
     """Attach consensus labels and probe_kind to each service in-place."""
     deny = _metric_label_denylist(src_l)
+    nl = name_labels or []
     by_svc: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for s in status_series:
         m = s["metric"]
-        by_svc[m.get(svc_l) or "unknown"].append(m)
+        by_svc[_composite_name(m, svc_l, nl)].append(m)
     for svc_name, row in services_map.items():
         lbls = _consensus_labels(by_svc.get(svc_name, []), deny)
         if lbls:
@@ -328,6 +349,9 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
     port_l: str = lm["port"]
     src_l = _probe_source_label_name(lm)
     module_l: str = lm["module"]
+    name_labels: list[str] = [
+        l for l in (lm.get("name_labels") or []) if isinstance(l, str) and l.strip()
+    ]
 
     status_series, duration_series = await asyncio.gather(
         _query(vm_url, f"last_over_time(probe_success{sel}[2m])"),
@@ -335,12 +359,12 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
     )
 
     status_map, duration_map, probe_types_map, port_tuple_set, port_tuple_sources, probe_sources = (
-        _parse_series_maps(status_series, duration_series, svc_l, port_l, src_l, module_l)
+        _parse_series_maps(status_series, duration_series, svc_l, port_l, src_l, module_l, name_labels)
     )
     services_map = _build_services_map(
         port_tuple_set, port_tuple_sources, status_map, duration_map, probe_types_map
     )
-    _attach_labels_and_kind(services_map, status_series, svc_l, src_l)
+    _attach_labels_and_kind(services_map, status_series, svc_l, src_l, name_labels)
 
     return {"services": list(services_map.values()), "probe_sources": probe_sources}
 

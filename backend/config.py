@@ -49,6 +49,7 @@ DEFAULT_LABEL_MAP: dict[str, Any] = {
     "probe_source": "instance",
     "module": "module",
     "url": None,
+    "name_labels": None,
 }
 
 _DEFAULT_CONFIG: dict[str, Any] = {

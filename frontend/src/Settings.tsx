@@ -39,12 +39,18 @@ function normalizeLabelMap(
 ): AppConfig["label_map"] {
   const probe_source =
     (lm.probe_source || lm.zone || "instance").trim() || "instance";
+  const raw_nl = lm.name_labels;
+  const name_labels =
+    Array.isArray(raw_nl) && raw_nl.length > 0
+      ? (raw_nl as string[]).filter((l) => typeof l === "string" && l.trim())
+      : null;
   return {
     service: lm.service ?? "service",
     port: lm.port ?? "port",
     probe_source,
     module: lm.module ?? "module",
     endpoint_label: lm.endpoint_label ?? null,
+    name_labels: name_labels ?? null,
   };
 }
 
@@ -194,6 +200,7 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
   const [draftFilterLabel, setDraftFilterLabel] = useState("");
   const [draftFilterOp, setDraftFilterOp] = useState<MetricFilterOp>("eq");
   const [draftFilterValue, setDraftFilterValue] = useState("");
+  const [draftNameLabel, setDraftNameLabel] = useState("");
   const [settingsHoverTip, setSettingsHoverTip] = useState<{
     label: string;
     el: HTMLElement;
@@ -528,6 +535,24 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
         ? { ...prev, label_map: { ...prev.label_map, [key]: value || null } }
         : prev,
     );
+
+  const addNameLabel = (label: string) => {
+    const l = label.trim();
+    if (!l) return;
+    setCfg((prev) => {
+      if (!prev) return prev;
+      const current = prev.label_map.name_labels ?? [];
+      if (current.includes(l)) return prev;
+      return { ...prev, label_map: { ...prev.label_map, name_labels: [...current, l] } };
+    });
+  };
+
+  const removeNameLabel = (label: string) =>
+    setCfg((prev) => {
+      if (!prev) return prev;
+      const next = (prev.label_map.name_labels ?? []).filter((l) => l !== label);
+      return { ...prev, label_map: { ...prev.label_map, name_labels: next.length ? next : null } };
+    });
 
   const testColor =
     testState === "ok"
@@ -984,38 +1009,125 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                 </span>
               }
             >
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "8px 12px",
-                }}
-              >
-                {LABEL_FIELD_KEYS.map(
-                  ({ key, titleKey, hintKey, required }) => (
-                    <div key={key} style={{ minWidth: 0 }}>
-                      <span
+              <div style={{ display: "flex", flexDirection: "column", gap: 7 }}>
+                {LABEL_FIELD_KEYS.map(({ key, titleKey, hintKey, required }) => (
+                  <div
+                    key={key}
+                    style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}
+                  >
+                    {/* Field label — fixed width */}
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: "var(--probemap-text-faint)",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 3,
+                        flexShrink: 0,
+                        width: 136,
+                      }}
+                    >
+                      {t(titleKey)}
+                      <HelpIcon
+                        aria={t("tooltipInfoAria")}
+                        onMouseEnter={(el) =>
+                          setSettingsHoverTip({ label: t(hintKey), el })
+                        }
+                        onMouseLeave={() => setSettingsHoverTip(null)}
+                      />
+                    </span>
+
+                    {/* Service field: primary editable tag + name_labels extra tags + [+] */}
+                    {key === "service" ? (
+                      <div
                         style={{
-                          fontSize: 11,
-                          fontWeight: 600,
-                          color: "var(--probemap-text-faint)",
-                          lineHeight: 1.3,
                           display: "flex",
                           alignItems: "center",
-                          gap: 3,
-                          marginBottom: 3,
+                          gap: 4,
+                          flex: 1,
+                          flexWrap: "wrap",
                         }}
                       >
-                        {t(titleKey)}
-                        <HelpIcon
-                          aria={t("tooltipInfoAria")}
-                          onMouseEnter={(el) =>
-                            setSettingsHoverTip({ label: t(hintKey), el })
-                          }
-                          onMouseLeave={() => setSettingsHoverTip(null)}
-                        />
-                      </span>
-                      {availableLabels.length > 0 ? (
+                        {/* Primary service label — editable, looks like a tag */}
+                        {availableLabels.length > 0 ? (
+                          <select
+                            value={cfg.label_map.service ?? ""}
+                            onChange={(e) => setLabelMap("service", e.target.value)}
+                            style={{
+                              ...tagSelectStyle,
+                              fontWeight: 600,
+                            }}
+                          >
+                            {availableLabels.map((l) => (
+                              <option key={l} value={l}>{l}</option>
+                            ))}
+                          </select>
+                        ) : (
+                          <input
+                            value={cfg.label_map.service ?? ""}
+                            onChange={(e) => setLabelMap("service", e.target.value)}
+                            style={{ ...tagInputStyle, fontWeight: 600, width: 80 }}
+                          />
+                        )}
+
+                        {/* Extra name_labels tags */}
+                        {(cfg.label_map.name_labels ?? []).map((lbl) => (
+                          <span key={lbl} style={tagPillStyle}>
+                            {lbl}
+                            <button
+                              type="button"
+                              onClick={() => removeNameLabel(lbl)}
+                              style={tagRemoveBtnStyle}
+                            >
+                              ×
+                            </button>
+                          </span>
+                        ))}
+
+                        {/* Add extra label */}
+                        {availableLabels.length > 0 ? (
+                          <select
+                            value=""
+                            onChange={(e) => {
+                              if (e.target.value) {
+                                addNameLabel(e.target.value);
+                                e.target.value = "";
+                              }
+                            }}
+                            title={t("labelMapNameLabelsAdd")}
+                            style={{ ...tagSelectStyle, color: "var(--probemap-text-faint)" }}
+                          >
+                            <option value="">+</option>
+                            {availableLabels
+                              .filter(
+                                (l) =>
+                                  l !== cfg.label_map.service &&
+                                  !(cfg.label_map.name_labels ?? []).includes(l),
+                              )
+                              .map((l) => (
+                                <option key={l} value={l}>{l}</option>
+                              ))}
+                          </select>
+                        ) : (
+                          <input
+                            value={draftNameLabel}
+                            onChange={(e) => setDraftNameLabel(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && draftNameLabel.trim()) {
+                                addNameLabel(draftNameLabel);
+                                setDraftNameLabel("");
+                              }
+                            }}
+                            placeholder="+"
+                            title={t("labelMapNameLabelsAdd")}
+                            style={{ ...tagInputStyle, width: 36, textAlign: "center" }}
+                          />
+                        )}
+                      </div>
+                    ) : (
+                      /* All other fields — plain select or input */
+                      availableLabels.length > 0 ? (
                         <select
                           value={(cfg.label_map[key] as string) ?? ""}
                           onChange={(e) => setLabelMap(key, e.target.value)}
@@ -1024,15 +1136,14 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                             cursor: "pointer",
                             fontSize: 12,
                             padding: "4px 8px",
+                            flex: 1,
                           }}
                         >
                           {!required && (
                             <option value="">{t("settingsLabelNotSet")}</option>
                           )}
                           {availableLabels.map((l) => (
-                            <option key={l} value={l}>
-                              {l}
-                            </option>
+                            <option key={l} value={l}>{l}</option>
                           ))}
                         </select>
                       ) : (
@@ -1044,12 +1155,13 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
                             ...inputStyle,
                             fontSize: 12,
                             padding: "4px 8px",
+                            flex: 1,
                           }}
                         />
-                      )}
-                    </div>
-                  ),
-                )}
+                      )
+                    )}
+                  </div>
+                ))}
               </div>
             </Section>
 
@@ -1346,4 +1458,56 @@ const inputStyle: React.CSSProperties = {
   outline: "none",
   background: "var(--probemap-input-bg)",
   color: "var(--probemap-text)",
+};
+
+/** Tag-like select for inline label fields (e.g. service multi-tag row). */
+const tagSelectStyle: React.CSSProperties = {
+  boxSizing: "border-box",
+  padding: "2px 6px",
+  borderRadius: 5,
+  fontSize: 12,
+  border: "1.5px solid var(--probemap-border)",
+  outline: "none",
+  background: "var(--probemap-input-bg)",
+  color: "var(--probemap-text)",
+  cursor: "pointer",
+  height: 24,
+};
+
+/** Tag-like text input for inline label fields when no availableLabels. */
+const tagInputStyle: React.CSSProperties = {
+  boxSizing: "border-box",
+  padding: "2px 6px",
+  borderRadius: 5,
+  fontSize: 12,
+  border: "1.5px solid var(--probemap-border)",
+  outline: "none",
+  background: "var(--probemap-input-bg)",
+  color: "var(--probemap-text)",
+  height: 24,
+};
+
+/** Pill for extra name_labels with remove button. */
+const tagPillStyle: React.CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 3,
+  fontSize: 12,
+  padding: "2px 7px",
+  borderRadius: 5,
+  background: "var(--probemap-bg-card)",
+  border: "1.5px solid var(--probemap-border)",
+  color: "var(--probemap-text)",
+  height: 24,
+  boxSizing: "border-box",
+};
+
+const tagRemoveBtnStyle: React.CSSProperties = {
+  background: "none",
+  border: "none",
+  padding: 0,
+  cursor: "pointer",
+  color: "var(--probemap-text-faint)",
+  lineHeight: 1,
+  fontSize: 13,
 };
