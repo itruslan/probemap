@@ -28,7 +28,17 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-11 — fix(trash): TrashModal показывал «Корзина пуста» вместо ошибки.** Добавлен `error` state + `.catch()` в `useEffect`; при 401/сетевой ошибке выводится текст ошибки.
+
 - **2026-04-11 — P1–P4: подготовка к публикации.** MIT LICENSE, упрощён README, data/ убрана из git (config.example.json с placeholder), .gitignore расширен (data/, .qoder/, .qwen/, .tool-versions), удалены CONTRIBUTING.md / frontend/README.md / GITHUB_SETUP_PLAN.md / .tool-versions.
+
+- **2026-04-11 — E3: S3-совместимое хранилище.** `storage.py`: `LocalBackend` + `S3Backend` (boto3). Все данные (config, projects, layouts, icons) через абстракцию. Env: `PROBEMAP_S3_*`. Fallback на `data/` без конфига.
+
+- **2026-04-11 — E1: soft delete + корзина + восстановление.** `deleted_at` на проектах, `GET /api/projects/trash`, `POST /api/projects/{id}/restore`, `DELETE /api/projects/{id}/permanent`. UI: TrashModal, счётчик в ProjectSelect.
+
+- **2026-04-11 — E2: import/export проекта.** `GET /api/projects/{id}/export` → `probemap_*.json` (name, filters, layout + service_configs). `POST /api/projects/import` → создаёт проект из файла. UI: кнопка Export в ProjectModal, Import в ProjectSelect.
+
+- **2026-04-11 — D4: CI release — Docker build + push GHCR.** `.github/workflows/release.yml`: триггер `v*`, Buildx + GHA-кеш, теги `v0.x.x` / `0.x` / `latest` в `ghcr.io/itruslan/probemap`.
 
 - **2026-04-11 — D3: CI lint + test.** `.github/workflows/ci.yml` — backend (ruff check, ruff format --check, pytest) + frontend (npm ci, npm run lint, npm run build). Триггеры: push/PR в main/master.
 
@@ -61,12 +71,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Блок D — Инфраструктура и эксплуатация
 
-> D2, D3 — закрыты.
-
-### [ ] D4. CI: Docker build + push
-
-- **Что сделать:** при push тега `v*` — собрать образ и push в GHCR.
-- **Готово когда:** `git tag v0.2.0 && git push --tags` → образ в registry.
+> D2, D3, D4 — закрыты.
 
 ### [ ] D5. Frontend code-splitting
 
@@ -79,17 +84,8 @@ Frontend бандл — 2.1 MB (один чанк). Vite выдаёт warning.
 
 ## Блок E — Данные и хранение
 
-### [ ] E1. Soft delete проектов + восстановление
 
-- **Готово когда:** `DELETE` не стирает безвозвратно; есть список «удалённые»; восстановление доступно.
 
-### [ ] E2. Import / export проекта
-
-- **Готово когда:** один JSON-файл (имя, фильтры, раскладка, `service_configs`); round-trip import/export.
-
-### [ ] E3. S3-совместимое хранилище для артефактов
-
-- **Готово когда:** endpoint/bucket/credentials через env; чтение/запись раскладок; fallback с `data/`.
 
 ### [ ] E4. Дубли по `matchServiceId` в старых раскладках
 

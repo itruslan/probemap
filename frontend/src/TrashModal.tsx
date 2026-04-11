@@ -21,12 +21,14 @@ export function TrashModal({ onClose, onRestored }: Props) {
   const { t } = useI18n();
   const [items, setItems] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [confirmId, setConfirmId] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   useEffect(() => {
     fetchDeletedProjects()
       .then(setItems)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
       .finally(() => setLoading(false));
   }, []);
 
@@ -102,6 +104,10 @@ export function TrashModal({ onClose, onRestored }: Props) {
           {loading ? (
             <div style={{ padding: "24px", textAlign: "center", color: "var(--probemap-text-faint)", fontSize: 13 }}>
               {t("loading")}
+            </div>
+          ) : error ? (
+            <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--probemap-danger, #e55)", fontSize: 13 }}>
+              {error}
             </div>
           ) : items.length === 0 ? (
             <div style={{ padding: "32px 24px", textAlign: "center", color: "var(--probemap-text-faint)", fontSize: 13 }}>
