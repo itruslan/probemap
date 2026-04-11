@@ -28,6 +28,8 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-11 — V1: стрелка ребра + линия без «просвечивания».** `DeletableEdge`: смещение начала `getSmoothStepPath` от **source** handle (как уже было для target) + небольшой `STROKE_JOIN_PAD` у длины пути.
+
 - **2026-04-11 — fix(trash): TrashModal показывал «Корзина пуста» вместо ошибки.** Добавлен `error` state + `.catch()` в `useEffect`; при 401/сетевой ошибке выводится текст ошибки.
 
 - **2026-04-11 — P1–P4: подготовка к публикации.** MIT LICENSE, упрощён README, data/ убрана из git (config.example.json с placeholder), .gitignore расширен (data/, .qoder/, .qwen/, .tool-versions), удалены CONTRIBUTING.md / frontend/README.md / GITHUB_SETUP_PLAN.md / .tool-versions.
@@ -60,14 +62,7 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Блок V — Визуальные баги
 
-### [ ] V1. Смещение кончика стрелки / начала линии от handle
-
-Кончик стрелки (polygon) и линия ребра `getSmoothStepPath` соединяются в одной точке `(targetX, targetY)`, из-за чего линия «просвечивает» через тело стрелки.
-
-- Укорачивать `getSmoothStepPath` до основания стрелки — убирает перекрытие. Если не помогает — `markerEnd` SVG-маркер.
-- **Готово когда:** кончик стрелки точно совпадает с handle без видимого «просвечивания».
-
----
+> Открытых задач нет (V1 — см. «Сделано»).
 
 ## Блок D — Инфраструктура и эксплуатация
 
@@ -79,8 +74,6 @@ Frontend бандл — 2.1 MB (один чанк). Vite выдаёт warning.
 
 - **Что сделать:** `React.lazy` + `Suspense` для Settings, dynamic import для ReactFlow.
 - **Готово когда:** ни один чанк не превышает 500 KB; build без warning.
-
----
 
 ---
 
