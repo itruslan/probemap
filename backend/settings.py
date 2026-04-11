@@ -57,3 +57,15 @@ LOG_FORMAT: str = os.getenv("PROBEMAP_LOG_FORMAT", "").lower()
 # When set, write endpoints require a valid Bearer token.
 # When not set, all requests are allowed (single-user / trusted-network mode).
 ADMIN_PASSWORD: str | None = os.getenv("PROBEMAP_ADMIN_PASSWORD") or None
+
+# ---------------------------------------------------------------------------
+# S3-compatible storage (optional; fallback to DATA_DIR when not set)
+# ---------------------------------------------------------------------------
+
+S3_ENDPOINT: str | None = os.getenv("PROBEMAP_S3_ENDPOINT") or None
+S3_BUCKET: str | None = os.getenv("PROBEMAP_S3_BUCKET") or None
+S3_ACCESS_KEY: str | None = os.getenv("PROBEMAP_S3_ACCESS_KEY") or None
+S3_SECRET_KEY: str | None = os.getenv("PROBEMAP_S3_SECRET_KEY") or None
+S3_REGION: str = os.getenv("PROBEMAP_S3_REGION", "us-east-1")
+# Optional key prefix inside the bucket (e.g. "probemap" for multi-tenant setups)
+S3_PREFIX: str = os.getenv("PROBEMAP_S3_PREFIX", "").strip("/")

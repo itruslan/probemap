@@ -1,9 +1,7 @@
 import pathlib
 import re
 
-import settings
-
-ICONS_DIR = settings.ICONS_DIR
+import storage as _storage
 
 ALLOWED_EXTS = {".svg", ".png", ".webp"}
 _EXTS = list(ALLOWED_EXTS)
@@ -21,41 +19,38 @@ def sanitize_icon_name(name: str) -> str:
 
 
 def list_icons() -> list[dict[str, str]]:
-    ICONS_DIR.mkdir(parents=True, exist_ok=True)
-    seen: dict[str, pathlib.Path] = {}
-    for f in sorted(ICONS_DIR.iterdir()):
-        if f.suffix in _EXTS:
-            seen[f.stem] = f
-    return [{"name": p.stem, "url": f"/api/icons/{p.stem}"} for p in seen.values()]
+    keys = _storage.get_store().list_prefix("icons/")
+    seen: dict[str, str] = {}
+    for key in keys:
+        p = pathlib.PurePosixPath(key)
+        if p.suffix in _EXTS:
+            seen[p.stem] = key
+    return [{"name": stem, "url": f"/api/icons/{stem}"} for stem in sorted(seen)]
 
 
-def save_icon(name: str, data: bytes, ext: str = ".svg") -> None:
-    ICONS_DIR.mkdir(parents=True, exist_ok=True)
-    # Remove old files with other extensions for same name
-    for old_ext in _EXTS:
-        old = ICONS_DIR / f"{name}{old_ext}"
-        if old.exists():
-            old.unlink()
-    (ICONS_DIR / f"{name}{ext}").write_bytes(data)
-
-
-def delete_icon(name: str) -> bool:
-    deleted = False
+def read_icon(name: str) -> tuple[bytes, str] | None:
+    """Return (bytes, mime_type) or None if not found."""
+    store = _storage.get_store()
     for ext in _EXTS:
-        path = ICONS_DIR / f"{name}{ext}"
-        if path.exists():
-            path.unlink()
-            deleted = True
-    return deleted
-
-
-def icon_path(name: str) -> pathlib.Path | None:
-    for ext in _EXTS:
-        p = ICONS_DIR / f"{name}{ext}"
-        if p.exists():
-            return p
+        data = store.read_bytes(f"icons/{name}{ext}")
+        if data is not None:
+            return data, _MIME[ext]
     return None
 
 
-def icon_mime(path: pathlib.Path) -> str:
-    return _MIME.get(path.suffix, "application/octet-stream")
+def save_icon(name: str, data: bytes, ext: str = ".svg") -> None:
+    store = _storage.get_store()
+    # Remove old files with other extensions for same name
+    for old_ext in _EXTS:
+        if old_ext != ext:
+            store.delete(f"icons/{name}{old_ext}")
+    store.write_bytes(f"icons/{name}{ext}", data, _MIME.get(ext, "application/octet-stream"))
+
+
+def delete_icon(name: str) -> bool:
+    store = _storage.get_store()
+    deleted = False
+    for ext in _EXTS:
+        if store.delete(f"icons/{name}{ext}"):
+            deleted = True
+    return deleted

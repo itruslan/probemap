@@ -36,6 +36,11 @@ All options are set via environment variables (see `.env.example`):
 | `PROBEMAP_HOST_PORT` | `8000` | Host port for `docker compose` |
 | `PROBEMAP_LOG_LEVEL` | `info` | Log level (`debug` / `info` / `warning`) |
 | `PROBEMAP_CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated) |
+| `PROBEMAP_S3_ENDPOINT` | — | S3-compatible endpoint (MinIO, AWS S3, etc.) |
+| `PROBEMAP_S3_BUCKET` | — | S3 bucket name; enables S3 storage when set |
+| `PROBEMAP_S3_ACCESS_KEY` | — | S3 access key |
+| `PROBEMAP_S3_SECRET_KEY` | — | S3 secret key |
+| `PROBEMAP_S3_PREFIX` | — | Key prefix inside the bucket (optional) |
 
 After first start, open Settings to point probemap at your datasource and configure probe jobs.
 

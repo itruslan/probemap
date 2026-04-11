@@ -6,22 +6,15 @@ import pytest
 
 @pytest.fixture()
 def data_dir(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib.Path:
-    """Redirect config module to use a temp directory for all file I/O."""
-    import config as cfg_mod
+    """Redirect all storage I/O to a temp directory."""
+    import storage as storage_mod
+    from storage import LocalBackend
 
-    cfg_path = str(tmp_path / "config.json")
-    projects_path = str(tmp_path / "projects.json")
-
-    monkeypatch.setattr(cfg_mod, "DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(cfg_mod, "CONFIG_PATH", cfg_path)
-    monkeypatch.setattr(cfg_mod, "PROJECTS_PATH", projects_path)
+    backend = LocalBackend(str(tmp_path))
+    monkeypatch.setattr(storage_mod, "_backend", backend)
     monkeypatch.setenv("PROBEMAP_DATASOURCE_URL", "")
 
     import settings
-
-    monkeypatch.setattr(settings, "DATA_DIR", str(tmp_path))
-    monkeypatch.setattr(settings, "CONFIG_PATH", cfg_path)
-    monkeypatch.setattr(settings, "PROJECTS_PATH", projects_path)
     monkeypatch.setattr(settings, "DATASOURCE_URL", None)
 
     return tmp_path

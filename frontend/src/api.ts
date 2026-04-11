@@ -363,11 +363,7 @@ export async function hardDeleteProject(id: string): Promise<void> {
 }
 
 export async function deleteProject(id: string): Promise<void> {
-  const r = await fetch(`${BASE}/api/projects/${id}`, { method: "DELETE" });
-  if (!r.ok) {
-    const text = await r.text().catch(() => "");
-    throw new ApiError(r.status, text || `HTTP ${r.status}`);
-  }
+  await apiFetch(`${BASE}/api/projects/${id}`, { method: "DELETE" });
 }
 
 export async function fetchProjectFilterValues(

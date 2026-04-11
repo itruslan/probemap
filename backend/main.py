@@ -14,7 +14,7 @@ import metrics
 import settings
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, Response
+from fastapi.responses import JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -56,10 +56,14 @@ async def _lifespan(app: FastAPI):  # noqa: ARG001
     c = cfg_mod.read_config()
     ds = c.get("datasource") or {}
     url = settings.DATASOURCE_URL or (ds.get("url") or "").strip()
+    storage_info = (
+        f"s3://{settings.S3_BUCKET}/{settings.S3_PREFIX}" if settings.S3_BUCKET
+        else settings.DATA_DIR
+    )
     _log.info(
-        "probemap starting — port=%s data_dir=%s datasource=%s log_level=%s",
+        "probemap starting — port=%s storage=%s datasource=%s log_level=%s",
         settings.PORT,
-        settings.DATA_DIR,
+        storage_info,
         url or "(not configured)",
         settings.LOG_LEVEL,
     )
@@ -377,13 +381,14 @@ def get_icons() -> dict[str, Any]:
 
 
 @app.get("/api/icons/{name}")
-def serve_icon(name: str) -> FileResponse:
+def serve_icon(name: str) -> Response:
     if not icons_mod.sanitize_icon_name(name):
         raise HTTPException(status_code=400, detail="Invalid icon name")
-    path = icons_mod.icon_path(name)
-    if path is None:
+    result = icons_mod.read_icon(name)
+    if result is None:
         raise HTTPException(status_code=404, detail="Icon not found")
-    return FileResponse(str(path), media_type=icons_mod.icon_mime(path))
+    data, mime = result
+    return Response(content=data, media_type=mime)
 
 
 _ICON_MAX_BYTES = 512 * 1024  # 512 KB

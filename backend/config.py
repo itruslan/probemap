@@ -1,13 +1,12 @@
 import copy
 import json
-import os
-import pathlib
 import re
 import uuid
 from datetime import datetime, timezone
 from typing import Any
 
 import settings
+import storage as _storage
 
 _LEGACY_EXTRA_SELECTOR_RE = re.compile(
     r'([a-zA-Z_][a-zA-Z0-9_]*)\s*=\s*"((?:[^"\\]|\\.)*)"',
@@ -40,9 +39,8 @@ def _merge_legacy_metric_extra_into_rules(data: dict[str, Any], extra: str) -> N
     data["metric_filter_rules"] = rules
 
 
-DATA_DIR = settings.DATA_DIR
-CONFIG_PATH = settings.CONFIG_PATH
-PROJECTS_PATH = settings.PROJECTS_PATH
+_CONFIG_KEY = "config.json"
+_PROJECTS_KEY = "projects.json"
 
 DEFAULT_LABEL_MAP: dict[str, Any] = {
     "service": "service",
@@ -82,11 +80,11 @@ def project_metric_filter_pairs(project: dict[str, Any]) -> list[tuple[str, str]
 
 
 def read_config() -> dict[str, Any]:
-    try:
-        with open(CONFIG_PATH) as f:
-            data = json.load(f)
-    except FileNotFoundError:
+    raw = _storage.get_store().read_text(_CONFIG_KEY)
+    if raw is None:
         return dict(_DEFAULT_CONFIG)
+    try:
+        data = json.loads(raw)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"config.json is corrupted: {e}") from e
     data.setdefault("probe_jobs", [])
@@ -149,33 +147,17 @@ def project_creation_allowed() -> tuple[bool, str]:
     return True, ""
 
 
-def _atomic_write_json(path: str, data: object) -> None:
-    """Write JSON atomically: serialise to a temp file, then os.replace() into place.
-
-    os.replace() is atomic on POSIX — a crash mid-write leaves the original intact.
-    """
-    p = pathlib.Path(path)
-    p.parent.mkdir(parents=True, exist_ok=True)
-    tmp = p.with_suffix(".tmp")
-    try:
-        tmp.write_text(json.dumps(data, indent=2), encoding="utf-8")
-        os.replace(tmp, p)
-    except Exception:
-        tmp.unlink(missing_ok=True)
-        raise
-
-
 def write_config(cfg: dict[str, Any]) -> None:
     out = {k: v for k, v in cfg.items() if k != "metric_extra_selector"}
-    _atomic_write_json(CONFIG_PATH, out)
+    _storage.get_store().write_text(_CONFIG_KEY, json.dumps(out, indent=2))
 
 
 def _load_all_projects() -> list[dict[str, Any]]:
-    try:
-        with open(PROJECTS_PATH) as f:
-            return json.load(f)
-    except FileNotFoundError:
+    raw = _storage.get_store().read_text(_PROJECTS_KEY)
+    if raw is None:
         return []
+    try:
+        return json.loads(raw)
     except json.JSONDecodeError as e:
         raise RuntimeError(f"projects.json is corrupted: {e}") from e
 
@@ -191,7 +173,7 @@ def read_deleted_projects() -> list[dict[str, Any]]:
 
 
 def write_projects(projects: list[dict[str, Any]]) -> None:
-    _atomic_write_json(PROJECTS_PATH, projects)
+    _storage.get_store().write_text(_PROJECTS_KEY, json.dumps(projects, indent=2))
 
 
 def get_project(project_id: str) -> dict[str, Any] | None:
