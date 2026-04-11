@@ -136,10 +136,40 @@ class TestProjects:
     def test_delete_project(self, data_dir: pathlib.Path) -> None:
         p = cfg_mod.create_project("ToDelete")
         assert cfg_mod.delete_project(p["id"]) is True
+        # soft delete: disappears from active list
         assert cfg_mod.get_project(p["id"]) is None
 
     def test_delete_nonexistent_returns_false(self, data_dir: pathlib.Path) -> None:
         assert cfg_mod.delete_project("none") is False
+
+    def test_soft_delete_appears_in_trash(self, data_dir: pathlib.Path) -> None:
+        p = cfg_mod.create_project("InTrash")
+        cfg_mod.delete_project(p["id"])
+        deleted = cfg_mod.read_deleted_projects()
+        assert any(d["id"] == p["id"] for d in deleted)
+        assert all(d.get("deleted_at") for d in deleted)
+
+    def test_restore_project(self, data_dir: pathlib.Path) -> None:
+        p = cfg_mod.create_project("Restore me")
+        cfg_mod.delete_project(p["id"])
+        restored = cfg_mod.restore_project(p["id"])
+        assert restored is not None
+        assert "deleted_at" not in restored
+        assert cfg_mod.get_project(p["id"]) is not None
+        assert cfg_mod.read_deleted_projects() == []
+
+    def test_restore_nonexistent_returns_none(self, data_dir: pathlib.Path) -> None:
+        assert cfg_mod.restore_project("none") is None
+
+    def test_hard_delete_removes_from_trash(self, data_dir: pathlib.Path) -> None:
+        p = cfg_mod.create_project("Gone")
+        cfg_mod.delete_project(p["id"])
+        assert cfg_mod.hard_delete_project(p["id"]) is True
+        assert cfg_mod.read_deleted_projects() == []
+
+    def test_hard_delete_active_project_returns_false(self, data_dir: pathlib.Path) -> None:
+        p = cfg_mod.create_project("Active")
+        assert cfg_mod.hard_delete_project(p["id"]) is False
 
 
 class TestProjectMetricFilterPairs:

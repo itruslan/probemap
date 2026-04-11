@@ -8,6 +8,7 @@ import {
   fetchServices,
   fetchProjectServices,
   fetchProjects,
+  fetchDeletedProjects,
   fetchDatasourceStatus,
   createProject,
   updateProject,
@@ -17,6 +18,7 @@ import {
   type Project,
   type ProjectFilter,
 } from "./api";
+import { TrashModal } from "./TrashModal";
 import { AuthProvider, useAuth } from "./AuthContext";
 import { LoginModal } from "./LoginModal";
 import { TopologyCanvas } from "./TopologyCanvas";
@@ -337,6 +339,8 @@ function AppContent() {
   const [pollIntervalSec, setPollIntervalSec] = useState<(typeof POLL_INTERVAL_OPTIONS_SEC)[number]>(readPollIntervalSec);
   /** Только ручной «Обновить» в тулбаре — не автоопрос и не эффект при смене проекта */
   const [toolbarRefreshPending, setToolbarRefreshPending] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
   /** Последняя проверка доступности VictoriaMetrics по URL из конфига */
   const [datasourceStatus, setDatasourceStatus] = useState<{
     configured: boolean;
@@ -357,6 +361,11 @@ function AppContent() {
       })
       .finally(() => setProjectsLoaded(true));
   }, []);
+
+  useEffect(() => {
+    if (!canEdit) return;
+    fetchDeletedProjects().then((list) => setTrashCount(list.length)).catch(() => {});
+  }, [canEdit]);
 
   const refresh = useCallback((opts?: { fromToolbar?: boolean }) => {
     if (opts?.fromToolbar) setToolbarRefreshPending(true);
@@ -508,8 +517,16 @@ function AppContent() {
       }
       return next;
     });
+    setTrashCount((c) => c + 1);
     setProjectModal(null);
   }, [activeProject?.id]);
+
+  const handleRestoreProject = useCallback((project: Project) => {
+    setProjects((prev) => [...prev, project]);
+    setActiveProject(project);
+    setTrashCount((c) => Math.max(0, c - 1));
+    setTrashOpen(false);
+  }, []);
 
   return (
       <div className="app-shell" style={{ display: "flex", flexDirection: "column", height: "100vh", width: "100vw" }}>
@@ -557,6 +574,8 @@ function AppContent() {
               onChange={setActiveProject}
               onConfigureProject={canEdit ? (p) => setProjectModal({ project: p }) : undefined}
               onCreateProject={canEdit ? () => setProjectModal({}) : undefined}
+              onOpenTrash={canEdit ? () => setTrashOpen(true) : undefined}
+              trashCount={canEdit ? trashCount : 0}
             />
           )}
         </div>
@@ -815,6 +834,13 @@ function AppContent() {
           }}
         />
         </Suspense>
+      )}
+
+      {trashOpen && canEdit && (
+        <TrashModal
+          onClose={() => setTrashOpen(false)}
+          onRestored={handleRestoreProject}
+        />
       )}
 
       {projectModal !== null && (

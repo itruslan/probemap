@@ -237,6 +237,26 @@ def delete_project(project_id: str) -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.get("/api/projects/trash", dependencies=[Depends(auth.require_admin)])
+def get_trash() -> list[dict[str, Any]]:
+    return cfg_mod.read_deleted_projects()
+
+
+@app.post("/api/projects/{project_id}/restore", dependencies=[Depends(auth.require_admin)])
+def restore_project(project_id: str) -> dict[str, Any]:
+    restored = cfg_mod.restore_project(project_id)
+    if restored is None:
+        raise HTTPException(status_code=404, detail="Project not found in trash")
+    return restored
+
+
+@app.delete("/api/projects/{project_id}/permanent", dependencies=[Depends(auth.require_admin)])
+def hard_delete_project(project_id: str) -> dict[str, str]:
+    if not cfg_mod.hard_delete_project(project_id):
+        raise HTTPException(status_code=404, detail="Project not found in trash")
+    return {"status": "ok"}
+
+
 @app.get("/api/projects/{project_id}/filter-values")
 async def project_filter_values(project_id: str, label: str | None = Query(None)) -> list[str]:
     project = cfg_mod.get_project(project_id)

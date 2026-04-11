@@ -270,6 +270,8 @@ export interface Project {
   filter: ProjectFilter | null;
   /** Несколько условий label=value для метрик проекта */
   filters?: ProjectFilter[] | null;
+  /** ISO timestamp, если проект в корзине */
+  deleted_at?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -334,6 +336,18 @@ export async function updateProject(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+}
+
+export async function fetchDeletedProjects(): Promise<Project[]> {
+  return apiFetch<Project[]>(`${BASE}/api/projects/trash`);
+}
+
+export async function restoreProject(id: string): Promise<Project> {
+  return apiFetch<Project>(`${BASE}/api/projects/${id}/restore`, { method: "POST" });
+}
+
+export async function hardDeleteProject(id: string): Promise<void> {
+  await apiFetch(`${BASE}/api/projects/${id}/permanent`, { method: "DELETE" });
 }
 
 export async function deleteProject(id: string): Promise<void> {

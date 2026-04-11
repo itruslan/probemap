@@ -4,6 +4,7 @@ import os
 import pathlib
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Any
 
 import settings
@@ -169,7 +170,7 @@ def write_config(cfg: dict[str, Any]) -> None:
     _atomic_write_json(CONFIG_PATH, out)
 
 
-def read_projects() -> list[dict[str, Any]]:
+def _load_all_projects() -> list[dict[str, Any]]:
     try:
         with open(PROJECTS_PATH) as f:
             return json.load(f)
@@ -179,11 +180,22 @@ def read_projects() -> list[dict[str, Any]]:
         raise RuntimeError(f"projects.json is corrupted: {e}") from e
 
 
+def read_projects() -> list[dict[str, Any]]:
+    """Возвращает только активные (не удалённые) проекты."""
+    return [p for p in _load_all_projects() if not p.get("deleted_at")]
+
+
+def read_deleted_projects() -> list[dict[str, Any]]:
+    """Возвращает только soft-deleted проекты."""
+    return [p for p in _load_all_projects() if p.get("deleted_at")]
+
+
 def write_projects(projects: list[dict[str, Any]]) -> None:
     _atomic_write_json(PROJECTS_PATH, projects)
 
 
 def get_project(project_id: str) -> dict[str, Any] | None:
+    """Возвращает активный проект по id (None если не найден или удалён)."""
     return next((p for p in read_projects() if p["id"] == project_id), None)
 
 
@@ -248,8 +260,31 @@ def update_project(project_id: str, patch: dict[str, Any]) -> dict[str, Any] | N
 
 
 def delete_project(project_id: str) -> bool:
-    projects = read_projects()
-    filtered = [p for p in projects if p["id"] != project_id]
+    """Soft delete: помечает проект как удалённый (deleted_at = now)."""
+    projects = _load_all_projects()
+    for p in projects:
+        if p["id"] == project_id and not p.get("deleted_at"):
+            p["deleted_at"] = datetime.now(timezone.utc).isoformat()
+            write_projects(projects)
+            return True
+    return False
+
+
+def restore_project(project_id: str) -> dict[str, Any] | None:
+    """Восстанавливает soft-deleted проект. Возвращает проект или None если не найден."""
+    projects = _load_all_projects()
+    for p in projects:
+        if p["id"] == project_id and p.get("deleted_at"):
+            p.pop("deleted_at")
+            write_projects(projects)
+            return p
+    return None
+
+
+def hard_delete_project(project_id: str) -> bool:
+    """Безвозвратное удаление (только из корзины)."""
+    projects = _load_all_projects()
+    filtered = [p for p in projects if not (p["id"] == project_id and p.get("deleted_at"))]
     if len(filtered) == len(projects):
         return False
     write_projects(filtered)

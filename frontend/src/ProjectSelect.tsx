@@ -12,9 +12,13 @@ type Props = {
   onConfigureProject?: (project: Project) => void;
   /** Создать проект — внизу выпадающего списка */
   onCreateProject?: () => void;
+  /** Открыть корзину */
+  onOpenTrash?: () => void;
+  /** Количество проектов в корзине */
+  trashCount?: number;
 };
 
-export function ProjectSelect({ projects, activeProject, onChange, onConfigureProject, onCreateProject }: Props) {
+export function ProjectSelect({ projects, activeProject, onChange, onConfigureProject, onCreateProject, onOpenTrash, trashCount }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 220 });
@@ -162,34 +166,49 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
                 </div>
               );
             })}
-            {onCreateProject && (
+            {(onCreateProject || onOpenTrash) && (
               <>
                 <div
                   role="separator"
                   aria-orientation="horizontal"
-                  style={{
-                    height: 1,
-                    margin: "4px 0",
-                    background: "var(--probemap-border)",
-                  }}
+                  style={{ height: 1, margin: "4px 0", background: "var(--probemap-border)" }}
                 />
-                <button
-                  type="button"
-                  onClick={() => {
-                    onCreateProject();
-                    setOpen(false);
-                  }}
-                  className="probemap-btn probemap-btn--slate probemap-btn--lg probemap-btn--block"
-                  style={{
-                    width: "calc(100% - 12px)",
-                    margin: "0 6px 6px",
-                    boxSizing: "border-box",
-                    minHeight: 44,
-                    textAlign: "center",
-                  }}
-                >
-                  {t("projectAdd")}
-                </button>
+                {onCreateProject && (
+                  <button
+                    type="button"
+                    onClick={() => { onCreateProject(); setOpen(false); }}
+                    className="probemap-btn probemap-btn--slate probemap-btn--lg probemap-btn--block"
+                    style={{ width: "calc(100% - 12px)", margin: "0 6px 4px", boxSizing: "border-box", minHeight: 44, textAlign: "center" }}
+                  >
+                    {t("projectAdd")}
+                  </button>
+                )}
+                {onOpenTrash && (
+                  <button
+                    type="button"
+                    onClick={() => { onOpenTrash(); setOpen(false); }}
+                    style={{
+                      width: "calc(100% - 12px)",
+                      margin: "0 6px 6px",
+                      boxSizing: "border-box",
+                      padding: "6px 12px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      fontSize: 12,
+                      color: "var(--probemap-text-faint)",
+                      background: "none",
+                      border: "none",
+                      borderRadius: 6,
+                      cursor: "pointer",
+                      textAlign: "left",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--probemap-interactive-hover-bg)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                  >
+                    🗑 {t("projectTrash")}{trashCount ? ` (${trashCount})` : ""}
+                  </button>
+                )}
               </>
             )}
           </div>,

@@ -117,6 +117,15 @@ const STRINGS = {
     projectConfigure: "Настроить проект",
     projectSelect: "Выбрать проект",
     projectDelete: "Удалить проект",
+    projectTrash: "Корзина",
+
+    trashTitle: "Корзина проектов",
+    trashEmpty: "Корзина пуста",
+    trashDeletedAt: "Удалён",
+    trashRestore: "Восстановить",
+    trashDeletePermanently: "Удалить навсегда",
+    trashConfirmDelete: "Удалить?",
+    trashHint: "Удаление из корзины — безвозвратно.",
 
     projectTitle: "Проект",
     projectTitleNew: "Новый проект",
@@ -384,6 +393,15 @@ const STRINGS = {
     projectConfigure: "Configure project",
     projectSelect: "Select project",
     projectDelete: "Delete project",
+    projectTrash: "Trash",
+
+    trashTitle: "Project trash",
+    trashEmpty: "Trash is empty",
+    trashDeletedAt: "Deleted",
+    trashRestore: "Restore",
+    trashDeletePermanently: "Delete permanently",
+    trashConfirmDelete: "Delete?",
+    trashHint: "Permanently deleted projects cannot be recovered.",
 
     projectTitle: "Project",
     projectTitleNew: "New project",
