@@ -49,7 +49,9 @@ import {
   CONTAINER_CARD_H,
   CONTAINER_CARD_GAP,
   containerHeight,
+  containerHeightDynamic,
   slotTopInContainer,
+  slotTopDynamic,
 } from "./nodes/ContainerNode";
 import { ContainerDropContext, type ContainerDropState } from "./ContainerDropContext";
 import { DeletableEdge } from "./edges/DeletableEdge";
@@ -500,20 +502,28 @@ export function TopologyCanvas({
   const getContainerInsertIndex = useCallback(
     (dragged: Node, container: Node): number => {
       const items = (container.data as ContainerNodeData).items;
+      const allNodes = getNodes();
+      const itemHeights = items.map((itemId) => {
+        const n = allNodes.find((node) => node.id === itemId);
+        return n?.measured?.height ?? CONTAINER_CARD_H;
+      });
       const dcy =
         dragged.position.y + (dragged.measured?.height ?? CONTAINER_CARD_H) / 2;
       const bodyTop =
         container.position.y + CONTAINER_HEADER_H + CONTAINER_TOP_PAD;
       const rel = dcy - bodyTop;
-      return Math.max(
-        0,
-        Math.min(
-          Math.round(rel / (CONTAINER_CARD_H + CONTAINER_CARD_GAP)),
-          items.length,
-        ),
-      );
+      // Find the slot whose midpoint is closest to rel
+      let best = 0;
+      let bestDist = Infinity;
+      for (let i = 0; i <= items.length; i++) {
+        const slotMid = slotTopDynamic(i, itemHeights) - (CONTAINER_HEADER_H + CONTAINER_TOP_PAD)
+          + (itemHeights[i] ?? CONTAINER_CARD_H) / 2;
+        const dist = Math.abs(rel - slotMid);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      }
+      return best;
     },
-    [],
+    [getNodes],
   );
 
   const onNodeDrag = useCallback(
@@ -542,11 +552,33 @@ export function TopologyCanvas({
 
       const allNodes = getNodes();
 
-      // ── If dragged node belongs to a container: track drag-out ─────────────
+      // ── If dragged node belongs to a container: reorder or drag-out ─────────
       const ownContainerId = (dragged.data as ServiceNodeData & { containerNode?: string })
         .containerNode;
       if (ownContainerId) {
-        // We just let it drag; detach decision is made on dragStop
+        const container = allNodes.find((n) => n.id === ownContainerId);
+        if (container) {
+          const ch = containerHeight((container.data as ContainerNodeData).items.length);
+          const dh = dragged.measured?.height ?? CONTAINER_CARD_H;
+          // dragged.position is relative to container (parentId)
+          const relCy = dragged.position.y + dh / 2;
+          const isStillInside = relCy >= 0 && relCy <= ch;
+          if (isStillInside) {
+            // Show slot indicator for reordering
+            const items = (container.data as ContainerNodeData).items;
+            const rel = relCy - CONTAINER_HEADER_H - CONTAINER_TOP_PAD;
+            const rawIdx = Math.round(rel / (CONTAINER_CARD_H + CONTAINER_CARD_GAP));
+            const insertIndex = Math.max(0, Math.min(rawIdx, items.length));
+            setPendingContainerDrop({
+              containerId: ownContainerId,
+              insertIndex,
+              nodeLabel: (dragged.data as ServiceNodeData).label ?? dragged.id,
+              reorderMode: true,
+            });
+            return;
+          }
+        }
+        setPendingContainerDrop(null);
         return;
       }
 
@@ -624,15 +656,65 @@ export function TopologyCanvas({
 
       const allNodes = getNodes();
 
-      // ── Drop into container ───────────────────────────────────────────────
+      // ── Drop into container OR reorder within container ───────────────────
       if (pendingContainerDrop) {
-        const { containerId, insertIndex } = pendingContainerDrop;
+        const { containerId, insertIndex, reorderMode } = pendingContainerDrop;
         setPendingContainerDrop(null);
         const container = allNodes.find((n) => n.id === containerId);
         if (container) {
           const containerData = container.data as ContainerNodeData;
+
+          if (reorderMode) {
+            // Reorder: move dragged item to new slot within same container
+            const oldItems = [...containerData.items];
+            const fromIdx = oldItems.indexOf(dragged.id);
+            if (fromIdx !== -1) {
+              const toIdx = insertIndex > fromIdx ? insertIndex - 1 : insertIndex;
+              if (fromIdx !== toIdx) {
+                oldItems.splice(fromIdx, 1);
+                oldItems.splice(toIdx, 0, dragged.id);
+                const reorderedHeights = oldItems.map((itemId) => {
+                  const n = allNodes.find((node) => node.id === itemId);
+                  return n?.measured?.height ?? CONTAINER_CARD_H;
+                });
+                setNodes((ns) =>
+                  ns.map((n) => {
+                    if (n.id === containerId) {
+                      return { ...n, data: { ...n.data, items: oldItems } as ContainerNodeData };
+                    }
+                    const idx = oldItems.indexOf(n.id);
+                    if (idx === -1) return n;
+                    return { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopDynamic(idx, reorderedHeights) } };
+                  }),
+                );
+                return;
+              }
+            }
+            // No actual reorder: snap back to slot
+            const snapHeights = containerData.items.map((itemId) => {
+              const n = allNodes.find((node) => node.id === itemId);
+              return n?.measured?.height ?? CONTAINER_CARD_H;
+            });
+            const idx = containerData.items.indexOf(dragged.id);
+            if (idx !== -1) {
+              setNodes((ns) =>
+                ns.map((n) =>
+                  n.id === dragged.id
+                    ? { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopDynamic(idx, snapHeights) } }
+                    : n,
+                ),
+              );
+            }
+            return;
+          }
+
+          // Drop-in: add new member
           const newItems = [...containerData.items];
           newItems.splice(insertIndex, 0, dragged.id);
+          const dropHeights = newItems.map((itemId) => {
+            const n = allNodes.find((node) => node.id === itemId);
+            return n?.measured?.height ?? CONTAINER_CARD_H;
+          });
           setNodes((ns) =>
             ns.map((n) => {
               if (n.id === containerId) {
@@ -649,7 +731,7 @@ export function TopologyCanvas({
                 parentId: containerId,
                 position: {
                   x: CONTAINER_SIDE_PAD,
-                  y: slotTopInContainer(idx),
+                  y: slotTopDynamic(idx, dropHeights),
                 },
                 style: { ...n.style, width: CONTAINER_INNER_W },
                 selectable: false,
@@ -668,9 +750,12 @@ export function TopologyCanvas({
       if (ownContainerId) {
         const container = allNodes.find((n) => n.id === ownContainerId);
         if (container) {
-          const ch = containerHeight(
-            (container.data as ContainerNodeData).items.length,
-          );
+          const containerItems = (container.data as ContainerNodeData).items;
+          const memberHeights = containerItems.map((itemId) => {
+            const n = allNodes.find((node) => node.id === itemId);
+            return n?.measured?.height ?? CONTAINER_CARD_H;
+          });
+          const ch = containerHeightDynamic(memberHeights);
           // dragged.position is relative to container (parentId)
           const dw = dragged.measured?.width ?? CONTAINER_INNER_W;
           const dh = dragged.measured?.height ?? CONTAINER_CARD_H;
@@ -688,9 +773,11 @@ export function TopologyCanvas({
               x: container.position.x + dragged.position.x,
               y: container.position.y + dragged.position.y,
             };
-            const updatedItems = (container.data as ContainerNodeData).items.filter(
-              (id) => id !== dragged.id,
-            );
+            const updatedItems = containerItems.filter((id) => id !== dragged.id);
+            const updatedHeights = updatedItems.map((itemId) => {
+              const n = allNodes.find((node) => node.id === itemId);
+              return n?.measured?.height ?? CONTAINER_CARD_H;
+            });
             setNodes((ns) =>
               ns.map((n) => {
                 if (n.id === ownContainerId) {
@@ -713,34 +800,21 @@ export function TopologyCanvas({
                     position: absPos,
                   };
                 }
-                // Reposition remaining members (already have parentId, relative positions)
+                // Reposition remaining members
                 const idx = updatedItems.indexOf(n.id);
                 if (idx === -1) return n;
-                return {
-                  ...n,
-                  position: {
-                    x: CONTAINER_SIDE_PAD,
-                    y: slotTopInContainer(idx),
-                  },
-                };
+                return { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopDynamic(idx, updatedHeights) } };
               }),
             );
             return;
           } else {
-            // Snap back to slot (relative position)
-            const items = (container.data as ContainerNodeData).items;
-            const idx = items.indexOf(dragged.id);
+            // Snap back to slot
+            const idx = containerItems.indexOf(dragged.id);
             if (idx !== -1) {
               setNodes((ns) =>
                 ns.map((n) =>
                   n.id === dragged.id
-                    ? {
-                        ...n,
-                        position: {
-                          x: CONTAINER_SIDE_PAD,
-                          y: slotTopInContainer(idx),
-                        },
-                      }
+                    ? { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopDynamic(idx, memberHeights) } }
                     : n,
                 ),
               );
@@ -1533,12 +1607,12 @@ export function TopologyCanvas({
   }, []);
 
   const onBeforeDelete = useCallback(async () => {
-    if (metricsStale) return false;
+    if (metricsStale || !isAdmin) return false;
     const s = store.getState();
     return Boolean(
       s.nodesDraggable || s.nodesConnectable || s.elementsSelectable,
     );
-  }, [metricsStale, store]);
+  }, [metricsStale, isAdmin, store]);
 
   const handleZoomIn = useCallback(() => {
     void zoomIn({ duration: 200 });

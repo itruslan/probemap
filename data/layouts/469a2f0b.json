@@ -2,13 +2,14 @@
   "nodes": [
     {
       "id": "container-1775423257594",
-      "x": -1614.339689502125,
-      "y": -913.7272591669184,
+      "x": -1350.339689502125,
+      "y": -1025.7272591669184,
       "type": "container",
       "label": "Group",
       "containerItems": [
         "authentik",
-        "custom-1775417955794"
+        "custom-1775417955794",
+        "rust-lang"
       ]
     },
     {
@@ -55,11 +56,12 @@
     },
     {
       "id": "authentik",
-      "x": -1598.339689502125,
-      "y": -857.7272591669184,
+      "x": 16,
+      "y": 56,
       "type": "service",
       "label": "authentik",
       "kind": "service",
+      "description": "123",
       "containerNode": "container-1775423257594"
     },
     {
@@ -112,11 +114,12 @@
     },
     {
       "id": "rust-lang",
-      "x": -1207.0327848006339,
-      "y": -52.988561147926475,
+      "x": 16,
+      "y": 212,
       "type": "service",
       "label": "rust-lang",
-      "kind": "service"
+      "kind": "service",
+      "containerNode": "container-1775423257594"
     },
     {
       "id": "wikipedia",
@@ -136,8 +139,8 @@
     },
     {
       "id": "custom-1775417955794",
-      "x": -1598.339689502125,
-      "y": -803.7272591669184,
+      "x": 16,
+      "y": 134,
       "type": "service",
       "label": "Custom",
       "kind": "custom",
@@ -223,7 +226,9 @@
     "argocd": {},
     "debian": {},
     "grafana-fh": {},
-    "authentik": {},
+    "authentik": {
+      "description": "123"
+    },
     "cloudflare-speed": {
       "ignored_sources": []
     },

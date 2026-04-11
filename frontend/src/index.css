@@ -13,6 +13,13 @@
   border: none !important;
   background: transparent !important;
   padding: 0 !important;
+  overflow: visible !important;
+}
+
+/* Handles on container node must render above the container-node background div.
+   GroupNode explicitly uses zIndex:10 on its HANDLE_STYLE for the same reason. */
+.react-flow__node-container .react-flow__handle-visibility {
+  z-index: 10;
 }
 
 .container-node {
@@ -85,6 +92,7 @@
 
 .container-node__body {
   position: relative;
+  overflow: hidden;
 }
 
 .container-node__empty {
