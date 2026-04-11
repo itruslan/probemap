@@ -17,6 +17,8 @@ import { useEdgeInteraction } from "./edgeInteractionContext";
 const ARROW = 7;
 /** Distance from handle center to the outer tip of the rotated diamond (8×8px, border-radius 2, rotate 45°). */
 const DIAMOND_TIP = 5;
+/** Extra px so `getSmoothStepPath` stroke does not anti-alias past the arrow base (V1 / TODO). */
+const STROKE_JOIN_PAD = 0.75;
 
 /** Maps protocol string → SVG strokeDasharray (undefined = solid). */
 function protocolDash(protocol: string | undefined): string | undefined {
@@ -55,7 +57,7 @@ function arrowPoints(x: number, y: number, pos?: Position): string {
 /** Offset the path endpoint so the line stops at the arrowhead base.
  *  Tip is DIAMOND_TIP px outside handle center; base is ARROW further back. */
 function pathTarget(x: number, y: number, pos?: Position): [number, number] {
-  const total = DIAMOND_TIP + ARROW;
+  const total = DIAMOND_TIP + ARROW + STROKE_JOIN_PAD;
   switch (pos) {
     case Position.Top:    return [x, y - total];
     case Position.Bottom: return [x, y + total];
