@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { IconType } from "react-icons";
 import { FaGear, FaMoon, FaSun } from "react-icons/fa6";
 import { ReactFlowProvider } from "@xyflow/react";
@@ -20,7 +20,7 @@ import {
 import { AuthProvider, useAuth } from "./AuthContext";
 import { LoginModal } from "./LoginModal";
 import { TopologyCanvas } from "./TopologyCanvas";
-import { Settings } from "./Settings";
+const Settings = lazy(() => import("./Settings").then((m) => ({ default: m.Settings })));
 import { ProjectModal } from "./ProjectModal";
 import { ProjectSelect } from "./ProjectSelect";
 import { I18nProvider, useI18n } from "./i18n";
@@ -800,6 +800,7 @@ function AppContent() {
       )}
 
       {settingsOpen && (
+        <Suspense fallback={null}>
         <Settings
           projectFilterPairs={activeProject?.filters ?? null}
           onClose={() => {
@@ -813,6 +814,7 @@ function AppContent() {
             refresh();
           }}
         />
+        </Suspense>
       )}
 
       {projectModal !== null && (

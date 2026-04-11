@@ -1,4 +1,40 @@
-import * as Fa6 from "react-icons/fa6";
+import {
+  FaBell,
+  FaBolt,
+  FaBuilding,
+  FaChartLine,
+  FaCloud,
+  FaCode,
+  FaCubes,
+  FaDatabase,
+  FaDisplay,
+  FaFire,
+  FaGears,
+  FaGlobe,
+  FaHardDrive,
+  FaInbox,
+  FaKey,
+  FaLaptop,
+  FaLayerGroup,
+  FaLocationDot,
+  FaLock,
+  FaMicrochip,
+  FaMobileScreen,
+  FaNetworkWired,
+  FaPlug,
+  FaRocket,
+  FaRoute,
+  FaSatelliteDish,
+  FaScaleBalanced,
+  FaServer,
+  FaShieldHalved,
+  FaSitemap,
+  FaTerminal,
+  FaTowerBroadcast,
+  FaUser,
+  FaWifi,
+  FaWrench,
+} from "react-icons/fa6";
 import type { IconType } from "react-icons";
 
 export type { IconType };
@@ -6,11 +42,20 @@ export type { IconType };
 /** Internet — иконка по умолчанию для сервисов и запасной вариант в IconRenderer */
 export const DEFAULT_SERVICE_ICON_NAME = "FaGlobe";
 
-export const FALLBACK_ICON: IconType = Fa6.FaGlobe;
+export const FALLBACK_ICON: IconType = FaGlobe;
+
+const ICON_MAP: Record<string, IconType> = {
+  FaBell, FaBolt, FaBuilding, FaChartLine, FaCloud, FaCode, FaCubes,
+  FaDatabase, FaDisplay, FaFire, FaGears, FaGlobe, FaHardDrive, FaInbox,
+  FaKey, FaLaptop, FaLayerGroup, FaLocationDot, FaLock, FaMicrochip,
+  FaMobileScreen, FaNetworkWired, FaPlug, FaRocket, FaRoute, FaSatelliteDish,
+  FaScaleBalanced, FaServer, FaShieldHalved, FaSitemap, FaTerminal,
+  FaTowerBroadcast, FaUser, FaWifi, FaWrench,
+};
 
 export function resolveIcon(name?: string): IconType {
   if (!name) return FALLBACK_ICON;
-  return (Fa6 as unknown as Record<string, IconType>)[name] ?? FALLBACK_ICON;
+  return ICON_MAP[name] ?? FALLBACK_ICON;
 }
 
 export interface IconEntry { label: string; icon: string; }
