@@ -1,4 +1,4 @@
-import { useReactFlow, useNodes, type NodeProps } from "@xyflow/react";
+import { useReactFlow, useStore, type NodeProps } from "@xyflow/react";
 import { memo, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AllHandles } from "./handles";
@@ -29,31 +29,9 @@ export function containerHeight(n: number): number {
   );
 }
 
-/** Container height when member heights are known (variable-height items). */
-export function containerHeightDynamic(itemHeights: number[]): number {
-  if (itemHeights.length === 0) return CONTAINER_HEADER_H + 64 + CONTAINER_BOTTOM_PAD;
-  const total = itemHeights.reduce((a, b) => a + b, 0);
-  return (
-    CONTAINER_HEADER_H +
-    CONTAINER_TOP_PAD +
-    total +
-    (itemHeights.length - 1) * CONTAINER_CARD_GAP +
-    CONTAINER_BOTTOM_PAD
-  );
-}
-
-/** Absolute Y of slot i within container body (relative to container top). */
+/** Absolute Y of slot i within container (relative to container top). */
 export function slotTopInContainer(i: number): number {
   return CONTAINER_HEADER_H + CONTAINER_TOP_PAD + i * (CONTAINER_CARD_H + CONTAINER_CARD_GAP);
-}
-
-/** Slot Y using actual item heights. */
-export function slotTopDynamic(i: number, itemHeights: number[]): number {
-  let y = CONTAINER_HEADER_H + CONTAINER_TOP_PAD;
-  for (let k = 0; k < i; k++) {
-    y += (itemHeights[k] ?? CONTAINER_CARD_H) + CONTAINER_CARD_GAP;
-  }
-  return y;
 }
 
 // ── Data type ────────────────────────────────────────────────────────────────
@@ -69,8 +47,8 @@ export interface ContainerNodeData {
 // ── Component ────────────────────────────────────────────────────────────────
 export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps) {
   const d = data as unknown as ContainerNodeData;
-  const { updateNode, updateNodeData } = useReactFlow();
-  const allNodes = useNodes();
+  const { updateNode, updateNodeData, flowToScreenPosition, getNode } = useReactFlow();
+  const transform = useStore((s) => s.transform); // re-render on pan/zoom
   const { canEdit } = useTrace();
   const { t } = useI18n();
   const pendingDrop = useContainerDrop();
@@ -125,20 +103,14 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
     }
   });
 
-  // ── Member height sync ─────────────────────────────────────────────────────
+  // ── Container size sync (fixed card heights) ───────────────────────────────
   useEffect(() => {
-    const itemHeights = d.items.map((itemId) => {
-      const n = allNodes.find((node) => node.id === itemId);
-      return n?.measured?.height ?? CONTAINER_CARD_H;
-    });
-    const h = containerHeightDynamic(itemHeights);
+    const h = containerHeight(d.items.length);
     updateNode(id, { style: { width: CONTAINER_WIDTH, height: h } });
     d.items.forEach((itemId, idx) => {
-      const y = slotTopDynamic(idx, itemHeights);
-      updateNode(itemId, { position: { x: CONTAINER_SIDE_PAD, y } });
+      updateNode(itemId, { position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } });
     });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, d.items, allNodes.map(n => d.items.includes(n.id) ? n.measured?.height : null).join(","), updateNode]);
+  }, [id, d.items, updateNode]);
 
   const isDropTarget = pendingDrop?.containerId === id;
 
@@ -426,6 +398,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
             height: d.items.length > 0
               ? containerHeight(d.items.length) - CONTAINER_HEADER_H
               : undefined,
+            overflow: isDropTarget ? "visible" : undefined,
           }}
         >
           {d.items.length === 0 && !isDropTarget && (
@@ -434,31 +407,61 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
             </div>
           )}
 
-          {/* Slot overlays — only during drag-over */}
-          {isDropTarget && slots.map((topY, i) => (
-            <div
-              key={i}
-              className={[
-                "container-node__slot",
-                pendingDrop?.insertIndex === i ? "container-node__slot--active" : "",
-              ].join(" ")}
-              style={{
-                position: "absolute",
-                top: topY,
-                left: CONTAINER_SIDE_PAD,
-                width: CONTAINER_INNER_W,
-                height: CONTAINER_CARD_H,
-              }}
-            >
-              {pendingDrop?.insertIndex === i && (
-                <span className="container-node__slot-label">
-                  ↓ {pendingDrop.nodeLabel}
-                </span>
-              )}
-            </div>
-          ))}
+          {/* Slot indicators — thin line at insert position */}
+          {isDropTarget && slots.map((topY, i) => {
+            const isActive = pendingDrop?.insertIndex === i;
+            return (
+              <div
+                key={i}
+                style={{
+                  position: "absolute",
+                  top: topY - 2,
+                  left: CONTAINER_SIDE_PAD,
+                  width: CONTAINER_INNER_W,
+                  height: isActive ? 3 : 0,
+                  background: "var(--probemap-blue)",
+                  borderRadius: 2,
+                  boxShadow: isActive ? "0 0 8px var(--probemap-blue)" : "none",
+                  transition: "height 0.1s",
+                  pointerEvents: "none",
+                }}
+              />
+            );
+          })}
         </div>
       </div>
+
+      {/* Drop label — portal into body so it renders above all ReactFlow nodes */}
+      {isDropTarget && pendingDrop && (() => {
+        const node = getNode(id);
+        if (!node) return null;
+        void transform; // depend on pan/zoom for re-render
+        const slotY = CONTAINER_HEADER_H + slots[pendingDrop.insertIndex] + 4;
+        const screen = flowToScreenPosition({ x: node.position.x + CONTAINER_SIDE_PAD, y: node.position.y + slotY });
+        return createPortal(
+          <div
+            style={{
+              position: "fixed",
+              top: screen.y,
+              left: screen.x,
+              zIndex: 9999,
+              fontSize: 10,
+              fontWeight: 700,
+              color: "var(--probemap-bg)",
+              background: "var(--probemap-blue)",
+              padding: "2px 7px",
+              borderRadius: 4,
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              letterSpacing: "0.02em",
+              boxShadow: "0 2px 8px rgba(0,0,0,.2)",
+            }}
+          >
+            ↓ {pendingDrop.nodeLabel}
+          </div>,
+          document.body,
+        );
+      })()}
     </>
   );
 });

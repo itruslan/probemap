@@ -1,4 +1,4 @@
-.PHONY: run run-frontend dev test lint fmt help
+.PHONY: run run-frontend dev kill test lint fmt help
 
 ## Start backend in dev mode
 run:
@@ -10,10 +10,17 @@ run-frontend:
 
 ## Start backend + frontend together
 dev:
-	@trap 'kill 0' INT TERM; \
-	$(MAKE) run & \
-	$(MAKE) run-frontend & \
+	@trap 'kill 0' INT TERM EXIT; \
+	(uv run uvicorn main:app --reload --app-dir backend) & \
+	(cd frontend && npm run dev) & \
 	wait
+
+## Kill backend and frontend dev processes
+kill:
+	-lsof -ti :8000 | xargs kill -9 2>/dev/null
+	-lsof -ti :5173 | xargs kill -9 2>/dev/null
+	-pkill -9 -f "uvicorn main:app" 2>/dev/null
+	-pkill -9 -f "vite" 2>/dev/null
 
 ## Run tests
 test:

@@ -32,6 +32,8 @@ import { ServiceLabelsSection } from "../ServiceLabelsSection";
 import { DeleteButton } from "./DeleteButton";
 import { isMonitoringOptional, getGroupVisual } from "../nodeKinds";
 import { useTrace } from "../TraceContext";
+import { CONTAINER_CARD_H } from "./ContainerNode";
+import { useContainerDrop } from "../ContainerDropContext";
 
 const STATUS_COLOR: Record<string, string> = {
   ok: "var(--probemap-status-ok)",
@@ -148,6 +150,9 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const [newActionLabel, setNewActionLabel] = useState("");
   const [newActionUrl, setNewActionUrl] = useState("");
 
+  const inContainer = !!(d as ServiceNodeData & { containerNode?: string }).containerNode;
+  const containerDrop = useContainerDrop();
+  const isDisplaced = inContainer && containerDrop?.displacedNodeId === id && !containerDrop?.reorderMode;
   const colliding = useColliding(id);
   const dragging = useIsDraggingOnCanvas();
   const portAgg = aggStatus(d.ports ?? []);
@@ -1485,11 +1490,14 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
       <div
         onClick={handleNodeClick}
         style={{
-          background: "var(--probemap-modal-bg)",
-          border: `1.5px solid ${nodeTint.border}`,
+          background: isDisplaced ? "var(--probemap-interactive-hover-bg)" : "var(--probemap-modal-bg)",
+          border: `1.5px solid ${isDisplaced ? "var(--probemap-blue)" : nodeTint.border}`,
           borderRadius: groupVisual.borderRadius,
           padding: groupVisual.accentColor ? "8px 12px 8px 15px" : "8px 12px",
-          width: 200,
+          width: inContainer ? undefined : 200,
+          height: CONTAINER_CARD_H,
+          overflow: "hidden",
+          boxSizing: "border-box" as const,
           fontSize: 13,
           boxShadow: "var(--probemap-node-card-shadow)",
           position: "relative",
@@ -1497,11 +1505,10 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
           outline:
             !colliding && locked ? `2px solid ${nodeTint.ring}` : undefined,
           outlineOffset: "1px",
-          opacity: colliding ? 0.5 : 1,
-          transition: "opacity 0.1s, outline 0.1s",
+          opacity: colliding ? 0.5 : isDisplaced ? 0.6 : 1,
+          transition: "opacity 0.1s, outline 0.1s, background 0.1s, border-color 0.1s",
         }}
       >
-        <AllHandles />
         {groupVisual.accentColor && (
           <div
             style={{
@@ -1515,6 +1522,18 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
               pointerEvents: "none",
               borderTopLeftRadius: groupVisual.borderRadius,
               borderBottomLeftRadius: groupVisual.borderRadius,
+            }}
+          />
+        )}
+        {isDisplaced && (
+          <div
+            style={{
+              position: "absolute",
+              inset: 0,
+              background: "var(--probemap-blue)",
+              opacity: 0.15,
+              borderRadius: groupVisual.borderRadius,
+              pointerEvents: "none",
             }}
           />
         )}
@@ -1724,6 +1743,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
           </div>
         )}
       </div>
+      <AllHandles />
 
       {panel}
 

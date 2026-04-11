@@ -2,14 +2,16 @@
   "nodes": [
     {
       "id": "container-1775423257594",
-      "x": -1350.339689502125,
-      "y": -1025.7272591669184,
+      "x": -848.5798239569286,
+      "y": -1053.1745423711889,
       "type": "container",
       "label": "Group",
+      "icon": "FaCubes",
       "containerItems": [
-        "authentik",
         "custom-1775417955794",
-        "rust-lang"
+        "rust-lang",
+        "grafana-fh",
+        "authentik"
       ]
     },
     {
@@ -48,16 +50,17 @@
     },
     {
       "id": "grafana-fh",
-      "x": -563.5075933689483,
-      "y": -607.6877059064225,
+      "x": 24,
+      "y": 212,
       "type": "service",
       "label": "grafana-fh",
-      "kind": "service"
+      "kind": "service",
+      "containerNode": "container-1775423257594"
     },
     {
       "id": "authentik",
-      "x": 16,
-      "y": 56,
+      "x": 24,
+      "y": 290,
       "type": "service",
       "label": "authentik",
       "kind": "service",
@@ -74,8 +77,8 @@
     },
     {
       "id": "cloudflare-www",
-      "x": -1207.0327848006339,
-      "y": -592.9885611479265,
+      "x": -923.0327848006339,
+      "y": -574.9885611479265,
       "type": "service",
       "label": "cloudflare-www",
       "kind": "service"
@@ -114,8 +117,8 @@
     },
     {
       "id": "rust-lang",
-      "x": 16,
-      "y": 212,
+      "x": 24,
+      "y": 134,
       "type": "service",
       "label": "rust-lang",
       "kind": "service",
@@ -139,8 +142,8 @@
     },
     {
       "id": "custom-1775417955794",
-      "x": 16,
-      "y": 134,
+      "x": 24,
+      "y": 56,
       "type": "service",
       "label": "Custom",
       "kind": "custom",
