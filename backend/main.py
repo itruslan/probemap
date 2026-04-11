@@ -1,4 +1,6 @@
+import json
 import pathlib
+import re
 import secrets as _secrets
 from contextlib import asynccontextmanager
 from typing import Any
@@ -12,7 +14,7 @@ import metrics
 import settings
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -237,6 +239,14 @@ def delete_project(project_id: str) -> dict[str, str]:
     return {"status": "ok"}
 
 
+@app.post("/api/projects/import", dependencies=[Depends(auth.require_admin)])
+def import_project(payload: dict[str, Any]) -> dict[str, Any]:
+    version = str(payload.get("probemap_export") or "")
+    if version not in {"1"}:
+        raise HTTPException(status_code=400, detail="Invalid or missing probemap_export version")
+    return cfg_mod.import_project(payload, layout.write)
+
+
 @app.get("/api/projects/trash", dependencies=[Depends(auth.require_admin)])
 def get_trash() -> list[dict[str, Any]]:
     return cfg_mod.read_deleted_projects()
@@ -255,6 +265,22 @@ def hard_delete_project(project_id: str) -> dict[str, str]:
     if not cfg_mod.hard_delete_project(project_id):
         raise HTTPException(status_code=404, detail="Project not found in trash")
     return {"status": "ok"}
+
+
+@app.get("/api/projects/{project_id}/export")
+def export_project(project_id: str) -> Response:
+    project = cfg_mod.get_project(project_id)
+    if project is None:
+        raise HTTPException(status_code=404, detail="Project not found")
+    layout_data = layout.read(project_id)
+    payload = cfg_mod.build_export(project, layout_data)
+    safe_name = re.sub(r"[^\w\-]", "_", project.get("name") or project_id)
+    filename = f"probemap_{safe_name}.json"
+    return Response(
+        content=json.dumps(payload, indent=2),
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/projects/{project_id}/filter-values")

@@ -313,6 +313,18 @@ export async function fetchProjects(): Promise<Project[]> {
   return apiFetch<Project[]>(`${BASE}/api/projects`);
 }
 
+export function exportProjectUrl(id: string): string {
+  return `${BASE}/api/projects/${id}/export`;
+}
+
+export async function importProject(payload: unknown): Promise<Project> {
+  return apiFetch<Project>(`${BASE}/api/projects/import`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
 export async function createProject(
   name: string,
   filters: ProjectFilter[],

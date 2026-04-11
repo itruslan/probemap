@@ -7,6 +7,7 @@ import {
   fetchProjectFilterValues,
   discoverLabels,
   fetchMetricLabelValues,
+  exportProjectUrl,
   type Project,
   type ProjectFilter,
 } from "./api";
@@ -399,6 +400,16 @@ export function ProjectModal({ project, onSave, onClose, onDelete }: Props) {
               </div>
             ) : null}
             <div style={{ display: "flex", gap: 10 }}>
+            {project && (
+              <a
+                href={exportProjectUrl(project.id)}
+                download
+                className="probemap-btn probemap-btn--ghost probemap-btn--md"
+                style={{ textDecoration: "none" }}
+              >
+                {t("projectExport")}
+              </a>
+            )}
             <button
               type="button"
               onClick={onClose}

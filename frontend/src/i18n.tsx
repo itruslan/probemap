@@ -117,6 +117,9 @@ const STRINGS = {
     projectConfigure: "Настроить проект",
     projectSelect: "Выбрать проект",
     projectDelete: "Удалить проект",
+    projectExport: "Экспорт",
+    projectImport: "Импорт",
+    projectImportError: "Не удалось импортировать: файл повреждён или неверного формата.",
     projectTrash: "Корзина",
 
     trashTitle: "Корзина проектов",
@@ -393,6 +396,9 @@ const STRINGS = {
     projectConfigure: "Configure project",
     projectSelect: "Select project",
     projectDelete: "Delete project",
+    projectExport: "Export",
+    projectImport: "Import",
+    projectImportError: "Failed to import: file is corrupted or in wrong format.",
     projectTrash: "Trash",
 
     trashTitle: "Project trash",

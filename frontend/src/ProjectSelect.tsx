@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { FaChevronDown, FaPen } from "react-icons/fa6";
 import type { Project } from "./api";
+import { importProject } from "./api";
 import { useI18n } from "./i18n";
 
 type Props = {
@@ -16,11 +17,15 @@ type Props = {
   onOpenTrash?: () => void;
   /** Количество проектов в корзине */
   trashCount?: number;
+  /** Вызывается после успешного импорта проекта */
+  onImported?: (project: Project) => void;
 };
 
-export function ProjectSelect({ projects, activeProject, onChange, onConfigureProject, onCreateProject, onOpenTrash, trashCount }: Props) {
+export function ProjectSelect({ projects, activeProject, onChange, onConfigureProject, onCreateProject, onOpenTrash, trashCount, onImported }: Props) {
   const { t } = useI18n();
   const [open, setOpen] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0, width: 220 });
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -69,10 +74,33 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
     };
   }, [open]);
 
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    try {
+      const text = await file.text();
+      const payload = JSON.parse(text) as unknown;
+      const project = await importProject(payload);
+      onImported?.(project);
+      setOpen(false);
+      setImportError(null);
+    } catch {
+      setImportError(t("projectImportError"));
+    }
+  };
+
   const label = activeProject?.name ?? "";
 
   return (
     <>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        style={{ display: "none" }}
+        onChange={(e) => void handleFileChange(e)}
+      />
       <button
         ref={btnRef}
         type="button"
@@ -166,7 +194,12 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
                 </div>
               );
             })}
-            {(onCreateProject || onOpenTrash) && (
+            {importError && (
+              <div style={{ padding: "6px 12px", fontSize: 11, color: "var(--probemap-danger)", lineHeight: 1.4 }}>
+                {importError}
+              </div>
+            )}
+            {(onCreateProject || onOpenTrash || onImported) && (
               <>
                 <div
                   role="separator"
@@ -181,6 +214,22 @@ export function ProjectSelect({ projects, activeProject, onChange, onConfigurePr
                     style={{ width: "calc(100% - 12px)", margin: "0 6px 4px", boxSizing: "border-box", minHeight: 44, textAlign: "center" }}
                   >
                     {t("projectAdd")}
+                  </button>
+                )}
+                {onImported && (
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      width: "calc(100% - 12px)", margin: "0 6px 4px", boxSizing: "border-box",
+                      padding: "6px 12px", display: "flex", alignItems: "center", gap: 6,
+                      fontSize: 12, color: "var(--probemap-text-faint)",
+                      background: "none", border: "none", borderRadius: 6, cursor: "pointer",
+                    }}
+                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = "var(--probemap-interactive-hover-bg)"; }}
+                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = "none"; }}
+                  >
+                    ↑ {t("projectImport")}
                   </button>
                 )}
                 {onOpenTrash && (

@@ -240,6 +240,29 @@ def create_project(
     return project
 
 
+EXPORT_VERSION = "1"
+
+
+def build_export(project: dict[str, Any], layout: dict[str, Any]) -> dict[str, Any]:
+    """Собирает экспортный пакет: метаданные проекта + раскладка."""
+    return {
+        "probemap_export": EXPORT_VERSION,
+        "name": project.get("name", ""),
+        "filters": project.get("filters") or [],
+        "layout": layout,
+    }
+
+
+def import_project(payload: dict[str, Any], layout_writer: Any) -> dict[str, Any]:
+    """Создаёт проект из экспортного пакета. layout_writer(project_id, layout) — callback для записи раскладки."""
+    name = str(payload.get("name") or "Imported project").strip() or "Imported project"
+    filters = payload.get("filters") or []
+    layout = payload.get("layout") or {}
+    project = create_project(name, filters=filters)
+    layout_writer(project["id"], layout)
+    return project
+
+
 _PROJECT_ALLOWED_KEYS = {"name", "filters"}
 
 

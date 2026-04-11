@@ -576,6 +576,7 @@ function AppContent() {
               onCreateProject={canEdit ? () => setProjectModal({}) : undefined}
               onOpenTrash={canEdit ? () => setTrashOpen(true) : undefined}
               trashCount={canEdit ? trashCount : 0}
+              onImported={canEdit ? (p) => { setProjects((prev) => [...prev, p]); setActiveProject(p); } : undefined}
             />
           )}
         </div>
