@@ -1,71 +1,62 @@
-# Probemap
+# probemap
 
-Визуализация топологии сервисов по результатам **blackbox_exporter**: живой граф на canvas с опросом **VictoriaMetrics** (или совместимого Prometheus API).
+[![CI](https://github.com/itruslan/probemap/actions/workflows/ci.yml/badge.svg)](https://github.com/itruslan/probemap/actions/workflows/ci.yml)
 
-## Стек
+Live service topology map built on [blackbox_exporter](https://github.com/prometheus/blackbox_exporter) probe results. Pulls `probe_success` from [VictoriaMetrics](https://victoriametrics.com/) (or any Prometheus-compatible API) and renders a drag-and-drop canvas with real-time status.
 
-| Слой | Технологии |
-|------|------------|
-| Backend | Python 3.11+, FastAPI, httpx, uvicorn |
-| Frontend | React 19, TypeScript, Vite, React Flow (`@xyflow/react`) |
-| Данные | JSON в каталоге данных (`config`, проекты, раскладки, иконки) |
+## Features
 
-## Требования
+- **Live status** — nodes turn green/red/grey based on `probe_success` polled every 30 s
+- **Multiple projects** — each project has its own canvas and service filter
+- **Custom objects** — add freeform nodes with custom icons and labels alongside monitored services
+- **Areas** — group nodes into resizable labeled zones
+- **Endpoint links** — attach a URL to any node, auto-filled from metric labels
+- **Path tracing** — highlight a route through the graph
+- **Admin / viewer roles** — set `PROBEMAP_ADMIN_PASSWORD` to enable read-only viewer access
+- **Docker-ready** — single `docker compose up --build`
 
-- [uv](https://docs.astral.sh/uv/) (Python 3.11+)
-- Node.js **22** и npm (как в Docker-сборке фронтенда)
-
-## Быстрый старт (разработка)
-
-```bash
-cp .env.example .env   # при необходимости поправьте переменные
-uv sync --group dev
-cd frontend && npm ci && cd ..
-make dev               # backend :8000 + Vite :5173, /api проксируется
-```
-
-Остановка: `Ctrl+C` в терминале с `make dev`.
-
-По отдельности:
+## Quick start
 
 ```bash
-make run              # только API
-make run-frontend     # только Vite (прокси на :8000)
-```
-
-## Тесты и качество кода
-
-```bash
-make test    # uv run pytest
-make lint    # ruff check + ruff format --check
-make fmt     # автоисправление ruff
-```
-
-Во фронтенде:
-
-```bash
-cd frontend && npm run lint && npm run build
-```
-
-На GitHub те же шаги выполняются в **GitHub Actions** (`.github/workflows/ci.yml`).
-
-## Docker
-
-```bash
+cp .env.example .env          # set PROBEMAP_DATASOURCE_URL
 docker compose up --build
 ```
 
-Переменные см. в `docker-compose.yml` и `.env.example` (в т.ч. `PROBEMAP_DATASOURCE_URL`, `PROBEMAP_HOST_PORT`).
+Open [http://localhost:8000](http://localhost:8000).
 
-## Документация в репозитории
+## Configuration
 
-| Файл | Назначение |
-|------|------------|
-| [CLAUDE.md](CLAUDE.md) | соглашения, команды, структура фронтенда |
-| [.claude/architecture.md](.claude/architecture.md) | потоки данных, модули, label map |
-| [.claude/smells/backend.smells.md](.claude/smells/backend.smells.md) | известные технические долги backend |
-| [CONTRIBUTING.md](CONTRIBUTING.md) | как участвовать и что проверять перед PR |
+All options are set via environment variables (see `.env.example`):
 
-## Лицензия
+| Variable | Default | Description |
+|---|---|---|
+| `PROBEMAP_DATASOURCE_URL` | — | VictoriaMetrics / Prometheus URL |
+| `PROBEMAP_ADMIN_PASSWORD` | — | If set, enables admin/viewer split; unset = no auth |
+| `PROBEMAP_DATA_DIR` | `./data` | Directory for config, projects, layouts, icons |
+| `PROBEMAP_HOST_PORT` | `8000` | Host port for `docker compose` |
+| `PROBEMAP_LOG_LEVEL` | `info` | Log level (`debug` / `info` / `warning`) |
+| `PROBEMAP_CORS_ORIGINS` | `*` | Allowed CORS origins (comma-separated) |
+
+After first start, open Settings to point probemap at your datasource and configure probe jobs.
+
+## Development
+
+Requirements: [uv](https://docs.astral.sh/uv/) (Python 3.11+), Node.js 22.
+
+```bash
+cp .env.example .env
+uv sync --group dev
+cd frontend && npm ci && cd ..
+make dev          # backend :8000 + Vite :5173
+```
+
+```bash
+make test         # pytest
+make lint         # ruff check + ruff format --check
+make fmt          # ruff autofix
+cd frontend && npm run lint && npm run build
+```
+
+## License
 
 [MIT](LICENSE)
