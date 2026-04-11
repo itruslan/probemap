@@ -16,10 +16,10 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Request models
 # ---------------------------------------------------------------------------
+
 
 class LoginBody(BaseModel):
     password: str = Field(..., min_length=1)
@@ -341,6 +341,7 @@ def serve_icon(name: str) -> FileResponse:
 
 
 _ICON_MAX_BYTES = 512 * 1024  # 512 KB
+
 
 @app.post("/api/icons", dependencies=[Depends(auth.require_admin)])
 async def upload_icon(name: str = Form(...), file: UploadFile = File(...)) -> dict[str, str]:

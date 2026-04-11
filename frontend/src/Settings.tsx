@@ -270,7 +270,6 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
     const u = committed.ds.url;
     if (!u) return;
     void fetchDiscoveryMetadata(u, cfg.label_map);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cfg, committed]);
 
   useEffect(() => {

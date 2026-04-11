@@ -35,7 +35,7 @@ export function slotTopInContainer(i: number): number {
 }
 
 // ── Data type ────────────────────────────────────────────────────────────────
-export interface ContainerNodeData {
+export interface ContainerNodeData extends Record<string, unknown> {
   label: string;
   icon?: string;
   path?: string;

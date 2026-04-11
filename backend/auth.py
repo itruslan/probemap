@@ -4,12 +4,12 @@ When PROBEMAP_ADMIN_PASSWORD is not set, all requests are allowed (backward-comp
 When set, write endpoints require a valid Bearer token obtained via POST /api/auth/login.
 Tokens are stored in-memory — cleared on server restart (user must re-login).
 """
+
 import secrets
 
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-
 import settings
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 _valid_tokens: set[str] = set()
 _bearer = HTTPBearer(auto_error=False)

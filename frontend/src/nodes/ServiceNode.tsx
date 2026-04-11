@@ -88,7 +88,7 @@ function kindKeyForBadge(kind: string): string {
   return kind.toLowerCase();
 }
 
-export interface ServiceNodeData {
+export interface ServiceNodeData extends Record<string, unknown> {
   label: string;
   ports: Port[];
   /** Semantic type: "service", "vpn-gateway", "managed-db", etc. */

@@ -194,8 +194,8 @@ def _composite_name(m: dict[str, Any], svc_l: str, name_labels: list[str]) -> st
     Falls back to the primary svc_l value (or "unknown") when the result is empty.
     """
     if name_labels:
-        all_labels = [svc_l] + [l for l in name_labels if l != svc_l]
-        parts = [str(m.get(l) or "") for l in all_labels]
+        all_labels = [svc_l] + [lbl for lbl in name_labels if lbl != svc_l]
+        parts = [str(m.get(lbl) or "") for lbl in all_labels]
         joined = " · ".join(p for p in parts if p)
         if joined:
             return joined
@@ -261,7 +261,14 @@ def _parse_series_maps(
         m = s["metric"]
         duration_map[series_key(m)] = round(float(s["value"][1]) * 1000, 1)
 
-    return status_map, duration_map, probe_types_map, port_tuple_set, port_tuple_sources, probe_sources
+    return (
+        status_map,
+        duration_map,
+        probe_types_map,
+        port_tuple_set,
+        port_tuple_sources,
+        probe_sources,
+    )
 
 
 def _build_services_map(
@@ -350,7 +357,7 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
     src_l = _probe_source_label_name(lm)
     module_l: str = lm["module"]
     name_labels: list[str] = [
-        l for l in (lm.get("name_labels") or []) if isinstance(l, str) and l.strip()
+        lbl for lbl in (lm.get("name_labels") or []) if isinstance(lbl, str) and lbl.strip()
     ]
 
     status_series, duration_series = await asyncio.gather(
@@ -359,7 +366,9 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
     )
 
     status_map, duration_map, probe_types_map, port_tuple_set, port_tuple_sources, probe_sources = (
-        _parse_series_maps(status_series, duration_series, svc_l, port_l, src_l, module_l, name_labels)
+        _parse_series_maps(
+            status_series, duration_series, svc_l, port_l, src_l, module_l, name_labels
+        )
     )
     services_map = _build_services_map(
         port_tuple_set, port_tuple_sources, status_map, duration_map, probe_types_map

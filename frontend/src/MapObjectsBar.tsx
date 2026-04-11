@@ -40,7 +40,6 @@ export function MapObjectsBar({
   canvasInteractive,
   onToggleCanvasInteraction,
   readOnly,
-  addBlocked: _addBlocked,
   freezeToolbar,
 }: Props) {
   const { t } = useI18n();

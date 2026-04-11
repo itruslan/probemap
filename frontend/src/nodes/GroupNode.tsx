@@ -8,7 +8,7 @@ function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
   e.stopPropagation();
 }
 
-export interface GroupNodeData {
+export interface GroupNodeData extends Record<string, unknown> {
   label: string;
   color?: string; // hex (#rrggbb) or empty/undefined = no color
 }
