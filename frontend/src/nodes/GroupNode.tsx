@@ -111,9 +111,6 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
 
   /** Редактирование активно только когда нода выбрана и пользователь — администратор */
   const isEditMode = !!selected && canEdit;
-  /** Viewer-выделение: нода выбрана, но редактирование недоступно */
-  const isViewerSelected = !!selected && !canEdit;
-
   // Закрывать палитру по клику вне неё
   useEffect(() => {
     if (!paletteOpen) return;
@@ -168,7 +165,9 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
     if (!locked) return;
     const onMouse = (e: MouseEvent) => {
       if (e.target instanceof Node && panelRef.current?.contains(e.target)) return;
-      if (e.target instanceof Node && nodeRef.current?.contains(e.target)) return;
+      // Check the full ReactFlow node wrapper (includes handles, resizer — siblings of inner div)
+      const rfWrapper = nodeRef.current?.closest(".react-flow__node");
+      if (e.target instanceof Node && rfWrapper?.contains(e.target)) return;
       if (
         e.target instanceof Element &&
         e.target.closest("[data-probemap-modal]")
@@ -202,7 +201,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
     : { bg: "transparent", border: "var(--probemap-border-strong)" };
   const labelColor = colorHex ? "var(--probemap-text)" : "var(--probemap-text-muted)";
 
-  const viewerSelectionShadow = isViewerSelected
+  const selectionShadow = selected
     ? colorHex
       ? `0 0 0 2px ${colorHex}, 0 0 28px 10px ${hexToRgba(colorHex, 0.28)}, 0 12px 32px ${hexToRgba(colorHex, 0.18)}`
       : "0 0 0 2px #9ca3af, 0 0 28px 10px rgba(107,114,128,0.22), 0 12px 32px rgba(55,65,81,0.14)"
@@ -586,7 +585,9 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             )}
 
             {canEdit && (
-              <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />
+              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
+                <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />
+              </div>
             )}
           </div>,
           document.body,
@@ -623,7 +624,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           boxSizing: "border-box",
           position: "relative",
           overflow: "visible",
-          boxShadow: viewerSelectionShadow,
+          boxShadow: selectionShadow,
           outline: locked ? "2px solid var(--probemap-blue)" : undefined,
           outlineOffset: locked ? 1 : undefined,
           cursor: "pointer",

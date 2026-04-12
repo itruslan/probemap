@@ -7,6 +7,7 @@ import { useTrace } from "../TraceContext";
 import { useI18n } from "../i18n";
 import { IconRenderer } from "../IconRenderer";
 import { ALL_ICONS } from "../icons";
+import { DeleteButton } from "./DeleteButton";
 
 // ── Layout constants (exported for TopologyCanvas) ───────────────────────────
 export const CONTAINER_WIDTH    = 256;
@@ -66,6 +67,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [panelVisible, setPanelVisible] = useState(false);
+  const [locked, setLocked] = useState(false);
   const [editingIcon, setEditingIcon] = useState(false);
   const [editingDesc, setEditingDesc] = useState(false);
   const [descDraft, setDescDraft] = useState("");
@@ -78,8 +80,62 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
   };
   const hide = () => {
     if (showTimer.current) { clearTimeout(showTimer.current); showTimer.current = null; }
+    if (locked) return;
     hideTimer.current = setTimeout(() => { setPanelVisible(false); setEditingIcon(false); }, 200);
   };
+
+  const handleNodeClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (locked) {
+      setLocked(false);
+      setPanelVisible(false);
+      setEditingIcon(false);
+      setEditingEndpoint(false);
+      setEditingDesc(false);
+    } else {
+      setLocked(true);
+      setPanelVisible(true);
+      if (showTimer.current) { clearTimeout(showTimer.current); showTimer.current = null; }
+    }
+  };
+
+  // Close on outside mousedown when locked
+  useEffect(() => {
+    if (!locked) return;
+    const onMouse = (e: MouseEvent) => {
+      if (e.target instanceof Node && panelRef.current?.contains(e.target)) return;
+      const rfWrapper = nodeRef.current?.closest(".react-flow__node");
+      if (e.target instanceof Node && rfWrapper?.contains(e.target)) return;
+      if (e.target instanceof Element && e.target.closest("[data-probemap-modal]")) return;
+      setLocked(false);
+      setPanelVisible(false);
+      setEditingIcon(false);
+      setEditingEndpoint(false);
+      setEditingDesc(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLocked(false);
+        setPanelVisible(false);
+        setEditingIcon(false);
+        setEditingEndpoint(false);
+        setEditingDesc(false);
+      } else if ((e.key === "Backspace" || e.key === "Delete") && canEdit) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if ((e.target as HTMLElement).isContentEditable) return;
+        document.dispatchEvent(
+          new CustomEvent("delete-node-request", { detail: { id, label: d.label ?? id } }),
+        );
+      }
+    };
+    document.addEventListener("mousedown", onMouse, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onMouse, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [locked, canEdit, id, d.label]);
 
   const panelW = 260;
   const liveRect = panelVisible ? (nodeRef.current?.getBoundingClientRect() ?? null) : null;
@@ -136,7 +192,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
             border: "1.5px solid var(--probemap-border)",
             borderRadius: 10,
             boxShadow: "0 4px 16px rgba(0,0,0,.1)",
-            padding: "12px 14px",
+            padding: "12px 14px 46px",
             fontSize: 12,
             boxSizing: "border-box",
           }}
@@ -331,6 +387,8 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
               {d.description || (canEdit ? t("descriptionClickToAdd") : t("emDash"))}
             </div>
           )}
+
+          {canEdit && <DeleteButton nodeId={id} label={d.label ?? id} />}
         </div>,
         document.body,
       )
@@ -346,6 +404,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
         className="container-node"
         onMouseEnter={show}
         onMouseLeave={hide}
+        onClick={handleNodeClick}
       >
         {/* Header */}
         <div className="container-node__header">

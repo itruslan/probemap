@@ -966,7 +966,7 @@ export function TopologyCanvas({
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       // Try ReactFlow selected first, then palette selection
       const rfSelected = getNodes().filter(
-        (n) => n.selected && (n.type === "service" || n.type === "group"),
+        (n) => n.selected && (n.type === "service" || n.type === "group" || n.type === "container"),
       );
       let targetId: string | null = null;
       if (rfSelected.length === 1) {
@@ -1636,20 +1636,22 @@ export function TopologyCanvas({
     return traceConnected(tracedNodeId, edges);
   }, [tracedNodeId, edges]);
 
-  const displayNodes = useMemo(
-    () =>
-      tracedSet
-        ? nodes.map((n) => ({
-            ...n,
-            style: {
-              ...n.style,
-              opacity: tracedSet.nodeIds.has(n.id) ? 1 : 0.15,
-              transition: "opacity 0.18s",
-            },
-          }))
-        : nodes,
-    [nodes, tracedSet],
-  );
+  const displayNodes = useMemo(() => {
+    const base = tracedSet
+      ? nodes.map((n) => ({
+          ...n,
+          style: {
+            ...n.style,
+            opacity: tracedSet.nodeIds.has(n.id) ? 1 : 0.15,
+            transition: "opacity 0.18s",
+          },
+        }))
+      : nodes;
+    // In viewer mode, nodes inside containers have selectable:false (to prevent box-selection
+    // in admin mode), but this also disables pointer-events — viewers can't open their panels.
+    if (isAdmin) return base;
+    return base.map((n) => (n.selectable === false ? { ...n, selectable: true } : n));
+  }, [nodes, tracedSet, isAdmin]);
 
   const displayEdges = useMemo(
     () =>
@@ -1967,7 +1969,7 @@ export function TopologyCanvas({
                       nodesDraggable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       nodesConnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       edgesReconnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
-                      elementsSelectable={!metricsStale && canvasInteractive}
+                      elementsSelectable={!metricsStale && (isAdmin ? canvasInteractive : true)}
                       panOnDrag={!selectMode}
                       selectionOnDrag={selectMode}
                       onBeforeDelete={onBeforeDelete}
