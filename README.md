@@ -40,6 +40,7 @@ All options are set via environment variables (see `.env.example`):
 | `PROBEMAP_S3_BUCKET` | — | S3 bucket name; enables S3 storage when set |
 | `PROBEMAP_S3_ACCESS_KEY` | — | S3 access key |
 | `PROBEMAP_S3_SECRET_KEY` | — | S3 secret key |
+| `PROBEMAP_S3_REGION` | `us-east-1` | S3 region |
 | `PROBEMAP_S3_PREFIX` | — | Key prefix inside the bucket (optional) |
 
 After first start, open Settings to point probemap at your datasource and configure probe jobs.
@@ -51,14 +52,14 @@ Requirements: [uv](https://docs.astral.sh/uv/) (Python 3.11+), Node.js 22.
 ```bash
 cp .env.example .env
 uv sync --group dev
+uv run pre-commit install
 cd frontend && npm ci && cd ..
-make dev          # backend :8000 + Vite :5173
+make up           # backend :8000 + Vite :5173
 ```
 
 ```bash
 make test         # pytest
-make lint         # ruff check + ruff format --check
-make fmt          # ruff autofix
+make fmt          # ruff autofix + format
 cd frontend && npm run lint && npm run build
 ```
 
