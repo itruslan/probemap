@@ -2,10 +2,24 @@
 
 ## Перед отправкой PR
 
-1. **Backend**: `uv sync --group dev`, затем `make test` и `make lint` из корня репозитория.
+1. **Backend**: `uv sync --group dev`, затем `make test` из корня репозитория.
 2. **Frontend**: из каталога `frontend` — `npm ci`, `npm run lint`, `npm run build`.
 
 Команды совпадают с job **backend** и **frontend** в `.github/workflows/ci.yml`.
+
+## Pre-commit
+
+В репозитории настроен pre-commit (ruff + ruff-format для backend/tests, eslint для frontend):
+
+```bash
+uv run pre-commit install   # один раз после клонирования
+```
+
+После этого lint и форматирование запускаются автоматически при `git commit`. Запустить вручную:
+
+```bash
+uv run pre-commit run --all-files
+```
 
 ## Тесты Python
 
@@ -15,7 +29,7 @@
 ## Что не коммитить
 
 - Файлы с секретами: `.env`, локальные overrides (см. `.gitignore`).
-- Случайные дампы прод-данных из каталога данных, если в вашей команде они не считаются частью репозитория.
+- Каталог `data/` — runtime-состояние, не часть репозитория.
 
 ## Архитектура
 
