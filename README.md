@@ -1,5 +1,7 @@
 # probemap
 
+<img src="docs/logo.png" width="96" alt="probemap logo" />
+
 [![CI](https://github.com/itruslan/probemap/actions/workflows/ci.yml/badge.svg)](https://github.com/itruslan/probemap/actions/workflows/ci.yml)
 
 Live service topology map built on [blackbox_exporter](https://github.com/prometheus/blackbox_exporter) probe results. Pulls `probe_success` from [VictoriaMetrics](https://victoriametrics.com/) (or any Prometheus-compatible API) and renders a drag-and-drop canvas with real-time status.
