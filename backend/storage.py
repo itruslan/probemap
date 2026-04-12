@@ -59,7 +59,9 @@ class LocalBackend:
         except FileNotFoundError:
             return None
 
-    def write_bytes(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> None:  # noqa: ARG002
+    def write_bytes(
+        self, key: str, data: bytes, content_type: str = "application/octet-stream"
+    ) -> None:  # noqa: ARG002
         p = self._path(key)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
@@ -152,7 +154,9 @@ class S3Backend:
                 return None
             raise
 
-    def write_bytes(self, key: str, data: bytes, content_type: str = "application/octet-stream") -> None:
+    def write_bytes(
+        self, key: str, data: bytes, content_type: str = "application/octet-stream"
+    ) -> None:
         self._client.put_object(
             Bucket=self._bucket,
             Key=self._s3key(key),

@@ -57,7 +57,8 @@ async def _lifespan(app: FastAPI):  # noqa: ARG001
     ds = c.get("datasource") or {}
     url = settings.DATASOURCE_URL or (ds.get("url") or "").strip()
     storage_info = (
-        f"s3://{settings.S3_BUCKET}/{settings.S3_PREFIX}" if settings.S3_BUCKET
+        f"s3://{settings.S3_BUCKET}/{settings.S3_PREFIX}"
+        if settings.S3_BUCKET
         else settings.DATA_DIR
     )
     _log.info(

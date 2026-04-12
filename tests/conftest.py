@@ -15,6 +15,7 @@ def data_dir(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> pathlib
     monkeypatch.setenv("PROBEMAP_DATASOURCE_URL", "")
 
     import settings
+
     monkeypatch.setattr(settings, "DATASOURCE_URL", None)
 
     return tmp_path

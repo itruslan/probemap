@@ -28,6 +28,8 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 
 ## Сделано (недавно)
 
+- **2026-04-12 — D5: code-splitting бандла.** `manualChunks` в `vite.config.ts` + `React.lazy` для Settings. 4 чанка ≤ 189 KB каждый (было 2.1 MB единый), build без warning.
+
 - **2026-04-11 — V1: стрелка ребра + линия без «просвечивания».** `DeletableEdge`: смещение начала `getSmoothStepPath` от **source** handle (как уже было для target) + небольшой `STROKE_JOIN_PAD` у длины пути.
 
 - **2026-04-11 — fix(trash): TrashModal показывал «Корзина пуста» вместо ошибки.** Добавлен `error` state + `.catch()` в `useEffect`; при 401/сетевой ошибке выводится текст ошибки.
@@ -67,15 +69,6 @@ ProbeMap тащит из Prometheus-совместимого датасорса 
 ## Блок D — Инфраструктура и эксплуатация
 
 > D2, D3, D4 — закрыты.
-
-### [ ] D5. Frontend code-splitting
-
-Frontend бандл — 2.1 MB (один чанк). Vite выдаёт warning.
-
-- **Что сделать:** `React.lazy` + `Suspense` для Settings, dynamic import для ReactFlow.
-- **Готово когда:** ни один чанк не превышает 500 KB; build без warning.
-
----
 
 ## Блок H — Панель объектов и поиск
 

@@ -63,7 +63,9 @@ class TestReadConfig:
 
 
 class TestWriteConfig:
-    def test_creates_data_dir_if_missing(self, data_dir: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_creates_data_dir_if_missing(
+        self, data_dir: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         subdir = data_dir / "nested"
         import storage as storage_mod
         from storage import LocalBackend
@@ -71,6 +73,7 @@ class TestWriteConfig:
         monkeypatch.setattr(storage_mod, "_backend", LocalBackend(str(subdir)))
 
         import config as cfg_m
+
         cfg_m.write_config({"probe_jobs": []})
         assert (subdir / "config.json").exists()
 
