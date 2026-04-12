@@ -967,7 +967,7 @@ export function TopologyCanvas({
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       // Try ReactFlow selected first, then palette selection
       const rfSelected = getNodes().filter(
-        (n) => n.selected && n.type === "service",
+        (n) => n.selected && (n.type === "service" || n.type === "group"),
       );
       let targetId: string | null = null;
       if (rfSelected.length === 1) {
@@ -1072,6 +1072,12 @@ export function TopologyCanvas({
             selectable: true,
           };
         });
+      }
+      // When deleting a group: orphan child nodes (strip parentId)
+      if (node?.type === "group") {
+        return filtered.map((n) =>
+          n.parentId === confirmDelete.id ? { ...n, parentId: undefined } : n,
+        );
       }
       return filtered;
     });
@@ -1665,13 +1671,17 @@ export function TopologyCanvas({
     setTracedNodeId((prev) => (prev === nodeId ? null : nodeId));
   }, []);
 
-  const onBeforeDelete = useCallback(async () => {
-    if (metricsStale || !isAdmin) return false;
-    const s = store.getState();
-    return Boolean(
-      s.nodesDraggable || s.nodesConnectable || s.elementsSelectable,
-    );
-  }, [metricsStale, isAdmin, store]);
+  const onBeforeDelete = useCallback(
+    async ({ nodes }: { nodes: unknown[] }) => {
+      if (metricsStale || !isAdmin) return false;
+      const s = store.getState();
+      if (!(s.nodesDraggable || s.nodesConnectable || s.elementsSelectable)) return false;
+      // Node deletion goes through our confirmation dialog — block ReactFlow's native delete for nodes
+      if (nodes.length > 0) return false;
+      return true;
+    },
+    [metricsStale, isAdmin, store],
+  );
 
   const handleZoomIn = useCallback(() => {
     void zoomIn({ duration: 200 });

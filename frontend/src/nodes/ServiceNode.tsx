@@ -405,6 +405,13 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
       if (e.key === "Escape") {
         setLocked(false);
         setVisible(false);
+      } else if ((e.key === "Backspace" || e.key === "Delete") && canEdit) {
+        const tag = (e.target as HTMLElement).tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+        if ((e.target as HTMLElement).isContentEditable) return;
+        document.dispatchEvent(
+          new CustomEvent("delete-node-request", { detail: { id, label: d.label ?? id } }),
+        );
       }
     };
     document.addEventListener("mousedown", onMouse, true);

@@ -2,6 +2,7 @@ import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xy
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { useI18n } from "../i18n";
 import { useTrace } from "../TraceContext";
+import { DeleteButton } from "./DeleteButton";
 
 /** Иначе React Flow перехватывает mousedown — начинается drag/selection, срабатывает mouseleave и палитра схлопывается. */
 function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
@@ -507,6 +508,12 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             }}
           >
             {t("layerForward")}
+          </div>
+        )}
+
+        {isEditMode && (
+          <div onPointerDown={stopFlowPointer} onMouseDown={stopFlowPointer}>
+            <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />
           </div>
         )}
 
