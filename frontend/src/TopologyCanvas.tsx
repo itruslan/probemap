@@ -1969,7 +1969,7 @@ export function TopologyCanvas({
                       nodesDraggable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       nodesConnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       edgesReconnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
-                      elementsSelectable={!metricsStale && (isAdmin ? canvasInteractive : true)}
+                      elementsSelectable={isAdmin ? (!metricsStale && canvasInteractive) : !metricsStale}
                       panOnDrag={!selectMode}
                       selectionOnDrag={selectMode}
                       onBeforeDelete={onBeforeDelete}

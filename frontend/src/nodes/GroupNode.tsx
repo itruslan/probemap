@@ -311,7 +311,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
               border: "1.5px solid var(--probemap-border)",
               borderRadius: 10,
               boxShadow: "0 4px 16px rgba(0,0,0,.1)",
-              padding: "12px 14px",
+              padding: "12px 14px 46px",
               fontSize: 12,
               boxSizing: "border-box",
             }}
@@ -584,11 +584,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
               </div>
             )}
 
-            {canEdit && (
-              <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />
-              </div>
-            )}
+            {canEdit && <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />}
           </div>,
           document.body,
         )
