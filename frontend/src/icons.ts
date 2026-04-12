@@ -42,6 +42,9 @@ export type { IconType };
 /** Internet — иконка по умолчанию для сервисов и запасной вариант в IconRenderer */
 export const DEFAULT_SERVICE_ICON_NAME = "FaGlobe";
 
+/** Три куба (изометрия) — иконка области / группы по умолчанию */
+export const DEFAULT_GROUP_ICON_NAME = "FaCubes";
+
 export const FALLBACK_ICON: IconType = FaGlobe;
 
 const ICON_MAP: Record<string, IconType> = {

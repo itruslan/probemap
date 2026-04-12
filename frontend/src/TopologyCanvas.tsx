@@ -66,6 +66,7 @@ import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
 import { effectiveServiceIdForNode, probeNodeStatus } from "./probeAlert";
 import { NODE_KIND_MAP, type NodeKindDef } from "./nodeKinds";
+import { DEFAULT_GROUP_ICON_NAME } from "./icons";
 
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
 const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
@@ -1086,7 +1087,6 @@ export function TopologyCanvas({
     setPaletteHoverId(null);
     setTracedNodeId(null);
     setConfirmDelete(null);
-    setConfirmText("");
   }, [confirmDelete, getNodes, setNodes, setEdges, pushSnapshot]);
 
   /** Один раз после загрузки раскладки — не при смене языка (иначе fitView на каждом ререндере) */
@@ -1130,6 +1130,9 @@ export function TopologyCanvas({
               data: {
                 label: ln.label ?? t("defaultGroupLabel"),
                 color: ln.color,
+                icon: ln.icon ?? DEFAULT_GROUP_ICON_NAME,
+                endpoint: ln.endpoint ?? undefined,
+                description: ln.description,
               } satisfies GroupNodeData,
             } as Node;
           }
@@ -1381,7 +1384,10 @@ export function TopologyCanvas({
           type: "group",
           position,
           style: { width: 260, height: 180, zIndex: -10 + groupCount },
-          data: { label: t("defaultGroupLabel") } satisfies GroupNodeData,
+          data: {
+            label: t("defaultGroupLabel"),
+            icon: DEFAULT_GROUP_ICON_NAME,
+          } satisfies GroupNodeData,
         } as Node,
         ...ns,
       ];
@@ -1517,6 +1523,9 @@ export function TopologyCanvas({
         ? {
             label: (n.data as unknown as GroupNodeData).label,
             color: (n.data as unknown as GroupNodeData).color,
+            icon: (n.data as unknown as GroupNodeData).icon,
+            endpoint: (n.data as unknown as GroupNodeData).endpoint ?? undefined,
+            description: (n.data as unknown as GroupNodeData).description,
             width: n.measured?.width ?? (n.style?.width as number) ?? 260,
             height: n.measured?.height ?? (n.style?.height as number) ?? 180,
             zIndex: (n.style?.zIndex as number) ?? -1,

@@ -1,7 +1,23 @@
 import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
-import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { fetchIcons, type CustomIcon } from "../api";
+import { IconRenderer } from "../IconRenderer";
+import {
+  ALL_ICONS,
+  DEFAULT_GROUP_ICON_NAME,
+} from "../icons";
 import { useI18n } from "../i18n";
 import { useTrace } from "../TraceContext";
+import { useIsDraggingOnCanvas } from "../DragContext";
 import { DeleteButton } from "./DeleteButton";
 
 /** Иначе React Flow перехватывает mousedown — начинается drag/selection, срабатывает mouseleave и палитра схлопывается. */
@@ -12,6 +28,10 @@ function stopFlowPointer(e: React.MouseEvent | React.PointerEvent) {
 export interface GroupNodeData extends Record<string, unknown> {
   label: string;
   color?: string; // hex (#rrggbb) or empty/undefined = no color
+  /** Имя иконки из `icons.ts` или `custom:id` */
+  icon?: string;
+  endpoint?: string | null;
+  description?: string;
 }
 
 // Пресеты: храним hex — bg/border выводятся динамически
@@ -64,9 +84,22 @@ const HANDLE_STYLE: React.CSSProperties = {
 
 export const GroupNode = memo(function GroupNode({ id, data, selected }: NodeProps) {
   const d = data as unknown as GroupNodeData;
-  const { setNodes, getNodes } = useReactFlow();
+  const { setNodes, getNodes, updateNodeData } = useReactFlow();
   const { t } = useI18n();
   const { canEdit } = useTrace();
+  const dragging = useIsDraggingOnCanvas();
+
+  const nodeRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  const [locked, setLocked] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const [editingIcon, setEditingIcon] = useState(false);
+  const [editingEndpoint, setEditingEndpoint] = useState(false);
+  const [endpointDraft, setEndpointDraft] = useState("");
+  const [editingDesc, setEditingDesc] = useState(false);
+  const [descDraft, setDescDraft] = useState("");
+  const [customIcons, setCustomIcons] = useState<CustomIcon[]>([]);
 
   const [editing, setEditing] = useState(false);
   const [label, setLabel] = useState(d.label || t("defaultGroupLabel"));
@@ -95,6 +128,75 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
     return () => document.removeEventListener("click", handleClick, true);
   }, [paletteOpen]);
 
+  useEffect(() => {
+    setLabel(d.label || t("defaultGroupLabel"));
+    setColorHex(resolveHex(d.color));
+  }, [d.label, d.color, t]);
+
+  useEffect(() => {
+    if (!dragging) return;
+    setLocked(false);
+    setVisible(false);
+    setEditingIcon(false);
+    setEditingEndpoint(false);
+    setEditingDesc(false);
+  }, [dragging]);
+
+  useEffect(() => {
+    if (!editingIcon) return;
+    void fetchIcons().then(setCustomIcons).catch(() => {});
+  }, [editingIcon]);
+
+  const handleNodeClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (locked) {
+        setLocked(false);
+        setVisible(false);
+        setEditingIcon(false);
+        setEditingEndpoint(false);
+        setEditingDesc(false);
+      } else {
+        setLocked(true);
+        setVisible(true);
+      }
+    },
+    [locked],
+  );
+
+  useEffect(() => {
+    if (!locked) return;
+    const onMouse = (e: MouseEvent) => {
+      if (e.target instanceof Node && panelRef.current?.contains(e.target)) return;
+      if (e.target instanceof Node && nodeRef.current?.contains(e.target)) return;
+      if (
+        e.target instanceof Element &&
+        e.target.closest("[data-probemap-modal]")
+      )
+        return;
+      setLocked(false);
+      setVisible(false);
+      setEditingIcon(false);
+      setEditingEndpoint(false);
+      setEditingDesc(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setLocked(false);
+        setVisible(false);
+        setEditingIcon(false);
+        setEditingEndpoint(false);
+        setEditingDesc(false);
+      }
+    };
+    document.addEventListener("mousedown", onMouse, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("mousedown", onMouse, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [locked]);
+
   const color = colorHex
     ? colorFromHex(colorHex)
     : { bg: "transparent", border: "var(--probemap-border-strong)" };
@@ -108,8 +210,18 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
 
   const applyColor = (hex: string) => {
     setColorHex(hex);
-    d.color = hex || undefined;
+    updateNodeData(id, { color: hex || undefined });
     setPaletteOpen(false);
+  };
+
+  const commitDesc = (val: string) => {
+    updateNodeData(id, { description: val.trim() || undefined });
+    setEditingDesc(false);
+  };
+
+  const commitEndpointEdit = () => {
+    updateNodeData(id, { endpoint: endpointDraft.trim() || null });
+    setEditingEndpoint(false);
   };
 
   const shiftZ = (delta: number) => {
@@ -156,6 +268,331 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
     return { idx, total: groups.length };
   }, [getNodes, id]);
 
+  const iconName = d.icon ?? DEFAULT_GROUP_ICON_NAME;
+  const panelW = 260;
+  const liveRect =
+    visible && nodeRef.current ? nodeRef.current.getBoundingClientRect() : null;
+  const panelStyle = liveRect
+    ? (() => {
+        const gap = 20;
+        const left =
+          window.innerWidth - liveRect.right - gap >= panelW
+            ? liveRect.right + gap
+            : liveRect.left - panelW - gap;
+        const nodeCenter = liveRect.top + liveRect.height / 2;
+        const top = Math.max(8, nodeCenter - 120);
+        return {
+          position: "fixed" as const,
+          top,
+          left: Math.max(8, left),
+          width: panelW,
+        };
+      })()
+    : {};
+
+  useLayoutEffect(() => {
+    const el = panelRef.current;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    if (rect.bottom > window.innerHeight - 8) {
+      el.style.top = `${Math.max(8, window.innerHeight - rect.height - 8)}px`;
+    }
+  });
+
+  const panel =
+    visible && liveRect
+      ? createPortal(
+          <div
+            ref={panelRef}
+            onMouseDown={(e) => e.stopPropagation()}
+            style={{
+              ...panelStyle,
+              zIndex: 3000,
+              background: "var(--probemap-modal-bg)",
+              border: "1.5px solid var(--probemap-border)",
+              borderRadius: 10,
+              boxShadow: "0 4px 16px rgba(0,0,0,.1)",
+              padding: "12px 14px",
+              fontSize: 12,
+              boxSizing: "border-box",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                marginBottom: editingIcon ? 6 : 10,
+              }}
+            >
+              <button
+                type="button"
+                title={t("changeIconTitle")}
+                onClick={() => {
+                  if (canEdit) setEditingIcon((v) => !v);
+                }}
+                disabled={!canEdit}
+                style={{
+                  flexShrink: 0,
+                  background: editingIcon
+                    ? "var(--probemap-interactive-hover-bg)"
+                    : "transparent",
+                  border: `1.5px solid ${editingIcon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                  borderRadius: 6,
+                  padding: 3,
+                  cursor: canEdit ? "pointer" : "default",
+                  color: "var(--probemap-text-muted)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  opacity: canEdit ? 1 : 0.55,
+                }}
+              >
+                <IconRenderer name={iconName} size={16} />
+              </button>
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 700,
+                  color: "var(--probemap-text)",
+                  flex: 1,
+                  minWidth: 0,
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+                title={d.label || t("defaultGroupLabel")}
+              >
+                {d.label || t("defaultGroupLabel")}
+              </div>
+            </div>
+            {editingIcon && canEdit && (
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 3,
+                  marginBottom: 10,
+                }}
+              >
+                {ALL_ICONS.map((entry) => (
+                  <button
+                    key={entry.icon}
+                    type="button"
+                    title={entry.label}
+                    onClick={() => {
+                      updateNodeData(id, { icon: entry.icon });
+                      setEditingIcon(false);
+                    }}
+                    style={{
+                      width: 22,
+                      height: 22,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRadius: 4,
+                      padding: 0,
+                      flexShrink: 0,
+                      cursor: "pointer",
+                      border: `1.5px solid ${iconName === entry.icon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                      background:
+                        iconName === entry.icon
+                          ? "var(--probemap-interactive-hover-bg)"
+                          : "transparent",
+                      color: "var(--probemap-text-muted)",
+                    }}
+                  >
+                    <IconRenderer name={entry.icon} size={11} />
+                  </button>
+                ))}
+                {customIcons.map((ci) => {
+                  const cname = `custom:${ci.name}`;
+                  return (
+                    <button
+                      key={cname}
+                      type="button"
+                      title={ci.name}
+                      onClick={() => {
+                        updateNodeData(id, { icon: cname });
+                        setEditingIcon(false);
+                      }}
+                      style={{
+                        width: 22,
+                        height: 22,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        borderRadius: 4,
+                        padding: 0,
+                        flexShrink: 0,
+                        cursor: "pointer",
+                        border: `1.5px solid ${iconName === cname ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                        background:
+                          iconName === cname
+                            ? "var(--probemap-interactive-hover-bg)"
+                            : "transparent",
+                      }}
+                    >
+                      <IconRenderer name={cname} size={15} />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            <div
+              style={{
+                height: 1,
+                background: "var(--probemap-bg-subtle)",
+                margin: "8px 0 8px",
+              }}
+            />
+            <div
+              style={{
+                fontWeight: 700,
+                color: "var(--probemap-text-faint)",
+                marginBottom: 6,
+                fontSize: 10,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {t("endpointTitle")}
+            </div>
+            {editingEndpoint && canEdit ? (
+              <input
+                autoFocus
+                value={endpointDraft}
+                onChange={(e) => setEndpointDraft(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") commitEndpointEdit();
+                  if (e.key === "Escape") setEditingEndpoint(false);
+                }}
+                onBlur={commitEndpointEdit}
+                placeholder={t("endpointPlaceholder")}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1.5px solid var(--probemap-interactive-hover-border)",
+                  borderRadius: 5,
+                  padding: "4px 8px",
+                  fontSize: 12,
+                  outline: "none",
+                  color: "var(--probemap-text)",
+                  background: "var(--probemap-input-bg)",
+                }}
+              />
+            ) : (
+              <div
+                onClick={
+                  canEdit
+                    ? () => {
+                        setEndpointDraft(d.endpoint ?? "");
+                        setEditingEndpoint(true);
+                      }
+                    : undefined
+                }
+                style={{
+                  cursor: canEdit ? "pointer" : "default",
+                  color: d.endpoint
+                    ? "var(--probemap-text)"
+                    : "var(--probemap-text-faint)",
+                  minHeight: 18,
+                  fontSize: 12,
+                  wordBreak: "break-all",
+                }}
+              >
+                {d.endpoint?.trim()
+                  ? d.endpoint
+                  : canEdit
+                    ? t("endpointClickToAdd")
+                    : t("emDash")}
+              </div>
+            )}
+
+            <div
+              style={{
+                height: 1,
+                background: "var(--probemap-bg-subtle)",
+                margin: "10px 0 8px",
+              }}
+            />
+            <div
+              style={{
+                fontWeight: 700,
+                color: "var(--probemap-text-faint)",
+                marginBottom: 6,
+                fontSize: 10,
+                letterSpacing: "0.06em",
+              }}
+            >
+              {t("descriptionTitle")}
+            </div>
+            {editingDesc && canEdit ? (
+              <textarea
+                autoFocus
+                value={descDraft.slice(0, 120)}
+                onChange={(e) => setDescDraft(e.target.value.slice(0, 120))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    commitDesc(descDraft);
+                  }
+                  if (e.key === "Escape") setEditingDesc(false);
+                }}
+                onBlur={() => commitDesc(descDraft)}
+                placeholder={t("descriptionPlaceholder")}
+                rows={2}
+                style={{
+                  width: "100%",
+                  boxSizing: "border-box",
+                  border: "1.5px solid var(--probemap-interactive-hover-border)",
+                  borderRadius: 5,
+                  padding: "4px 8px",
+                  fontSize: 12,
+                  outline: "none",
+                  color: "var(--probemap-text)",
+                  background: "var(--probemap-input-bg)",
+                  resize: "vertical",
+                  lineHeight: 1.4,
+                  fontFamily: "inherit",
+                }}
+              />
+            ) : (
+              <div
+                onClick={
+                  canEdit
+                    ? () => {
+                        setDescDraft(d.description ?? "");
+                        setEditingDesc(true);
+                      }
+                    : undefined
+                }
+                style={{
+                  cursor: canEdit ? "pointer" : "default",
+                  color: d.description
+                    ? "var(--probemap-text)"
+                    : "var(--probemap-text-faint)",
+                  fontSize: 12,
+                  whiteSpace: "pre-wrap",
+                  minHeight: 18,
+                }}
+              >
+                {d.description?.trim()
+                  ? d.description
+                  : canEdit
+                    ? t("descriptionPlaceholder")
+                    : t("emDash")}
+              </div>
+            )}
+
+            {canEdit && (
+              <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />
+            )}
+          </div>,
+          document.body,
+        )
+      : null;
+
   return (
     <>
       {/* Handles для соединений — на всех сторонах */}
@@ -174,6 +611,8 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
       />
 
       <div
+        ref={nodeRef}
+        onClick={handleNodeClick}
         style={{
           width: "100%",
           height: "100%",
@@ -185,6 +624,9 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           position: "relative",
           overflow: "visible",
           boxShadow: viewerSelectionShadow,
+          outline: locked ? "2px solid var(--probemap-blue)" : undefined,
+          outlineOffset: locked ? 1 : undefined,
+          cursor: "pointer",
         }}
       >
         {/* Пунктирная рамка редактирования — снаружи солидного бордера.
@@ -234,15 +676,35 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             left: 8,
             display: "flex",
             alignItems: "center",
-            gap: 4,
+            gap: 6,
             maxWidth: "calc(100% - 160px)",
           }}
         >
+          <div
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 6,
+              border: "1px solid var(--probemap-border)",
+              background: "var(--probemap-bg-muted)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+              boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+            }}
+            aria-hidden
+          >
+            <IconRenderer name={iconName} size={14} />
+          </div>
           {isEditMode && (
             <button
               ref={colorBtnRef}
               type="button"
-              onClick={() => setPaletteOpen((v) => !v)}
+              onClick={(e) => {
+                e.stopPropagation();
+                setPaletteOpen((v) => !v);
+              }}
               onPointerDown={stopFlowPointer}
               onMouseDown={stopFlowPointer}
               title={t("groupColor")}
@@ -270,12 +732,14 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onBlur={() => {
-                d.label = label;
+                const v = label.trim();
+                if (v) updateNodeData(id, { label: v });
                 setEditing(false);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  d.label = label;
+                  const v = label.trim();
+                  if (v) updateNodeData(id, { label: v });
                   setEditing(false);
                 }
               }}
@@ -323,7 +787,10 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           >
             <button
               type="button"
-              onClick={() => shiftZ(-1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                shiftZ(-1);
+              }}
               title={t("layerBack")}
               onPointerDown={stopFlowPointer}
               onMouseDown={stopFlowPointer}
@@ -345,7 +812,10 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             </button>
             <button
               type="button"
-              onClick={() => shiftZ(1)}
+              onClick={(e) => {
+                e.stopPropagation();
+                shiftZ(1);
+              }}
               title={t("layerForward")}
               onPointerDown={stopFlowPointer}
               onMouseDown={stopFlowPointer}
@@ -372,6 +842,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
         {paletteOpen && (
           <div
             ref={paletteRef}
+            onClick={(e) => e.stopPropagation()}
             onPointerDown={stopFlowPointer}
             onMouseDown={stopFlowPointer}
             style={{
@@ -434,8 +905,9 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
                   type="color"
                   value={colorHex && colorHex.startsWith("#") ? colorHex : "#6366f1"}
                   onChange={(e) => {
-                    setColorHex(e.target.value);
-                    d.color = e.target.value;
+                    const hex = e.target.value;
+                    setColorHex(hex);
+                    updateNodeData(id, { color: hex });
                   }}
                   style={{
                     position: "absolute",
@@ -511,12 +983,6 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           </div>
         )}
 
-        {isEditMode && (
-          <div onPointerDown={stopFlowPointer} onMouseDown={stopFlowPointer}>
-            <DeleteButton nodeId={id} label={d.label || t("defaultGroupLabel")} />
-          </div>
-        )}
-
         {layerHint && (
           <div
             style={{
@@ -542,6 +1008,7 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           </div>
         )}
       </div>
+      {panel}
     </>
   );
 });
