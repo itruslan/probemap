@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useI18n } from "./i18n";
 
 const isMac = typeof navigator !== "undefined" && /Mac/.test(navigator.platform);
@@ -6,7 +6,26 @@ const Mod = isMac ? "⌘" : "Ctrl";
 
 export function KeyboardHints() {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
   const { t } = useI18n();
+
+  useEffect(() => {
+    if (!open) return;
+    const onPointerDown = (e: PointerEvent) => {
+      const el = rootRef.current;
+      if (!el || el.contains(e.target as Node)) return;
+      setOpen(false);
+    };
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown, true);
+    document.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointerDown, true);
+      document.removeEventListener("keydown", onKeyDown, true);
+    };
+  }, [open]);
 
   const hints: { keys: string[]; label: string }[] = [
     { keys: [t("hintsClickDrag")],   label: t("hintsPan") },
@@ -20,7 +39,7 @@ export function KeyboardHints() {
   ];
 
   return (
-    <div style={{ position: "relative" }}>
+    <div ref={rootRef} style={{ position: "relative" }}>
       {open && (
         <div
           style={{
