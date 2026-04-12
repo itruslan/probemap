@@ -2,10 +2,10 @@
 
 ## Start backend + frontend in dev mode
 up:
-	@trap 'kill 0' INT TERM EXIT; \
-	(uv run uvicorn main:app --reload --app-dir backend) & \
-	(cd frontend && npm run dev) & \
-	wait
+	@bash -c 'trap "kill 0" INT TERM EXIT; \
+	  uv run uvicorn main:app --reload --app-dir backend & \
+	  (cd frontend && npm run dev) & \
+	  wait'
 
 ## Stop backend + frontend dev processes
 down:

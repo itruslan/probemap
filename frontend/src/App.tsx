@@ -550,6 +550,7 @@ function AppContent() {
             minWidth: 0,
           }}
         >
+          <img src="/apple-touch-icon.png" width={26} height={26} alt="" style={{ flexShrink: 0, borderRadius: 6 }} />
           <span style={{ fontSize: 14, fontWeight: 700, color: "var(--probemap-text)", letterSpacing: "-0.02em", flexShrink: 0 }}>
             probemap
           </span>

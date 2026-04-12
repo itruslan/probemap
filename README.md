@@ -1,6 +1,6 @@
-# probemap
+<img src="docs/logo.png" width="48" alt="probemap logo" align="left" style="margin-right: 12px" />
 
-<img src="docs/logo.png" width="96" alt="probemap logo" />
+# probemap
 
 [![CI](https://github.com/itruslan/probemap/actions/workflows/ci.yml/badge.svg)](https://github.com/itruslan/probemap/actions/workflows/ci.yml)
 
