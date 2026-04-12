@@ -64,7 +64,6 @@ import { DragContext } from "./DragContext";
 import { ServicesContext } from "./ServicesContext";
 import { TraceContext } from "./TraceContext";
 import { useI18n } from "./i18n";
-import { DeleteConfirmNameHint } from "./DeleteConfirmNameHint";
 import { effectiveServiceIdForNode, probeNodeStatus } from "./probeAlert";
 import { NODE_KIND_MAP, type NodeKindDef } from "./nodeKinds";
 
@@ -437,7 +436,6 @@ export function TopologyCanvas({
     id: string;
     label: string;
   } | null>(null);
-  const [confirmText, setConfirmText] = useState("");
   const [paletteSelectedId, setPaletteSelectedId] = useState<string | null>(
     null,
   );
@@ -981,7 +979,6 @@ export function TopologyCanvas({
       const label = (node.data as { label?: string }).label ?? node.id;
       e.preventDefault();
       setConfirmDelete({ id: node.id, label });
-      setConfirmText("");
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -1040,7 +1037,6 @@ export function TopologyCanvas({
       if (metricsStale || !canvasInteractive) return;
       const { id, label } = (e as CustomEvent).detail;
       setConfirmDelete({ id, label });
-      setConfirmText("");
     };
     document.addEventListener("delete-node-request", handler);
     return () => document.removeEventListener("delete-node-request", handler);
@@ -2008,8 +2004,7 @@ export function TopologyCanvas({
                   onClick={(e) => {
                     if (e.target === e.currentTarget) {
                       setConfirmDelete(null);
-                      setConfirmText("");
-                    }
+                                    }
                   }}
                   style={{
                     position: "fixed",
@@ -2025,75 +2020,35 @@ export function TopologyCanvas({
                     style={{
                       background: "var(--probemap-modal-bg)",
                       borderRadius: 10,
-                      width: 360,
-                      maxWidth: "min(360px, calc(100vw - 48px))",
+                      width: 320,
+                      maxWidth: "min(320px, calc(100vw - 48px))",
                       boxSizing: "border-box",
-                      overflow: "hidden",
                       boxShadow: "0 8px 32px rgba(0,0,0,.18)",
                       padding: "20px 24px",
                     }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") doConfirmDelete();
+                      if (e.key === "Escape") setConfirmDelete(null);
+                    }}
                   >
-                    <div
-                      style={{
-                        fontSize: 14,
-                        fontWeight: 700,
-                        color: "var(--probemap-text)",
-                        marginBottom: 12,
-                      }}
-                    >
+                    <div style={{ fontSize: 14, fontWeight: 700, color: "var(--probemap-text)", marginBottom: 6 }}>
                       {t("removeFromCanvas")}
                     </div>
-                    <DeleteConfirmNameHint name={confirmDelete.label} />
-                    <input
-                      autoFocus
-                      value={confirmText}
-                      onChange={(e) => setConfirmText(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (
-                          e.key === "Enter" &&
-                          confirmText === confirmDelete.label
-                        )
-                          doConfirmDelete();
-                        if (e.key === "Escape") {
-                          setConfirmDelete(null);
-                          setConfirmText("");
-                        }
-                      }}
-                      placeholder={confirmDelete.label}
-                      style={{
-                        width: "100%",
-                        boxSizing: "border-box",
-                        padding: "7px 10px",
-                        borderRadius: 6,
-                        fontSize: 13,
-                        border: "1.5px solid var(--probemap-border)",
-                        outline: "none",
-                        color: "var(--probemap-text)",
-                        background: "var(--probemap-input-bg)",
-                        marginBottom: 16,
-                      }}
-                    />
-                    <div
-                      style={{
-                        display: "flex",
-                        justifyContent: "flex-end",
-                        gap: 8,
-                      }}
-                    >
+                    <div style={{ fontSize: 13, color: "var(--probemap-text-faint)", marginBottom: 20 }}>
+                      <span style={{ color: "var(--probemap-text)", fontWeight: 600 }}>{confirmDelete.label}</span>
+                    </div>
+                    <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
                       <button
                         type="button"
-                        onClick={() => {
-                          setConfirmDelete(null);
-                          setConfirmText("");
-                        }}
+                        onClick={() => setConfirmDelete(null)}
                         className="probemap-btn probemap-btn--ghost probemap-btn--sm"
                       >
                         {t("cancel")}
                       </button>
                       <button
+                        autoFocus
                         type="button"
                         onClick={doConfirmDelete}
-                        disabled={confirmText !== confirmDelete.label}
                         className="probemap-btn probemap-btn--danger probemap-btn--sm"
                       >
                         {t("delete")}
