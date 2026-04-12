@@ -1,4 +1,6 @@
 import {
+  FaArrowPointer,
+  FaArrowsUpDownLeftRight,
   FaExpand,
   FaLock,
   FaMagnifyingGlassMinus,
@@ -21,6 +23,9 @@ type Props = {
   /** Как у стандартных Controls: переключение «замка» — перетаскивание, связи, выделение */
   canvasInteractive: boolean;
   onToggleCanvasInteraction?: () => void;
+  /** Режим выделения рамкой (вместо пана) */
+  selectMode?: boolean;
+  onToggleSelectMode?: () => void;
   /** Метрики устарели — панель недоступна */
   readOnly?: boolean;
   /** Замок включён: нельзя добавлять объекты с панели; разблокировка по кнопке замка */
@@ -39,6 +44,8 @@ export function MapObjectsBar({
   canRedo,
   canvasInteractive,
   onToggleCanvasInteraction,
+  selectMode,
+  onToggleSelectMode,
   readOnly,
   freezeToolbar,
 }: Props) {
@@ -49,23 +56,26 @@ export function MapObjectsBar({
     label,
     title,
     disabled,
+    active,
     onClick,
     children,
   }: {
     label: string;
     title: string;
     disabled?: boolean;
+    active?: boolean;
     onClick: () => void;
     children: ReactNode;
   }) => (
     <div className="map-objects-toolbar__btnwrap">
       <button
         type="button"
-        className="map-objects-toolbar__btn"
+        className={`map-objects-toolbar__btn${active ? " map-objects-toolbar__btn--active" : ""}`}
         disabled={disabled}
         onClick={onClick}
         title={title}
         aria-label={label}
+        aria-pressed={active}
       >
         {children}
       </button>
@@ -80,6 +90,20 @@ export function MapObjectsBar({
       <div className="map-objects-stack">
         <section className="map-objects-toolbar__panel" aria-label={t("mapCanvasActions")}>
           <div className="map-objects-toolbar__inner" role="toolbar" aria-orientation="vertical">
+            {onToggleSelectMode && canvasInteractive && (
+              <Btn
+                label={selectMode ? t("mapPanMode") : t("mapSelectMode")}
+                title={selectMode ? t("mapPanMode") : t("mapSelectMode")}
+                active={selectMode}
+                onClick={onToggleSelectMode}
+              >
+                {selectMode ? (
+                  <FaArrowsUpDownLeftRight className="map-objects-toolbar__icon" aria-hidden />
+                ) : (
+                  <FaArrowPointer className="map-objects-toolbar__icon" aria-hidden />
+                )}
+              </Btn>
+            )}
             <Btn
               label={t("mapUndo")}
               title={`${t("mapCanvasActions")}: ${t("mapUndo")}`}

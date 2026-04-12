@@ -819,6 +819,12 @@ button.palette-row--kind {
     0 2px 8px rgba(59, 130, 246, 0.08);
 }
 
+.map-objects-toolbar__btn--active {
+  background: var(--probemap-interactive-hover-bg);
+  color: var(--probemap-accent, #3b82f6);
+  box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.35);
+}
+
 .map-objects-toolbar__btn:disabled {
   opacity: 0.45;
   cursor: not-allowed;

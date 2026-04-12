@@ -4,6 +4,7 @@ import {
   reconnectEdge,
   Background,
   ConnectionMode,
+  Panel,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -57,6 +58,7 @@ import { EdgeMetadataModal } from "./edges/EdgeMetadataModal";
 import { EdgeInteractionContext } from "./edges/edgeInteractionContext";
 import { Palette } from "./Palette";
 import { MapObjectsBar } from "./MapObjectsBar";
+import { KeyboardHints } from "./KeyboardHints";
 import { CollisionContext } from "./CollisionContext";
 import { DragContext } from "./DragContext";
 import { ServicesContext } from "./ServicesContext";
@@ -356,6 +358,7 @@ export function TopologyCanvas({
   const applyingHistory = useRef(false);
   const dragStartSnapshot = useRef<Snapshot | null>(null);
   const [historyTick, setHistoryTick] = useState(0);
+  const [selectMode, setSelectMode] = useState(false);
   const [nodes, setNodes, onNodesChangeRaw] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChangeBase] = useEdgesState<MapEdge>([]);
   const [edgeEditId, setEdgeEditId] = useState<string | null>(null);
@@ -1019,10 +1022,13 @@ export function TopologyCanvas({
     if (metricsStale) setTracedNodeId(null);
   }, [metricsStale]);
 
-  // Escape clears active path trace
+  // Escape clears active path trace and select mode
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setTracedNodeId(null);
+      if (e.key === "Escape") {
+        setTracedNodeId(null);
+        setSelectMode(false);
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
@@ -1943,13 +1949,18 @@ export function TopologyCanvas({
                       edgeTypes={EDGE_TYPES}
                       connectionMode={ConnectionMode.Loose}
                       defaultEdgeOptions={{ type: "default", data: {}, zIndex: 1 }}
-                      nodesDraggable={!metricsStale && isAdmin && canvasInteractive}
-                      nodesConnectable={!metricsStale && isAdmin && canvasInteractive}
-                      edgesReconnectable={!metricsStale && isAdmin && canvasInteractive}
+                      nodesDraggable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
+                      nodesConnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
+                      edgesReconnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       elementsSelectable={!metricsStale && canvasInteractive}
+                      panOnDrag={!selectMode}
+                      selectionOnDrag={selectMode}
                       onBeforeDelete={onBeforeDelete}
                     >
                       <Background color="var(--probemap-text-faint)" gap={16} />
+                      <Panel position="top-left" style={{ margin: "8px 0 0 8px" }}>
+                        <KeyboardHints />
+                      </Panel>
                     </ReactFlow>
                   </div>
 
@@ -1963,6 +1974,8 @@ export function TopologyCanvas({
                     canRedo={historyTick >= 0 && redoStack.current.length > 0}
                     canvasInteractive={!metricsStale && canvasInteractive}
                     onToggleCanvasInteraction={isAdmin ? handleToggleCanvasInteraction : undefined}
+                    selectMode={selectMode}
+                    onToggleSelectMode={isAdmin && canvasInteractive ? () => setSelectMode((v) => !v) : undefined}
                     readOnly={metricsStale}
                     addBlocked={!metricsStale && !canvasInteractive}
                     freezeToolbar={metricsStale}
