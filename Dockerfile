@@ -10,8 +10,8 @@ RUN npx vite build
 FROM python:3.11-slim AS production
 WORKDIR /app
 
-# Install uv for fast dependency resolution
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+# Install uv
+RUN pip install uv --no-cache-dir
 
 # Install Python dependencies
 COPY pyproject.toml uv.lock ./

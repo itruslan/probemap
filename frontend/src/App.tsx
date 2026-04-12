@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import type { IconType } from "react-icons";
-import { FaGear, FaMoon, FaSun } from "react-icons/fa6";
+import { FaGear, FaGithub, FaMoon, FaSun } from "react-icons/fa6";
 import { ReactFlowProvider } from "@xyflow/react";
 import {
   ApiError,
@@ -610,6 +610,16 @@ function AppContent() {
               flexShrink: 0,
             }}
           >
+            <a
+              href="https://github.com/itruslan/probemap"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="probemap-outline-hover-btn"
+              title="GitHub"
+              style={{ display: "flex", alignItems: "center", padding: "6px 7px", color: "var(--probemap-text)" }}
+            >
+              <FaGithub size={16} />
+            </a>
             <ThemeToggleButton />
             <LanguageToggleButton />
             {canEdit && <SettingsButton onClick={() => setSettingsOpen(true)} />}
