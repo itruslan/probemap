@@ -1421,6 +1421,7 @@ export function TopologyCanvas({
           style: { width: CONTAINER_WIDTH, height: containerHeight(0) },
           data: {
             label: t("defaultContainerLabel"),
+            icon: DEFAULT_GROUP_ICON_NAME,
             items: [],
           } satisfies ContainerNodeData,
         } as Node,

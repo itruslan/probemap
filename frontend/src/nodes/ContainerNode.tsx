@@ -6,7 +6,7 @@ import { useContainerDrop } from "../ContainerDropContext";
 import { useTrace } from "../TraceContext";
 import { useI18n } from "../i18n";
 import { IconRenderer } from "../IconRenderer";
-import { ALL_ICONS } from "../icons";
+import { ALL_ICONS, DEFAULT_GROUP_ICON_NAME } from "../icons";
 import { DeleteButton } from "./DeleteButton";
 
 // ── Layout constants (exported for TopologyCanvas) ───────────────────────────
@@ -214,10 +214,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
                 display: "flex", alignItems: "center", justifyContent: "center",
               }}
             >
-              {d.icon
-                ? <IconRenderer name={d.icon} size={16} />
-                : <span style={{ fontSize: 16, lineHeight: 1 }}>📦</span>
-              }
+              <IconRenderer name={d.icon ?? DEFAULT_GROUP_ICON_NAME} size={16} />
             </button>
             <div
               style={{
@@ -233,20 +230,20 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
           {/* Icon picker grid */}
           {editingIcon && (
             <div style={{ display: "flex", flexWrap: "wrap", gap: 3, marginBottom: 10 }}>
-              {/* Emoji reset option */}
+              {/* Default icon reset option */}
               <button
                 type="button"
-                title="📦"
-                onClick={() => { updateNodeData(id, { icon: undefined }); setEditingIcon(false); }}
+                title={DEFAULT_GROUP_ICON_NAME}
+                onClick={() => { updateNodeData(id, { icon: DEFAULT_GROUP_ICON_NAME }); setEditingIcon(false); }}
                 style={{
                   width: 22, height: 22, display: "flex", alignItems: "center",
                   justifyContent: "center", borderRadius: 4, padding: 0, flexShrink: 0,
                   cursor: "pointer", fontSize: 13,
-                  border: `1.5px solid ${!d.icon ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
-                  background: !d.icon ? "var(--probemap-interactive-hover-bg)" : "transparent",
+                  border: `1.5px solid ${d.icon === DEFAULT_GROUP_ICON_NAME ? "var(--probemap-interactive-hover-border)" : "transparent"}`,
+                  background: d.icon === DEFAULT_GROUP_ICON_NAME ? "var(--probemap-interactive-hover-bg)" : "transparent",
                 }}
               >
-                📦
+                <IconRenderer name={DEFAULT_GROUP_ICON_NAME} size={13} />
               </button>
               {ALL_ICONS.map((entry) => (
                 <button
@@ -409,7 +406,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
         {/* Header */}
         <div className="container-node__header">
           <div className="container-node__icon">
-            {d.icon ? <IconRenderer name={d.icon} size={14} /> : "📦"}
+            <IconRenderer name={d.icon ?? DEFAULT_GROUP_ICON_NAME} size={14} />
           </div>
           {editingLabel ? (
             <input
