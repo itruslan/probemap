@@ -15,8 +15,8 @@ import { TrashIcon } from "../TrashIcon";
 import { useEdgeInteraction } from "./edgeInteractionContext";
 
 const ARROW = 7;
-/** Distance from handle center to the outer tip of the rotated diamond (8×8px, border-radius 2, rotate 45°). */
-const DIAMOND_TIP = 5;
+/** Offset from handle center to arrow tip. 0 = tip at diamond center. */
+const DIAMOND_TIP = 0;
 /** Extra px so `getSmoothStepPath` stroke does not anti-alias past the arrow base (V1 / TODO). */
 const STROKE_JOIN_PAD = 0.75;
 

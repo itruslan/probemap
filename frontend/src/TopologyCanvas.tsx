@@ -4,7 +4,6 @@ import {
   reconnectEdge,
   Background,
   ConnectionMode,
-  Panel,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -1796,6 +1795,7 @@ export function TopologyCanvas({
                     </div>
                   )}
                   <div className="probemap-map-poll">
+                    <KeyboardHints />
                     <span className="probemap-map-poll__label">
                       {t("pollDataInterval")}
                     </span>
@@ -1976,9 +1976,6 @@ export function TopologyCanvas({
                       onBeforeDelete={onBeforeDelete}
                     >
                       <Background color="var(--probemap-text-faint)" gap={16} />
-                      <Panel position="top-left" style={{ margin: "8px 0 0 8px" }}>
-                        <KeyboardHints />
-                      </Panel>
                     </ReactFlow>
                   </div>
 

@@ -16,6 +16,10 @@ export function AllHandles() {
       <Handle type="source" position={Position.Right}  id="right"  style={STYLE} className="react-flow__handle-visibility" />
       <Handle type="source" position={Position.Bottom} id="bottom" style={STYLE} className="react-flow__handle-visibility" />
       <Handle type="source" position={Position.Left}   id="left"   style={STYLE} className="react-flow__handle-visibility" />
+      <Handle type="target" position={Position.Top}    id="top"    style={{ ...STYLE, opacity: 0, pointerEvents: "none" }} />
+      <Handle type="target" position={Position.Right}  id="right"  style={{ ...STYLE, opacity: 0, pointerEvents: "none" }} />
+      <Handle type="target" position={Position.Bottom} id="bottom" style={{ ...STYLE, opacity: 0, pointerEvents: "none" }} />
+      <Handle type="target" position={Position.Left}   id="left"   style={{ ...STYLE, opacity: 0, pointerEvents: "none" }} />
     </>
   );
 }
