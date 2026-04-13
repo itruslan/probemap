@@ -17,7 +17,7 @@ export const CONTAINER_HEADER_H = 46;
 export const CONTAINER_TOP_PAD  = 10;
 export const CONTAINER_BOTTOM_PAD = 10;
 export const CONTAINER_CARD_H   = 72;
-export const CONTAINER_CARD_GAP = 6;
+export const CONTAINER_CARD_GAP = 14;
 
 export function containerHeight(n: number): number {
   if (n === 0) return CONTAINER_HEADER_H + 64 + CONTAINER_BOTTOM_PAD;
