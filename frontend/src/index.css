@@ -200,19 +200,9 @@ html, body {
 
 /* Connection handle states */
 .react-flow__handle-visibility {
-  border-radius: 2px !important;
-}
-.react-flow__handle-visibility.react-flow__handle-top {
-  transform: translate(-50%, -50%) rotate(45deg) !important;
-}
-.react-flow__handle-visibility.react-flow__handle-right {
-  transform: translate(50%, -50%) rotate(45deg) !important;
-}
-.react-flow__handle-visibility.react-flow__handle-bottom {
-  transform: translate(-50%, 50%) rotate(45deg) !important;
-}
-.react-flow__handle-visibility.react-flow__handle-left {
-  transform: translate(-50%, -50%) rotate(45deg) !important;
+  border-radius: 0 !important;
+  border: none !important;
+  clip-path: polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%) !important;
 }
 
 /* Admin: ромбики всегда видны, синие */
