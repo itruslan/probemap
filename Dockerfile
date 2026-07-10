@@ -37,4 +37,7 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
     CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" || exit 1
 
-CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "backend"]
+# --no-sync: не пересинхронизировать окружение на старте (иначе uv тянет dev-группу
+# pytest с pythonhosted.org — в кластере нет egress → CrashLoop). Прод-venv уже собран
+# в build-стадии (uv sync --no-dev --frozen).
+CMD ["uv", "run", "--no-sync", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "backend"]
