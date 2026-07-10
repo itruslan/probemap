@@ -651,13 +651,30 @@ button.palette-row--kind {
   flex-direction: column;
   align-items: stretch;
   flex: 0 0 auto;
+  /* width задаётся инлайном из TopologyCanvas (ресайз ручкой), 228px — фолбэк */
   width: 228px;
   min-width: 148px;
-  max-width: 280px;
+  max-width: 560px;
   min-height: 0;
   overflow: hidden;
   border-right: 1px solid rgba(148, 163, 184, 0.4);
   box-shadow: 4px 0 20px -10px rgba(15, 23, 42, 0.08);
+}
+
+/* Ручка ресайза сайдбара: невидимая полоса поверх границы, dblclick — сброс ширины */
+.palette-resizer {
+  flex: 0 0 6px;
+  margin-left: -6px; /* лежит поверх правого края колонки, не двигая канвас */
+  align-self: stretch;
+  cursor: col-resize;
+  z-index: 6;
+  background: transparent;
+  transition: background 0.15s ease;
+}
+
+.palette-resizer:hover,
+.palette-resizer:active {
+  background: rgba(148, 163, 184, 0.35);
 }
 
 .palette-sidebar-column .palette-sidebar {

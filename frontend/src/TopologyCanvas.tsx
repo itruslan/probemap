@@ -70,6 +70,21 @@ import { DEFAULT_GROUP_ICON_NAME } from "./icons";
 /** Сессия: восстановить режим «замок» после перезагрузки страницы */
 const CANVAS_LOCK_STORAGE_KEY = "probemap_canvas_locked";
 
+/** Ширина сайдбара палитры (px) — тянется за правый край, живёт в localStorage */
+const PALETTE_WIDTH_STORAGE_KEY = "probemap_palette_width";
+const PALETTE_WIDTH_DEFAULT = 228;
+const PALETTE_WIDTH_MIN = 148;
+const PALETTE_WIDTH_MAX = 560;
+
+function initialPaletteWidth(): number {
+  const raw = Number(localStorage.getItem(PALETTE_WIDTH_STORAGE_KEY));
+  return Number.isFinite(raw) &&
+    raw >= PALETTE_WIDTH_MIN &&
+    raw <= PALETTE_WIDTH_MAX
+    ? Math.round(raw)
+    : PALETTE_WIDTH_DEFAULT;
+}
+
 const NODE_TYPES = { service: ServiceNode, group: GroupNode, container: ContainerNode };
 const EDGE_TYPES = { default: DeletableEdge };
 
@@ -440,6 +455,43 @@ export function TopologyCanvas({
     null,
   );
   const [paletteHoverId, setPaletteHoverId] = useState<string | null>(null);
+  const [paletteWidth, setPaletteWidth] = useState<number>(initialPaletteWidth);
+  const paletteColumnRef = useRef<HTMLDivElement | null>(null);
+
+  /** Ресайз сайдбара: тянем ручку у правого края, ширина — от левого края колонки */
+  const onPaletteResizeStart = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      const col = paletteColumnRef.current;
+      if (!col) return;
+      e.preventDefault();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      const left = col.getBoundingClientRect().left;
+      const prevCursor = document.body.style.cursor;
+      const prevSelect = document.body.style.userSelect;
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+      const onMove = (ev: PointerEvent) => {
+        const w = Math.min(
+          PALETTE_WIDTH_MAX,
+          Math.max(PALETTE_WIDTH_MIN, Math.round(ev.clientX - left)),
+        );
+        setPaletteWidth(w);
+      };
+      const onUp = () => {
+        window.removeEventListener("pointermove", onMove);
+        window.removeEventListener("pointerup", onUp);
+        document.body.style.cursor = prevCursor;
+        document.body.style.userSelect = prevSelect;
+        setPaletteWidth((w) => {
+          localStorage.setItem(PALETTE_WIDTH_STORAGE_KEY, String(w));
+          return w;
+        });
+      };
+      window.addEventListener("pointermove", onMove);
+      window.addEventListener("pointerup", onUp);
+    },
+    [],
+  );
   const [tracedNodeId, setTracedNodeId] = useState<string | null>(null);
   const [refreshLabelBold, setRefreshLabelBold] = useState(false);
   const refreshBoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
@@ -1740,7 +1792,11 @@ export function TopologyCanvas({
                 minHeight: 0,
               }}
             >
-              <div className="palette-sidebar-column">
+              <div
+                className="palette-sidebar-column"
+                ref={paletteColumnRef}
+                style={{ width: paletteWidth }}
+              >
                 <Palette
                   services={data.services}
                   onCanvas={onCanvas}
@@ -1755,6 +1811,19 @@ export function TopologyCanvas({
                   statusMap={probeStatusMap}
                 />
               </div>
+              <div
+                className="palette-resizer"
+                role="separator"
+                aria-orientation="vertical"
+                onPointerDown={onPaletteResizeStart}
+                onDoubleClick={() => {
+                  setPaletteWidth(PALETTE_WIDTH_DEFAULT);
+                  localStorage.setItem(
+                    PALETTE_WIDTH_STORAGE_KEY,
+                    String(PALETTE_WIDTH_DEFAULT),
+                  );
+                }}
+              />
               <EdgeInteractionContext.Provider
                 value={{
                   openEditor: (id) => setEdgeEditId(id),
