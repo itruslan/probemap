@@ -97,6 +97,15 @@ def _promql_escape_label_value(val: str) -> str:
     return str(val).replace("\\", "\\\\").replace('"', '\\"')
 
 
+def _re2_escape(val: str) -> str:
+    """Экранирование литерала для RE2-регулярок VM/Prometheus (аналог Go regexp.QuoteMeta).
+
+    В отличие от re.escape НЕ экранирует '-': RE2 считает '\\-' вне символьного
+    класса невалидной escape-последовательностью и возвращает 422 на запрос.
+    """
+    return re.sub(r"([\\.+*?()|\[\]{}^$])", r"\\\1", str(val))
+
+
 def _cfg_rules_to_parts(cfg: dict[str, Any]) -> list[str]:
     parts: list[str] = []
     for r in cfg.get("metric_filter_rules") or []:
@@ -127,7 +136,7 @@ def build_probe_success_selector(
     """Селектор для `probe_success{...}` или пустая строка."""
     parts: list[str] = []
     if enabled_jobs:
-        job_re = "|".join(re.escape(j) for j in enabled_jobs)
+        job_re = "|".join(_re2_escape(j) for j in enabled_jobs)
         parts.append(f'job=~"{job_re}"')
     for fl, fv in project_pairs:
         if fl and fv:
