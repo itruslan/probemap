@@ -223,14 +223,15 @@ def _parse_series_maps(
     dict[tuple, int],
     dict[tuple, float],
     dict[tuple, set[str]],
-    set[tuple[str, str, str, str]],
-    dict[tuple[str, str, str, str], set[str]],
+    set[tuple[str, str, str]],
+    dict[tuple[str, str, str], set[str]],
+    dict[tuple[str, str, str], set[str]],
     list[str],
 ]:
     """Parse raw VictoriaMetrics series into lookup maps.
 
     Returns (status_map, duration_map, probe_types_map,
-             port_tuple_set, port_tuple_sources, probe_sources).
+             port_tuple_set, port_tuple_sources, port_tuple_jobs, probe_sources).
     """
     nl = name_labels or []
 
@@ -247,9 +248,12 @@ def _parse_series_maps(
     status_map: dict[tuple, int] = {}
     duration_map: dict[tuple, float] = {}
     probe_types_map: dict[tuple, set[str]] = defaultdict(set)
-    # Одна запись порта на комбинацию (service, port, module, job)
-    port_tuple_set: set[tuple[str, str, str, str]] = set()
-    port_tuple_sources: dict[tuple[str, str, str, str], set[str]] = defaultdict(set)
+    # Одна запись порта на комбинацию (service, port, module). job в ключ не входит:
+    # одна и та же проба с разных экспортёров часто приходит отдельными job'ами
+    # (blackbox-...-yc-a / -onprem) — это один чип с несколькими источниками.
+    port_tuple_set: set[tuple[str, str, str]] = set()
+    port_tuple_sources: dict[tuple[str, str, str], set[str]] = defaultdict(set)
+    port_tuple_jobs: dict[tuple[str, str, str], set[str]] = defaultdict(set)
 
     for s in status_series:
         m = s["metric"]
@@ -257,14 +261,15 @@ def _parse_series_maps(
         status_map[key] = int(float(s["value"][1]))
         if mod := m.get(module_l):
             probe_types_map[key].add(_module_to_type(str(mod)))
-        pt: tuple[str, str, str, str] = (
+        pt: tuple[str, str, str] = (
             _composite_name(m, svc_l, nl),
             m.get(port_l) or "unknown",
             _norm_label(m, module_l),
-            m.get("job") or "",
         )
         port_tuple_set.add(pt)
         port_tuple_sources[pt].add(m.get(src_l) or "")
+        if j := m.get("job"):
+            port_tuple_jobs[pt].add(str(j))
 
     for s in duration_series:
         m = s["metric"]
@@ -276,35 +281,50 @@ def _parse_series_maps(
         probe_types_map,
         port_tuple_set,
         port_tuple_sources,
+        port_tuple_jobs,
         probe_sources,
     )
 
 
 def _build_services_map(
-    port_tuple_set: set[tuple[str, str, str, str]],
-    port_tuple_sources: dict[tuple[str, str, str, str], set[str]],
+    port_tuple_set: set[tuple[str, str, str]],
+    port_tuple_sources: dict[tuple[str, str, str], set[str]],
+    port_tuple_jobs: dict[tuple[str, str, str], set[str]],
     status_map: dict[tuple, int],
     duration_map: dict[tuple, float],
     probe_types_map: dict[tuple, set[str]],
 ) -> dict[str, dict]:
     """Build services_map from aggregated series maps."""
     services_map: dict[str, dict] = {}
-    for svc_name, port, mod, job in sorted(port_tuple_set):
+    for svc_name, port, mod in sorted(port_tuple_set):
         if svc_name not in services_map:
             services_map[svc_name] = {"id": svc_name, "name": svc_name, "ports": []}
-        pt = (svc_name, port, mod, job)
+        pt = (svc_name, port, mod)
         sources_here = sorted(port_tuple_sources.get(pt, set()))
+        jobs_here = sorted(port_tuple_jobs.get(pt, set()))
         all_types: set[str] = set()
+        source_statuses: dict[str, dict[str, Any]] = {}
         for src in sources_here:
-            all_types |= probe_types_map.get((svc_name, port, src, mod, job), set())
-        source_statuses = {
-            src: {
-                "success": status_map.get((svc_name, port, src, mod, job)),
-                "duration_ms": duration_map.get((svc_name, port, src, mod, job)),
-                "probe_types": sorted(probe_types_map.get((svc_name, port, src, mod, job), set())),
+            # Один источник может прийти из нескольких job'ов (per-exporter
+            # scrape config) — берём худший success и его duration.
+            success: int | None = None
+            duration: float | None = None
+            types_here: set[str] = set()
+            for job in jobs_here or [""]:
+                key = (svc_name, port, src, mod, job)
+                s = status_map.get(key)
+                if s is None:
+                    continue
+                if success is None or s < success:
+                    success = s
+                    duration = duration_map.get(key)
+                types_here |= probe_types_map.get(key, set())
+            all_types |= types_here
+            source_statuses[src] = {
+                "success": success,
+                "duration_ms": duration,
+                "probe_types": sorted(types_here),
             }
-            for src in sources_here
-        }
         successes = [v["success"] for v in source_statuses.values() if v["success"] is not None]
         if not successes:
             overall = "unknown"
@@ -322,8 +342,8 @@ def _build_services_map(
         }
         if mod:
             entry["module"] = mod
-        if job:
-            entry["job"] = job
+        if len(jobs_here) == 1:
+            entry["job"] = jobs_here[0]
         services_map[svc_name]["ports"].append(entry)
     return services_map
 
@@ -374,13 +394,24 @@ async def get_services(filter_pairs: list[tuple[str, str]] | None = None) -> dic
         _query(vm_url, f"last_over_time(probe_duration_seconds{sel}[2m])"),
     )
 
-    status_map, duration_map, probe_types_map, port_tuple_set, port_tuple_sources, probe_sources = (
-        _parse_series_maps(
-            status_series, duration_series, svc_l, port_l, src_l, module_l, name_labels
-        )
+    (
+        status_map,
+        duration_map,
+        probe_types_map,
+        port_tuple_set,
+        port_tuple_sources,
+        port_tuple_jobs,
+        probe_sources,
+    ) = _parse_series_maps(
+        status_series, duration_series, svc_l, port_l, src_l, module_l, name_labels
     )
     services_map = _build_services_map(
-        port_tuple_set, port_tuple_sources, status_map, duration_map, probe_types_map
+        port_tuple_set,
+        port_tuple_sources,
+        port_tuple_jobs,
+        status_map,
+        duration_map,
+        probe_types_map,
     )
     _attach_labels_and_kind(services_map, status_series, svc_l, src_l, name_labels)
 
