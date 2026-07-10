@@ -38,6 +38,19 @@ class TestBuildProbeSuccessSelector:
         sel = metrics.build_probe_success_selector(["a", "b"], [], {})
         assert 'job=~"a|b"' in sel
 
+    def test_job_hyphen_slash_not_escaped(self) -> None:
+        # RE2 (VM/Prometheus) отвергает '\-' вне класса → 422. Дефисы и слэши
+        # в имени job должны оставаться как есть, без экранирования.
+        sel = metrics.build_probe_success_selector(
+            ["scrapeConfig/victoria-metrics/blackbox-icmp-onprem"], [], {}
+        )
+        assert 'job=~"scrapeConfig/victoria-metrics/blackbox-icmp-onprem"' in sel
+        assert "\\-" not in sel
+
+    def test_job_regex_metachars_escaped(self) -> None:
+        sel = metrics.build_probe_success_selector(["a.b(c)+d"], [], {})
+        assert r'job=~"a\.b\(c\)\+d"' in sel
+
     def test_project_pairs(self) -> None:
         sel = metrics.build_probe_success_selector([], [("env", "prod")], {})
         assert 'env="prod"' in sel
