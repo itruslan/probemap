@@ -255,6 +255,23 @@ export function Settings({ onClose, projectFilterPairs }: Props) {
       setDiscoveredJobs(jobs);
       setAvailableLabels(labels);
       setDiscoveryUrl(u);
+      // Новые job'ы из discovery подмешиваем в список (enabled: false),
+      // не трогая выбор существующих. Без этого список jobs — снапшот на момент
+      // сохранения URL, и появившиеся в VM пробы в него не попадают никогда.
+      setCfg((prev) => {
+        if (!prev) return prev;
+        const known = new Set(prev.probe_jobs.map((j) => j.job));
+        const added = jobs
+          .filter((d) => !known.has(d.job))
+          .map((d) => ({ job: d.job, enabled: false }));
+        if (added.length === 0) return prev;
+        return {
+          ...prev,
+          probe_jobs: [...prev.probe_jobs, ...added].sort((a, b) =>
+            a.job.localeCompare(b.job),
+          ),
+        };
+      });
     } catch {
       if (id !== discoveryRequestId.current) return;
       setDiscoveredJobs([]);
