@@ -1,4 +1,10 @@
-import { useReactFlow, type NodeProps } from "@xyflow/react";
+import {
+  Handle,
+  Position,
+  useReactFlow,
+  useUpdateNodeInternals,
+  type NodeProps,
+} from "@xyflow/react";
 import {
   memo,
   useEffect,
@@ -40,6 +46,18 @@ const STATUS_COLOR: Record<string, string> = {
   warn: "var(--probemap-status-warn)",
   down: "var(--probemap-danger)",
   unknown: "var(--probemap-status-unknown)",
+};
+
+/** Handle порта — тот же ромбик, что у AllHandles; left: -17 выносит его на
+ *  левую границу ноды (padding ноды 12px + половина ромба), напротив строки порта */
+const PORT_HANDLE_STYLE: React.CSSProperties = {
+  width: 8,
+  height: 8,
+  left: -17,
+  background: "var(--probemap-blue)",
+  border: "1.5px solid var(--probemap-bg)",
+  opacity: 0,
+  transition: "opacity 0.15s, background 0.15s, width 0.15s, height 0.15s",
 };
 
 function aggStatus(ports: Port[]): string {
@@ -105,6 +123,27 @@ export interface ServiceNodeData extends Record<string, unknown> {
 export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
   const d = data as unknown as ServiceNodeData;
   const { updateNodeData } = useReactFlow();
+  const updateNodeInternals = useUpdateNodeInternals();
+
+  /** Владелец port-handle: первый чип каждого порта (дедуп — handle id должен
+   *  быть уникален в ноде; icmp/unknown без порта handle не получают). */
+  const portHandleOwner = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const p of d.ports ?? []) {
+      const pk = `${p.port}-${p.job ?? ""}-${p.module ?? ""}`;
+      if (p.port && p.port !== "unknown" && !m.has(p.port)) m.set(p.port, pk);
+    }
+    return m;
+  }, [d.ports]);
+
+  /** xyflow кэширует позиции handles — пересчитать при изменении набора портов */
+  const portHandleSig = useMemo(
+    () => Array.from(portHandleOwner.keys()).join(","),
+    [portHandleOwner],
+  );
+  useEffect(() => {
+    updateNodeInternals(id);
+  }, [id, portHandleSig, updateNodeInternals]);
 
   const services = useServices();
   const probeSourcesGlobal = useProbeSources();
@@ -1502,8 +1541,12 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
           borderRadius: groupVisual.borderRadius,
           padding: groupVisual.accentColor ? "8px 12px 8px 15px" : "8px 12px",
           width: inContainer ? undefined : 200,
-          height: CONTAINER_CARD_H,
-          overflow: "hidden",
+          /* В контейнере — компактная карточка фикс. высоты; на карте высота
+             авто (вертикальный список портов) и overflow visible, чтобы
+             ромбики port-handles на левой границе не обрезались */
+          height: inContainer ? CONTAINER_CARD_H : undefined,
+          minHeight: inContainer ? undefined : CONTAINER_CARD_H,
+          overflow: inContainer ? "hidden" : "visible",
           boxSizing: "border-box" as const,
           fontSize: 13,
           boxShadow: "var(--probemap-node-card-shadow)",
@@ -1643,10 +1686,13 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
             {(d.ports ?? []).length > 0 ? (
               <div
                 style={{
+                  /* На карте — вертикальный список (строка на порт, ромбик-handle
+                     у края ноды); в контейнере — компактные инлайн-чипы */
                   display: "flex",
-                  flexWrap: "wrap",
-                  gap: 6,
-                  alignItems: "center",
+                  flexDirection: inContainer ? "row" : "column",
+                  flexWrap: inContainer ? "wrap" : undefined,
+                  gap: inContainer ? 6 : 4,
+                  alignItems: inContainer ? "center" : "stretch",
                   flex: "1 1 auto",
                   minWidth: 0,
                 }}
@@ -1660,16 +1706,42 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   );
                   const c = STATUS_COLOR[p.status] ?? STATUS_COLOR.unknown;
                   const pk = `${p.port}-${p.job ?? ""}-${p.module ?? ""}`;
+                  const hasPortHandle =
+                    !inContainer && portHandleOwner.get(p.port) === pk;
                   return (
                     <div
                       key={pk}
                       style={{
+                        position: "relative",
                         display: "flex",
                         gap: 3,
                         alignItems: "center",
-                        flexWrap: "wrap",
                       }}
                     >
+                      {/* Handle порта: ребро цепляется к конкретному порту
+                          (sourceHandle/targetHandle = `port-<port>` в layout).
+                          Пара source+target как в AllHandles (Loose mode). */}
+                      {hasPortHandle && (
+                        <>
+                          <Handle
+                            type="source"
+                            position={Position.Left}
+                            id={`port-${p.port}`}
+                            style={PORT_HANDLE_STYLE}
+                            className="react-flow__handle-visibility"
+                          />
+                          <Handle
+                            type="target"
+                            position={Position.Left}
+                            id={`port-${p.port}`}
+                            style={{
+                              ...PORT_HANDLE_STYLE,
+                              opacity: 0,
+                              pointerEvents: "none",
+                            }}
+                          />
+                        </>
+                      )}
                       {chips.portText && (
                         <span
                           style={{
@@ -1690,6 +1762,42 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                         type={kindKeyForBadge(chips.kind)}
                         statusColor={c}
                       />
+                      {/* Точки-источники этого порта (per-port статус) */}
+                      {!inContainer && (
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: 4,
+                            alignItems: "center",
+                            marginLeft: "auto",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {blackboxOrder
+                            .filter((src) => !ignoredSources.has(src))
+                            .map((src) => {
+                              const s = p.sources?.[src]?.success;
+                              const dotBg =
+                                s === 1
+                                  ? "var(--probemap-status-ok)"
+                                  : s === 0
+                                    ? "var(--probemap-danger)"
+                                    : "var(--probemap-status-unknown)";
+                              return (
+                                <span
+                                  key={src}
+                                  title={src}
+                                  style={{
+                                    width: 6,
+                                    height: 6,
+                                    borderRadius: "50%",
+                                    background: dotBg,
+                                  }}
+                                />
+                              );
+                            })}
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -1697,7 +1805,8 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
             ) : (
               <div style={{ flex: "1 1 auto", minWidth: 0 }} />
             )}
-            {blackboxOrder.length > 0 && (
+            {blackboxOrder.length > 0 &&
+              (inContainer || (d.ports ?? []).length === 0) && (
               <div
                 style={{
                   display: "flex",
