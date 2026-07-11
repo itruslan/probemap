@@ -19,20 +19,27 @@ export const CONTAINER_BOTTOM_PAD = 10;
 export const CONTAINER_CARD_H   = 72;
 export const CONTAINER_CARD_GAP = 14;
 
-export function containerHeight(n: number): number {
+/** Высота карточки сервиса по числу портов: базовая (заголовок + 1 строка)
+ *  + по строке на каждый дополнительный порт. Слоты контейнера выравниваются
+ *  по самому «портатому» члену — сетка остаётся равномерной. */
+export function cardHeightForPorts(nPorts: number): number {
+  return CONTAINER_CARD_H + Math.max(0, nPorts - 1) * 24;
+}
+
+export function containerHeight(n: number, cardH: number = CONTAINER_CARD_H): number {
   if (n === 0) return CONTAINER_HEADER_H + 64 + CONTAINER_BOTTOM_PAD;
   return (
     CONTAINER_HEADER_H +
     CONTAINER_TOP_PAD +
-    n * CONTAINER_CARD_H +
+    n * cardH +
     (n - 1) * CONTAINER_CARD_GAP +
     CONTAINER_BOTTOM_PAD
   );
 }
 
 /** Absolute Y of slot i within container (relative to container top). */
-export function slotTopInContainer(i: number): number {
-  return CONTAINER_HEADER_H + CONTAINER_TOP_PAD + i * (CONTAINER_CARD_H + CONTAINER_CARD_GAP);
+export function slotTopInContainer(i: number, cardH: number = CONTAINER_CARD_H): number {
+  return CONTAINER_HEADER_H + CONTAINER_TOP_PAD + i * (cardH + CONTAINER_CARD_GAP);
 }
 
 // ── Data type ────────────────────────────────────────────────────────────────
@@ -159,14 +166,32 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
     }
   });
 
-  // ── Container size sync (fixed card heights) ───────────────────────────────
+  // ── Container size sync ─────────────────────────────────────────────────────
+  // Высота слота динамическая: по максимальной РЕАЛЬНОЙ высоте карточки члена
+  // (measured из store); до первого измерения — оценка по числу портов.
+  // Подписка через строку-сигнатуру — пересчёт при изменении размеров/данных.
+  const cardHSig = useStore((s) =>
+    d.items
+      .map((itemId) => {
+        const n = s.nodeLookup.get(itemId);
+        const measured = n?.measured?.height;
+        if (measured) return Math.ceil(measured);
+        const nd = n?.data as { ports?: unknown[] } | undefined;
+        return cardHeightForPorts(nd?.ports?.length ?? 0);
+      })
+      .join(","),
+  );
+  const cardH = Math.max(
+    CONTAINER_CARD_H,
+    ...cardHSig.split(",").map((v) => Number(v) || 0),
+  );
   useEffect(() => {
-    const h = containerHeight(d.items.length);
+    const h = containerHeight(d.items.length, cardH);
     updateNode(id, { style: { width: CONTAINER_WIDTH, height: h } });
     d.items.forEach((itemId, idx) => {
-      updateNode(itemId, { position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } });
+      updateNode(itemId, { position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx, cardH) } });
     });
-  }, [id, d.items, updateNode]);
+  }, [id, d.items, cardH, updateNode]);
 
   const isDropTarget = pendingDrop?.containerId === id;
 
@@ -174,7 +199,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
   const slots: number[] = [];
   if (isDropTarget) {
     for (let i = 0; i <= d.items.length; i++) {
-      slots.push(slotTopInContainer(i) - CONTAINER_HEADER_H);
+      slots.push(slotTopInContainer(i, cardH) - CONTAINER_HEADER_H);
     }
   }
 
@@ -452,7 +477,7 @@ export const ContainerNode = memo(function ContainerNode({ id, data }: NodeProps
           style={{
             minHeight: d.items.length === 0 ? 64 : undefined,
             height: d.items.length > 0
-              ? containerHeight(d.items.length) - CONTAINER_HEADER_H
+              ? containerHeight(d.items.length, cardH) - CONTAINER_HEADER_H
               : undefined,
             overflow: isDropTarget ? "visible" : undefined,
           }}

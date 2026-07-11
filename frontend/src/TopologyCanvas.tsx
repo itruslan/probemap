@@ -50,6 +50,7 @@ import {
   CONTAINER_CARD_GAP,
   containerHeight,
   slotTopInContainer,
+  cardHeightForPorts,
 } from "./nodes/ContainerNode";
 import { ContainerDropContext, type ContainerDropState } from "./ContainerDropContext";
 import { DeletableEdge } from "./edges/DeletableEdge";
@@ -89,6 +90,22 @@ const NODE_TYPES = { service: ServiceNode, group: GroupNode, container: Containe
 const EDGE_TYPES = { default: DeletableEdge };
 
 type MapEdge = Edge<LayoutEdgeData>;
+
+/** Высота слота контейнера: по максимальной реальной высоте карточки члена
+ *  (measured); до первого измерения — оценка по числу портов. */
+function containerCardH(items: string[], nodes: Node[]): number {
+  let maxH = CONTAINER_CARD_H;
+  for (const it of items) {
+    const n = nodes.find((nn) => nn.id === it);
+    const h =
+      n?.measured?.height ??
+      cardHeightForPorts(
+        ((n?.data as { ports?: unknown[] } | undefined)?.ports ?? []).length,
+      );
+    if (h > maxH) maxH = Math.ceil(h);
+  }
+  return maxH;
+}
 
 function layoutRowToMapEdge(raw: Record<string, unknown>): MapEdge | null {
   const id = typeof raw.id === "string" ? raw.id : String(raw.id ?? "");
@@ -554,15 +571,16 @@ export function TopologyCanvas({
   const getContainerInsertIndex = useCallback(
     (dragged: Node, container: Node): number => {
       const items = (container.data as ContainerNodeData).items;
+      const cardH = containerCardH(items, getNodes());
       const dcy =
         dragged.position.y + (dragged.measured?.height ?? CONTAINER_CARD_H) / 2;
       const bodyTop =
         container.position.y + CONTAINER_HEADER_H + CONTAINER_TOP_PAD;
       const rel = dcy - bodyTop;
-      const rawIdx = Math.round(rel / (CONTAINER_CARD_H + CONTAINER_CARD_GAP));
+      const rawIdx = Math.round(rel / (cardH + CONTAINER_CARD_GAP));
       return Math.max(0, Math.min(rawIdx, items.length));
     },
-    [],
+    [getNodes],
   );
 
   const onNodeDrag = useCallback(
@@ -597,16 +615,18 @@ export function TopologyCanvas({
       if (ownContainerId) {
         const container = allNodes.find((n) => n.id === ownContainerId);
         if (container) {
-          const ch = containerHeight((container.data as ContainerNodeData).items.length);
+          const ownItems = (container.data as ContainerNodeData).items;
+          const ownCardH = containerCardH(ownItems, allNodes);
+          const ch = containerHeight(ownItems.length, ownCardH);
           const dh = dragged.measured?.height ?? CONTAINER_CARD_H;
           // dragged.position is relative to container (parentId)
           const relCy = dragged.position.y + dh / 2;
           const isStillInside = relCy >= 0 && relCy <= ch;
           if (isStillInside) {
             // Show slot indicator for reordering
-            const items = (container.data as ContainerNodeData).items;
+            const items = ownItems;
             const rel = relCy - CONTAINER_HEADER_H - CONTAINER_TOP_PAD;
-            const rawIdx = Math.round(rel / (CONTAINER_CARD_H + CONTAINER_CARD_GAP));
+            const rawIdx = Math.round(rel / (ownCardH + CONTAINER_CARD_GAP));
             const insertIndex = Math.max(0, Math.min(rawIdx, items.length));
             const reorderDisplaced = items[insertIndex] !== dragged.id ? items[insertIndex] : undefined;
             setPendingContainerDrop({
@@ -633,7 +653,7 @@ export function TopologyCanvas({
         if (n.type !== "container") return false;
         const cItems = (n.data as ContainerNodeData).items;
         if (cItems.includes(dragged.id)) return false; // already a member
-        const ch = containerHeight(cItems.length);
+        const ch = containerHeight(cItems.length, containerCardH(cItems, allNodes));
         return (
           dcx >= n.position.x &&
           dcx <= n.position.x + CONTAINER_WIDTH &&
@@ -709,7 +729,10 @@ export function TopologyCanvas({
 
           if (reorderMode) {
             // First verify the node actually ended up inside the container
-            const _ch = containerHeight(containerData.items.length);
+            const _ch = containerHeight(
+              containerData.items.length,
+              containerCardH(containerData.items, allNodes),
+            );
             const _dw = dragged.measured?.width ?? CONTAINER_INNER_W;
             const _dh = dragged.measured?.height ?? CONTAINER_CARD_H;
             const _relCx = dragged.position.x + _dw / 2;
@@ -760,7 +783,13 @@ export function TopologyCanvas({
                   }
                   const idx = updatedItems.indexOf(n.id);
                   if (idx === -1) return n;
-                  return { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } };
+                  return {
+                    ...n,
+                    position: {
+                      x: CONTAINER_SIDE_PAD,
+                      y: slotTopInContainer(idx, containerCardH(updatedItems, ns)),
+                    },
+                  };
                 }),
               );
               return;
@@ -781,7 +810,13 @@ export function TopologyCanvas({
                     }
                     const idx = oldItems.indexOf(n.id);
                     if (idx === -1) return n;
-                    return { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } };
+                    return {
+                      ...n,
+                      position: {
+                        x: CONTAINER_SIDE_PAD,
+                        y: slotTopInContainer(idx, containerCardH(oldItems, ns)),
+                      },
+                    };
                   }),
                 );
                 return;
@@ -790,10 +825,17 @@ export function TopologyCanvas({
             // No actual reorder: snap back to slot
             const idx = containerData.items.indexOf(dragged.id);
             if (idx !== -1) {
+              const snapCardH = containerCardH(containerData.items, allNodes);
               setNodes((ns) =>
                 ns.map((n) =>
                   n.id === dragged.id
-                    ? { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } }
+                    ? {
+                        ...n,
+                        position: {
+                          x: CONTAINER_SIDE_PAD,
+                          y: slotTopInContainer(idx, snapCardH),
+                        },
+                      }
                     : n,
                 ),
               );
@@ -820,7 +862,7 @@ export function TopologyCanvas({
                 parentId: containerId,
                 position: {
                   x: CONTAINER_SIDE_PAD,
-                  y: slotTopInContainer(idx),
+                  y: slotTopInContainer(idx, containerCardH(newItems, ns)),
                 },
                 style: { ...n.style, width: CONTAINER_INNER_W },
                 selectable: false,
@@ -840,7 +882,8 @@ export function TopologyCanvas({
         const container = allNodes.find((n) => n.id === ownContainerId);
         if (container) {
           const containerItems = (container.data as ContainerNodeData).items;
-          const ch = containerHeight(containerItems.length);
+          const outCardH = containerCardH(containerItems, allNodes);
+          const ch = containerHeight(containerItems.length, outCardH);
           // dragged.position is relative to container (parentId)
           const dw = dragged.measured?.width ?? CONTAINER_INNER_W;
           const dh = dragged.measured?.height ?? CONTAINER_CARD_H;
@@ -910,7 +953,13 @@ export function TopologyCanvas({
                 // Reposition remaining members
                 const idx = updatedItems.indexOf(n.id);
                 if (idx === -1) return n;
-                return { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } };
+                return {
+                  ...n,
+                  position: {
+                    x: CONTAINER_SIDE_PAD,
+                    y: slotTopInContainer(idx, containerCardH(updatedItems, ns)),
+                  },
+                };
               }),
             );
             return;
@@ -921,7 +970,13 @@ export function TopologyCanvas({
               setNodes((ns) =>
                 ns.map((n) =>
                   n.id === dragged.id
-                    ? { ...n, position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) } }
+                    ? {
+                        ...n,
+                        position: {
+                          x: CONTAINER_SIDE_PAD,
+                          y: slotTopInContainer(idx, outCardH),
+                        },
+                      }
                     : n,
                 ),
               );
@@ -1154,7 +1209,10 @@ export function TopologyCanvas({
           if (idx === -1) return n;
           return {
             ...n,
-            position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) },
+            position: {
+              x: CONTAINER_SIDE_PAD,
+              y: slotTopInContainer(idx, containerCardH(items, ns)),
+            },
           };
         });
       }

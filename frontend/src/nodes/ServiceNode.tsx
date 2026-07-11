@@ -1541,12 +1541,12 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
           borderRadius: groupVisual.borderRadius,
           padding: groupVisual.accentColor ? "8px 12px 8px 15px" : "8px 12px",
           width: inContainer ? undefined : 200,
-          /* В контейнере — компактная карточка фикс. высоты; на карте высота
-             авто (вертикальный список портов) и overflow visible, чтобы
-             ромбики port-handles на левой границе не обрезались */
-          height: inContainer ? CONTAINER_CARD_H : undefined,
-          minHeight: inContainer ? undefined : CONTAINER_CARD_H,
-          overflow: inContainer ? "hidden" : "visible",
+          /* Высота авто (вертикальный список портов), overflow visible —
+             ромбики port-handles на левой границе не обрезаются. В контейнере
+             слот подстраивается под карточку (динамический cardH). */
+          height: undefined,
+          minHeight: CONTAINER_CARD_H,
+          overflow: "visible",
           boxSizing: "border-box" as const,
           fontSize: 13,
           boxShadow: "var(--probemap-node-card-shadow)",
@@ -1686,13 +1686,11 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
             {(d.ports ?? []).length > 0 ? (
               <div
                 style={{
-                  /* На карте — вертикальный список (строка на порт, ромбик-handle
-                     у края ноды); в контейнере — компактные инлайн-чипы */
+                  /* Вертикальный список: строка на порт, ромбик-handle у края */
                   display: "flex",
-                  flexDirection: inContainer ? "row" : "column",
-                  flexWrap: inContainer ? "wrap" : undefined,
-                  gap: inContainer ? 6 : 4,
-                  alignItems: inContainer ? "center" : "stretch",
+                  flexDirection: "column",
+                  gap: 4,
+                  alignItems: "stretch",
                   flex: "1 1 auto",
                   minWidth: 0,
                 }}
@@ -1706,8 +1704,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                   );
                   const c = STATUS_COLOR[p.status] ?? STATUS_COLOR.unknown;
                   const pk = `${p.port}-${p.job ?? ""}-${p.module ?? ""}`;
-                  const hasPortHandle =
-                    !inContainer && portHandleOwner.get(p.port) === pk;
+                  const hasPortHandle = portHandleOwner.get(p.port) === pk;
                   return (
                     <div
                       key={pk}
@@ -1763,7 +1760,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
                         statusColor={c}
                       />
                       {/* Точки-источники этого порта (per-port статус) */}
-                      {!inContainer && (
+                      {(
                         <div
                           style={{
                             display: "flex",
@@ -1805,8 +1802,7 @@ export const ServiceNode = memo(function ServiceNode({ data, id }: NodeProps) {
             ) : (
               <div style={{ flex: "1 1 auto", minWidth: 0 }} />
             )}
-            {blackboxOrder.length > 0 &&
-              (inContainer || (d.ports ?? []).length === 0) && (
+            {blackboxOrder.length > 0 && (d.ports ?? []).length === 0 && (
               <div
                 style={{
                   display: "flex",
