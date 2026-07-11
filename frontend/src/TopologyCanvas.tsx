@@ -38,6 +38,7 @@ import {
 import { POLL_INTERVAL_OPTIONS_SEC } from "./pollInterval";
 import { ServiceNode, type ServiceNodeData } from "./nodes/ServiceNode";
 import { GroupNode, type GroupNodeData } from "./nodes/GroupNode";
+import { TextNode, TEXT_DEFAULT_FONT_SIZE, type TextNodeData } from "./nodes/TextNode";
 import {
   ContainerNode,
   type ContainerNodeData,
@@ -86,7 +87,7 @@ function initialPaletteWidth(): number {
     : PALETTE_WIDTH_DEFAULT;
 }
 
-const NODE_TYPES = { service: ServiceNode, group: GroupNode, container: ContainerNode };
+const NODE_TYPES = { service: ServiceNode, group: GroupNode, container: ContainerNode, text: TextNode };
 const EDGE_TYPES = { default: DeletableEdge };
 
 type MapEdge = Edge<LayoutEdgeData>;
@@ -1046,8 +1047,14 @@ export function TopologyCanvas({
         if (c.type !== "remove") return true;
         const node = getNodes().find((n) => n.id === c.id);
         if (!node) return true;
-        if (node.type === "service") {
-          // Service nodes are deleted via confirmation modal, not directly
+        if (
+          node.type === "service" ||
+          node.type === "group" ||
+          node.type === "container" ||
+          node.type === "text"
+        ) {
+          // Удаление только через confirm-модалку (doConfirmDelete): прямое
+          // удаление xyflow по Backspace обходит очистку членов контейнера
           return false;
         }
         return true;
@@ -1073,7 +1080,7 @@ export function TopologyCanvas({
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       // Try ReactFlow selected first, then palette selection
       const rfSelected = getNodes().filter(
-        (n) => n.selected && (n.type === "service" || n.type === "group" || n.type === "container"),
+        (n) => n.selected && (n.type === "service" || n.type === "group" || n.type === "container" || n.type === "text"),
       );
       let targetId: string | null = null;
       if (rfSelected.length === 1) {
@@ -1084,7 +1091,8 @@ export function TopologyCanvas({
       if (!targetId) return;
       const node = getNodes().find((n) => n.id === targetId);
       if (!node) return;
-      const label = (node.data as { label?: string }).label ?? node.id;
+      const nd = node.data as { label?: string; text?: string };
+      const label = nd.label ?? nd.text?.slice(0, 40) ?? node.id;
       e.preventDefault();
       setConfirmDelete({ id: node.id, label });
     };
@@ -1174,26 +1182,46 @@ export function TopologyCanvas({
         : undefined);
     setNodes((ns) => {
       const filtered = ns.filter((n) => n.id !== confirmDelete.id);
-      // When deleting a container: free all its member nodes
+      // When deleting a container: free all its member nodes.
+      // parentId членов указывает на удаляемый контейнер, а position
+      // относительна его — снимаем parentId и переводим в абсолютную,
+      // чтобы ноды остались на месте
       if (node?.type === "container") {
         return filtered.map((n) => {
           const nd = n.data as ServiceNodeData & { containerNode?: string };
           if (nd.containerNode !== confirmDelete.id) return n;
           const { containerNode: _cn, ...restData } = nd;
           void _cn;
+          const abs = getInternalNode(n.id)?.internals.positionAbsolute;
           return {
             ...n,
+            parentId: undefined,
+            position: {
+              x: abs?.x ?? n.position.x + node.position.x,
+              y: abs?.y ?? n.position.y + node.position.y,
+            },
             data: restData,
             style: { ...n.style, width: undefined },
             selectable: true,
           };
         });
       }
-      // When deleting a group: orphan child nodes (strip parentId)
+      // When deleting a group: orphan child nodes (strip parentId).
+      // Их position относительна группы — переводим в абсолютную, чтобы
+      // ноды остались на том же месте карты
       if (node?.type === "group") {
-        return filtered.map((n) =>
-          n.parentId === confirmDelete.id ? { ...n, parentId: undefined } : n,
-        );
+        return filtered.map((n) => {
+          if (n.parentId !== confirmDelete.id) return n;
+          const abs = getInternalNode(n.id)?.internals.positionAbsolute;
+          return {
+            ...n,
+            parentId: undefined,
+            position: {
+              x: abs?.x ?? n.position.x + node.position.x,
+              y: abs?.y ?? n.position.y + node.position.y,
+            },
+          };
+        });
       }
       if (memberContainerId) {
         const container = ns.find((n) => n.id === memberContainerId);
@@ -1262,6 +1290,9 @@ export function TopologyCanvas({
               id: ln.id,
               type: "group",
               position: { x: ln.x, y: ln.y },
+              // Тянуть область можно только за заголовок и рёбра-рамку —
+              // центр свободен для перемещения вложенных нод
+              dragHandle: ".area-drag-handle",
               style: {
                 width: ln.width ?? 260,
                 height: ln.height ?? 180,
@@ -1294,6 +1325,17 @@ export function TopologyCanvas({
                 endpoint: ln.endpoint,
                 items,
               } satisfies ContainerNodeData,
+            } as Node;
+          }
+          if (ln.type === "text") {
+            return {
+              id: ln.id,
+              type: "text",
+              position: { x: ln.x, y: ln.y },
+              data: {
+                text: ln.label ?? "",
+                fontSize: ln.fontSize ?? TEXT_DEFAULT_FONT_SIZE,
+              } satisfies TextNodeData,
             } as Node;
           }
           const legacyType = ln.type as string | undefined;
@@ -1523,6 +1565,7 @@ export function TopologyCanvas({
           id: `group-${Date.now()}`,
           type: "group",
           position,
+          dragHandle: ".area-drag-handle",
           style: { width: 260, height: 180, zIndex: -10 + groupCount },
           data: {
             label: t("defaultGroupLabel"),
@@ -1538,6 +1581,37 @@ export function TopologyCanvas({
     setNodes,
     screenToFlowPosition,
     t,
+    pushSnapshot,
+  ]);
+
+  const addTextFromSidebar = useCallback(() => {
+    if (metricsStale || !canvasInteractive) return;
+    if (!applyingHistory.current) pushSnapshot();
+    const rect = wrapperRef.current?.getBoundingClientRect() ?? null;
+    setNodes((ns) => {
+      const position = findFreePositionViewportLeftColumn(
+        ns,
+        screenToFlowPosition,
+        rect,
+      );
+      return [
+        ...ns,
+        {
+          id: `text-${Date.now()}`,
+          type: "text",
+          position,
+          data: {
+            text: "",
+            fontSize: TEXT_DEFAULT_FONT_SIZE,
+          } satisfies TextNodeData,
+        } as Node,
+      ];
+    });
+  }, [
+    metricsStale,
+    canvasInteractive,
+    setNodes,
+    screenToFlowPosition,
     pushSnapshot,
   ]);
 
@@ -1659,7 +1733,13 @@ export function TopologyCanvas({
       id: n.id,
       x: n.position.x,
       y: n.position.y,
-      type: (n.type as "service" | "group" | "container") ?? "service",
+      type: (n.type as "service" | "group" | "container" | "text") ?? "service",
+      ...(n.type === "text"
+        ? {
+            label: (n.data as unknown as TextNodeData).text,
+            fontSize: (n.data as unknown as TextNodeData).fontSize,
+          }
+        : {}),
       ...(n.type === "group"
         ? {
             label: (n.data as unknown as GroupNodeData).label,
@@ -1901,6 +1981,7 @@ export function TopologyCanvas({
                   onAddObject={addObjectFromPalette}
                   onAddArea={addAreaFromSidebar}
                   onAddContainer={addContainerFromSidebar}
+                  onAddText={addTextFromSidebar}
                   readOnly={metricsStale || !canvasInteractive || !isAdmin}
                   selectedId={paletteSelectedId}
                   onSelect={onPaletteSelect}

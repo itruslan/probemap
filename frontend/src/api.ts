@@ -125,8 +125,10 @@ export interface LayoutNode {
   id: string;
   x: number;
   y: number;
-  type?: "service" | "group" | "container";
+  type?: "service" | "group" | "container" | "text";
   label?: string;
+  /** Text node: размер шрифта */
+  fontSize?: number;
   kind?: string;
   icon?: string;
   width?: number;

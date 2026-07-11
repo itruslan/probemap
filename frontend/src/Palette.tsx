@@ -21,6 +21,8 @@ interface PaletteProps {
   onAddArea: () => void;
   /** Добавить контейнер-группу на карту */
   onAddContainer: () => void;
+  /** Добавить текстовую надпись на карту */
+  onAddText: () => void;
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   /** Подсветка сервиса на карте при наведении */
@@ -38,6 +40,7 @@ export const Palette = memo(function Palette({
   onAddObject,
   onAddArea,
   onAddContainer,
+  onAddText,
   readOnly = false,
   selectedId,
   onSelect,
@@ -131,6 +134,16 @@ export const Palette = memo(function Palette({
         >
           <FaPlus size={9} aria-hidden style={{ marginRight: 4, verticalAlign: "middle" }} />
           {t("paletteContainer")}
+        </button>
+        <button
+          type="button"
+          disabled={readOnly}
+          className="palette-sidebar__tab"
+          onClick={onAddText}
+          title={t("paletteText")}
+        >
+          <FaPlus size={9} aria-hidden style={{ marginRight: 4, verticalAlign: "middle" }} />
+          {t("paletteText")}
         </button>
       </div>
 

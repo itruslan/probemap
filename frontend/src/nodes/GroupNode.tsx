@@ -1,4 +1,4 @@
-import { Handle, NodeResizer, Position, useReactFlow, type NodeProps } from "@xyflow/react";
+import { Handle, NodeResizer, Position, useReactFlow, useStore, type NodeProps } from "@xyflow/react";
 import { createPortal } from "react-dom";
 import {
   memo,
@@ -111,6 +111,37 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
 
   /** Редактирование активно только когда нода выбрана и пользователь — администратор */
   const isEditMode = !!selected && canEdit;
+
+  /** Компенсация зума для заголовка: при отдалении карты подпись области
+   *  увеличивается (до 2.5×), оставаясь читаемой; при приближении — обычная. */
+  const zoom = useStore((s) => s.transform[2]);
+  const labelScale = Math.min(2.5, Math.max(1, 1 / zoom));
+
+  // Hover-показ панели (description/endpoint) по заголовку области — редактирование
+  // доступно без предварительного клика-выделения (как у ContainerNode)
+  const hoverHideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverShowTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const hoverShow = useCallback(() => {
+    if (hoverHideTimer.current) {
+      clearTimeout(hoverHideTimer.current);
+      hoverHideTimer.current = null;
+    }
+    hoverShowTimer.current = setTimeout(() => {
+      setVisible(true);
+      hoverShowTimer.current = null;
+    }, 600);
+  }, []);
+  const hoverHide = useCallback(() => {
+    if (hoverShowTimer.current) {
+      clearTimeout(hoverShowTimer.current);
+      hoverShowTimer.current = null;
+    }
+    if (locked) return;
+    hoverHideTimer.current = setTimeout(() => {
+      setVisible(false);
+      setEditingIcon(false);
+    }, 200);
+  }, [locked]);
   // Закрывать палитру по клику вне неё
   useEffect(() => {
     if (!paletteOpen) return;
@@ -304,6 +335,13 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           <div
             ref={panelRef}
             onMouseDown={(e) => e.stopPropagation()}
+            onMouseEnter={() => {
+              if (hoverHideTimer.current) {
+                clearTimeout(hoverHideTimer.current);
+                hoverHideTimer.current = null;
+              }
+            }}
+            onMouseLeave={hoverHide}
             style={{
               ...panelStyle,
               zIndex: 3000,
@@ -665,18 +703,39 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           </div>
         )}
 
-        {/* Заголовок: кнопка цвета (только в edit mode) + лейбл (всегда) */}
+        {/* Рёбра-рамка: единственные зоны перетаскивания области (dragHandle) —
+            центр остаётся свободным для перемещения вложенных нод */}
+        {([
+          { top: 0, left: 0, right: 0, height: 10 },
+          { bottom: 0, left: 0, right: 0, height: 10 },
+          { top: 10, bottom: 10, left: 0, width: 10 },
+          { top: 10, bottom: 10, right: 0, width: 10 },
+        ] as React.CSSProperties[]).map((pos, i) => (
+          <div
+            key={i}
+            className="area-drag-handle"
+            style={{ position: "absolute", cursor: "grab", ...pos }}
+          />
+        ))}
+
+        {/* Заголовок: кнопка цвета + лейбл; тоже drag-handle (привычно тянуть
+            за шапку); hover открывает панель редактирования без клика */}
         <div
-          onPointerDown={stopFlowPointer}
-          onMouseDown={stopFlowPointer}
+          className="area-drag-handle"
+          onMouseEnter={hoverShow}
+          onMouseLeave={hoverHide}
           style={{
+            cursor: "grab",
+            transform: `scale(${labelScale})`,
+            transformOrigin: "top left",
             position: "absolute",
             top: 4,
             left: 8,
             display: "flex",
             alignItems: "center",
             gap: 6,
-            maxWidth: "calc(100% - 160px)",
+            /* Компенсация scale: ширина процентная считается до transform */
+            maxWidth: `calc((100% - 160px) / ${labelScale})`,
           }}
         >
           <div
@@ -696,7 +755,8 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           >
             <IconRenderer name={iconName} size={14} />
           </div>
-          {isEditMode && (
+          {/* Кнопка цвета доступна админу сразу, без предварительного выделения */}
+          {canEdit && (
             <button
               ref={colorBtnRef}
               type="button"
@@ -728,6 +788,9 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
           {editing ? (
             <input
               autoFocus
+              className="nodrag"
+              onPointerDown={stopFlowPointer}
+              onMouseDown={stopFlowPointer}
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               onBlur={() => {
@@ -756,12 +819,19 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
             />
           ) : (
             <span
-              onDoubleClick={() => { if (isEditMode) setEditing(true); }}
+              className="nodrag"
+              onPointerDown={stopFlowPointer}
+              onMouseDown={stopFlowPointer}
+              onClick={(e) => {
+                if (!canEdit) return;
+                e.stopPropagation();
+                setEditing(true);
+              }}
               style={{
                 fontSize: 12,
                 fontWeight: 600,
                 color: labelColor,
-                cursor: isEditMode ? "text" : "default",
+                cursor: canEdit ? "text" : "default",
                 userSelect: "none",
               }}
             >

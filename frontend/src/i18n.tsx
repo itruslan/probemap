@@ -74,6 +74,10 @@ const STRINGS = {
     groupColorReset: "Без цвета",
     paletteArea: "Область",
     paletteContainer: "Группа",
+    paletteText: "Текст",
+    textPlaceholder: "Текст…",
+    textFontSize: "Размер шрифта",
+    defaultTextLabel: "Текст",
 
     edgeEditTitle: "Связь между компонентами",
     edgeProtocol: "Протокол",
@@ -368,6 +372,10 @@ const STRINGS = {
     groupColorReset: "No color",
     paletteArea: "Area",
     paletteContainer: "Group",
+    paletteText: "Text",
+    textPlaceholder: "Text…",
+    textFontSize: "Font size",
+    defaultTextLabel: "Text",
 
     edgeEditTitle: "Link between components",
     edgeProtocol: "Protocol",
