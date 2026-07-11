@@ -1100,11 +1100,23 @@ export function TopologyCanvas({
     if (!applyingHistory.current) pushSnapshot();
     const allNodes = getNodes();
     const node = allNodes.find((n) => n.id === confirmDelete.id);
-    if (node)
+    if (node) {
+      // Для вложенных нод position относительна родителя — сохраняем абсолютную,
+      // иначе повторное добавление сервиса телепортирует его в координаты слота
+      const abs = getInternalNode(confirmDelete.id)?.internals.positionAbsolute;
       removedPositions.current.set(confirmDelete.id, {
-        x: node.position.x,
-        y: node.position.y,
+        x: abs?.x ?? node.position.x,
+        y: abs?.y ?? node.position.y,
       });
+    }
+    // Удаляемая нода — член контейнера: вычистить её из items и перепаковать
+    // оставшиеся по слотам (иначе в контейнере остаётся пустой слот)
+    const memberContainerId =
+      (node?.data as { containerNode?: string } | undefined)?.containerNode ??
+      (node?.parentId &&
+      allNodes.find((n) => n.id === node.parentId)?.type === "container"
+        ? node.parentId
+        : undefined);
     setNodes((ns) => {
       const filtered = ns.filter((n) => n.id !== confirmDelete.id);
       // When deleting a container: free all its member nodes
@@ -1128,6 +1140,24 @@ export function TopologyCanvas({
           n.parentId === confirmDelete.id ? { ...n, parentId: undefined } : n,
         );
       }
+      if (memberContainerId) {
+        const container = ns.find((n) => n.id === memberContainerId);
+        const items =
+          ((container?.data as ContainerNodeData | undefined)?.items ?? []).filter(
+            (itemId) => itemId !== confirmDelete.id,
+          );
+        return filtered.map((n) => {
+          if (n.id === memberContainerId) {
+            return { ...n, data: { ...n.data, items } as ContainerNodeData };
+          }
+          const idx = items.indexOf(n.id);
+          if (idx === -1) return n;
+          return {
+            ...n,
+            position: { x: CONTAINER_SIDE_PAD, y: slotTopInContainer(idx) },
+          };
+        });
+      }
       return filtered;
     });
     setEdges((es) =>
@@ -1139,7 +1169,7 @@ export function TopologyCanvas({
     setPaletteHoverId(null);
     setTracedNodeId(null);
     setConfirmDelete(null);
-  }, [confirmDelete, getNodes, setNodes, setEdges, pushSnapshot]);
+  }, [confirmDelete, getNodes, getInternalNode, setNodes, setEdges, pushSnapshot]);
 
   /** Один раз после загрузки раскладки — не при смене языка (иначе fitView на каждом ререндере) */
   const scheduleFitAfterLayout = useCallback(() => {
