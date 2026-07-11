@@ -327,7 +327,7 @@ export function TopologyCanvas({
   const {
     screenToFlowPosition,
     getNodes,
-    getNode,
+    getInternalNode,
     setCenter,
     getZoom,
     fitView,
@@ -523,16 +523,17 @@ export function TopologyCanvas({
       setPaletteSelectedId(id);
       if (!id) return;
       queueMicrotask(() => {
-        const n = getNode(id);
+        // getInternalNode: у вложенных нод (внутри группы/контейнера) position
+        // относительна родителя — setCenter нужны абсолютные координаты
+        const n = getInternalNode(id);
         if (!n) return;
         const w = n.measured?.width ?? 140;
         const h = n.measured?.height ?? 80;
-        const cx = n.position.x + w / 2;
-        const cy = n.position.y + h / 2;
-        void setCenter(cx, cy, { zoom: getZoom(), duration: 320 });
+        const { x, y } = n.internals.positionAbsolute;
+        void setCenter(x + w / 2, y + h / 2, { zoom: getZoom(), duration: 320 });
       });
     },
-    [getNode, setCenter, getZoom],
+    [getInternalNode, setCenter, getZoom],
   );
 
   const COLLIDABLE = ["service"];
@@ -1773,7 +1774,15 @@ export function TopologyCanvas({
   }, [store, metricsStale]);
 
   return (
-    <TraceContext.Provider value={{ tracedNodeId, toggleTrace, canEdit: !metricsStale && isAdmin }}>
+    // canEdit учитывает и режим «замок» (canvasInteractive) — иначе NodeResizer,
+    // видимый без выделения, позволял бы ресайзить области в залоченной карте
+    <TraceContext.Provider
+      value={{
+        tracedNodeId,
+        toggleTrace,
+        canEdit: !metricsStale && isAdmin && canvasInteractive,
+      }}
+    >
       <CollisionContext.Provider value={collidingIds}>
         <DragContext.Provider value={draggingService}>
           <ContainerDropContext.Provider value={pendingContainerDrop}>

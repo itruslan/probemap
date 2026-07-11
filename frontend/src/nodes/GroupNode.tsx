@@ -598,9 +598,11 @@ export const GroupNode = memo(function GroupNode({ id, data, selected }: NodePro
       <Handle type="source" position={Position.Bottom} id="bottom" style={HANDLE_STYLE} className="react-flow__handle-visibility" />
       <Handle type="source" position={Position.Left}   id="left"   style={HANDLE_STYLE} className="react-flow__handle-visibility" />
 
-      {/* Ресайзер: только в режиме редактирования (выбрана + admin) */}
+      {/* Ресайзер: доступен админу сразу, без предварительного выделения ноды.
+          Видимые уголки-квадратики рендерятся отдельно только при isEditMode,
+          так что на невыделенных областях визуального шума нет. */}
       <NodeResizer
-        isVisible={isEditMode}
+        isVisible={canEdit}
         minWidth={120}
         minHeight={80}
         lineStyle={{ borderWidth: 8, borderColor: "transparent" }}
