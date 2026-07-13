@@ -78,6 +78,7 @@ const STRINGS = {
     textPlaceholder: "Текст…",
     textFontSize: "Размер шрифта",
     defaultTextLabel: "Текст",
+    layoutSaveFailed: "Изменения не сохраняются — войдите как администратор заново",
 
     edgeEditTitle: "Связь между компонентами",
     edgeProtocol: "Протокол",
@@ -376,6 +377,7 @@ const STRINGS = {
     textPlaceholder: "Text…",
     textFontSize: "Font size",
     defaultTextLabel: "Text",
+    layoutSaveFailed: "Changes are not being saved — log in as admin again",
 
     edgeEditTitle: "Link between components",
     edgeProtocol: "Protocol",

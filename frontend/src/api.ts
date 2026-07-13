@@ -24,6 +24,14 @@ export function getAuthToken(): string | null {
   return _token;
 }
 
+/** Вызывается когда сервер отверг сохранённый токен (401) — чтобы UI вышел
+ *  из админ-режима, а не продолжал молча терять изменения. */
+let _onAuthLost: (() => void) | null = null;
+
+export function setOnAuthLost(cb: (() => void) | null): void {
+  _onAuthLost = cb;
+}
+
 async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
   const authHeader: Record<string, string> = _token
     ? { Authorization: `Bearer ${_token}` }
@@ -32,9 +40,10 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: { ...authHeader, ...(init?.headers as Record<string, string> | undefined) },
   });
-  if (r.status === 401) {
-    // Token revoked or server restarted — clear it
+  if (r.status === 401 && _token) {
+    // Token revoked or server restarted — clear it and notify UI
     setAuthToken(null);
+    _onAuthLost?.();
   }
   if (!r.ok) {
     const text = await r.text().catch(() => "");
@@ -45,6 +54,11 @@ async function apiFetch<T>(url: string, init?: RequestInit): Promise<T> {
 
 export async function fetchAuthStatus(): Promise<{ required: boolean }> {
   return apiFetch<{ required: boolean }>(`${BASE}/api/auth/status`);
+}
+
+/** Проверка живости сохранённого токена; 401 сам сбросит токен через apiFetch. */
+export async function checkAuthToken(): Promise<void> {
+  await apiFetch<{ ok: boolean }>(`${BASE}/api/auth/check`);
 }
 
 export async function loginAdmin(password: string): Promise<void> {

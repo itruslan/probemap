@@ -519,6 +519,8 @@ export function TopologyCanvas({
   const persistLayoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  /** Последнее автосохранение упало (401/сеть) — на карте есть несохранённые правки */
+  const [saveFailed, setSaveFailed] = useState(false);
 
   const handleToolbarRefresh = useCallback(() => {
     if (refreshBoldTimerRef.current) clearTimeout(refreshBoldTimerRef.current);
@@ -1822,7 +1824,12 @@ export function TopologyCanvas({
       edges: edgeRows,
       service_configs: serviceConfigs.current,
     };
-    saveProjectLayout(projectId, payload);
+    saveProjectLayout(projectId, payload).then(
+      () => setSaveFailed(false),
+      // 401 (протухший токен после рестарта пода) или сеть: не молчим —
+      // баннер + ретрай после повторного логина (см. эффект на isAdmin)
+      () => setSaveFailed(true),
+    );
   }, [nodes, edges, projectId]);
 
   const handleEdgeMetadataSave = useCallback(
@@ -1861,6 +1868,13 @@ export function TopologyCanvas({
         clearTimeout(persistLayoutTimerRef.current);
     };
   }, [nodes, edges, metricsStale, persistLayout]);
+
+  // После повторного логина дослать несохранённые правки (состояние карты
+  // всё ещё в памяти — теряться нечему)
+  useEffect(() => {
+    if (isAdmin && saveFailed) persistLayout();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   const onCanvas = useMemo(
     () => new Set(nodes.filter((n) => n.type === "service").map((n) => n.id)),
@@ -2213,6 +2227,29 @@ export function TopologyCanvas({
                         >
                           ×
                         </button>
+                      </div>
+                    )}
+                    {saveFailed && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 48,
+                          left: "50%",
+                          transform: "translateX(-50%)",
+                          zIndex: 6,
+                          padding: "5px 12px",
+                          borderRadius: 999,
+                          background: "var(--probemap-bg)",
+                          border: "1.5px solid #ef4444",
+                          boxShadow: "0 2px 8px rgba(15,23,42,0.12)",
+                          fontSize: 12,
+                          color: "#ef4444",
+                          fontWeight: 600,
+                          whiteSpace: "nowrap",
+                          pointerEvents: "none",
+                        }}
+                      >
+                        {t("layoutSaveFailed")}
                       </div>
                     )}
                     <ReactFlow

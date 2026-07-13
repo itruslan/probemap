@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
-import { fetchAuthStatus, getAuthToken, loginAdmin, logoutAdmin } from "./api";
+import { checkAuthToken, fetchAuthStatus, getAuthToken, loginAdmin, logoutAdmin, setOnAuthLost } from "./api";
 
 interface AuthContextValue {
   /** false only when auth is configured and user is not logged in. */
@@ -25,12 +25,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authChecking, setAuthChecking] = useState(true);
   const [authRequired, setAuthRequired] = useState(false);
 
+  // Сервер отверг токен (рестарт пода, смена пароля) — выходим из админ-режима,
+  // чтобы редактирование не продолжалось с молча падающими сохранениями
+  useEffect(() => {
+    setOnAuthLost(() => setIsAdmin(false));
+    return () => setOnAuthLost(null);
+  }, []);
+
   useEffect(() => {
     fetchAuthStatus()
       .then(({ required }) => {
         setAuthRequired(required);
         if (!required) setIsAdmin(true);
-        // If required, isAdmin depends on whether we have a stored token
+        // If required, isAdmin depends on whether we have a stored token —
+        // проверяем его живость сразу: 401 сбросит токен и вызовет onAuthLost
+        else if (getAuthToken() !== null) checkAuthToken().catch(() => {});
       })
       .catch(() => {
         // If status endpoint fails, assume no auth required (backward compat)

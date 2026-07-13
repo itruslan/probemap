@@ -118,6 +118,13 @@ def login(body: LoginBody) -> dict[str, str]:
     return {"token": auth.create_token()}
 
 
+@app.get("/api/auth/check")
+def auth_check(_: None = Depends(auth.require_admin)) -> dict[str, bool]:
+    """Валидация сохранённого токена при загрузке страницы: протухший токен
+    обнаруживается сразу (401), а не молчаливым падением первого автосейва."""
+    return {"ok": True}
+
+
 @app.post("/api/auth/logout")
 def api_logout(creds=Depends(auth._bearer)) -> dict[str, str]:
     if creds:
