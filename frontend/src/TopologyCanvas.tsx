@@ -4,6 +4,7 @@ import {
   reconnectEdge,
   Background,
   ConnectionMode,
+  SelectionMode,
   useNodesState,
   useEdgesState,
   useReactFlow,
@@ -606,9 +607,16 @@ export function TopologyCanvas({
       ) {
         dragStartSnapshot.current = cloneSnapshot();
       }
-      setDraggingService(true);
 
       const allNodes = getNodes();
+
+      // Мульти-перетаскивание выделения: xyflow двигает все выбранные ноды сам,
+      // контейнерную логику (drop/reorder) и подсветку коллизий не применяем
+      if (dragged.selected && allNodes.some((n) => n.selected && n.id !== dragged.id)) {
+        setPendingContainerDrop(null);
+        return;
+      }
+      setDraggingService(true);
 
       // ── If dragged node belongs to a container: reorder or drag-out ─────────
       const ownContainerId = (dragged.data as ServiceNodeData & { containerNode?: string })
@@ -719,6 +727,13 @@ export function TopologyCanvas({
       dragStartSnapshot.current = null;
 
       const allNodes = getNodes();
+
+      // Мульти-перетаскивание выделения: без контейнерного drop и коллизий —
+      // выделение остаётся там, куда его перенесли
+      if (dragged.selected && allNodes.some((n) => n.selected && n.id !== dragged.id)) {
+        setPendingContainerDrop(null);
+        return;
+      }
 
       // ── Drop into container OR reorder within container ───────────────────
       if (pendingContainerDrop) {
@@ -2214,12 +2229,13 @@ export function TopologyCanvas({
                       edgeTypes={EDGE_TYPES}
                       connectionMode={ConnectionMode.Loose}
                       defaultEdgeOptions={{ type: "default", data: {}, zIndex: 1 }}
-                      nodesDraggable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
+                      nodesDraggable={!metricsStale && isAdmin && canvasInteractive}
                       nodesConnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       edgesReconnectable={!metricsStale && isAdmin && canvasInteractive && !selectMode}
                       elementsSelectable={isAdmin ? (!metricsStale && canvasInteractive) : !metricsStale}
                       panOnDrag={!selectMode}
                       selectionOnDrag={selectMode}
+                      selectionMode={SelectionMode.Partial}
                       onBeforeDelete={onBeforeDelete}
                     >
                       <Background color="var(--probemap-text-faint)" gap={16} />
